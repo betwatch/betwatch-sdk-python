@@ -19,7 +19,7 @@ class BetwatchClient:
             parse_results=True,
         )
 
-    def get_races(self, date_from: str, date_to: str):
+    def get_races(self, date_from: str, date_to: str) -> List[Race]:
         query = QUERY_GET_RACES
         variables = {"dateFrom": date_from, "dateTo": date_to}
         result = self._gql_client.execute(query, variable_values=variables)
@@ -27,7 +27,7 @@ class BetwatchClient:
         if result.get("races"):
             return typedload.load(result["races"], List[Race])
 
-        return None
+        return []
 
     def get_race(self, race_id: str):
         return self.get_race_by_id(race_id)
