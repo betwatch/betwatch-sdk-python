@@ -14,7 +14,7 @@ class RaceStatus(Enum):
     PAYING = "Paying"
     RESULTED = "Resulted"
 
-    def is_closed(self):
+    def is_closed(self) -> bool:
         return self != RaceStatus.OPEN
 
 
@@ -53,7 +53,7 @@ class Runner:
         metadata={"name": "betfairMarkets"}, default_factory=list
     )
 
-    def is_scratched(self):
+    def is_scratched(self) -> bool:
         return self._scratched_time is not None
 
     def __post_init__(self):
@@ -98,7 +98,7 @@ class Race:
     _updated_at: Optional[str] = field(metadata={"name": "updatedAt"}, default=None)
     _created_at: Optional[str] = field(metadata={"name": "createdAt"}, default=None)
 
-    def is_open(self):
+    def is_open(self) -> bool:
         # FIXME: should i raise an exception if status is None?
         return self.status == RaceStatus.OPEN
 

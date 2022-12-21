@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 from gql import Client
 from gql.transport.aiohttp import AIOHTTPTransport
 import typedload
@@ -19,7 +19,7 @@ class BetwatchAsyncClient:
             parse_results=True,
         )
 
-    async def get_races(self, date_from: str, date_to: str):
+    async def get_races(self, date_from: str, date_to: str) -> List[Race]:
         query = QUERY_GET_RACES
         variables = {"dateFrom": date_from, "dateTo": date_to}
 
@@ -28,12 +28,12 @@ class BetwatchAsyncClient:
             if result.get("races"):
                 return typedload.load(result["races"], List[Race])
 
-            return None
+            return []
 
-    async def get_race(self, race_id: str):
+    async def get_race(self, race_id: str) -> Union[Race, None]:
         return await self.get_race_by_id(race_id)
 
-    async def get_race_by_id(self, race_id: str):
+    async def get_race_by_id(self, race_id: str) -> Union[Race, None]:
         query = QUERY_GET_RACE
         variables = {"id": race_id}
 

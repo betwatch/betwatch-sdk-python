@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 
 @dataclass
@@ -66,5 +66,5 @@ class BetfairMarket:
     lay: Optional[list[BetfairTick]] = field(default_factory=list)
 
     @property
-    def sp(self):
+    def sp(self) -> Union[float, None]:
         return self.starting_price

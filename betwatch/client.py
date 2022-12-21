@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 from gql import Client
 from gql.transport.aiohttp import AIOHTTPTransport
 import typedload
@@ -29,10 +29,10 @@ class BetwatchClient:
 
         return []
 
-    def get_race(self, race_id: str):
+    def get_race(self, race_id: str) -> Union[Race, None]:
         return self.get_race_by_id(race_id)
 
-    def get_race_by_id(self, race_id: str):
+    def get_race_by_id(self, race_id: str) -> Union[Race, None]:
         query = QUERY_GET_RACE
         variables = {"id": race_id}
         result = self._gql_client.execute(query, variable_values=variables)
