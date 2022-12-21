@@ -83,7 +83,7 @@ class RaceLink:
 @dataclass
 class Race:
     id: str
-    number: str
+    number: int
     status: RaceStatus
     meeting: Meeting
 

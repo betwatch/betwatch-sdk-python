@@ -21,13 +21,14 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = ["gql[aiohttp,websockets]~=3.4.0", "typedload~=2.20"]
+dependencies = ["gql[aiohttp]~=3.4.0", "typedload~=2.20"]
 dynamic = ["version"]
 
 [project.urls]
 Documentation = "https://github.com/betwatch/betwatch-sdk-python#readme"
 Issues = "https://github.com/betwatch/betwatch-sdk-python/issues"
 Source = "https://github.com/betwatch/betwatch-sdk-python"
+
 
 [tool.hatch.version]
 path = "betwatch/__about__.py"

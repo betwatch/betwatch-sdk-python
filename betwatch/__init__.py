@@ -3,3 +3,4 @@
 # SPDX-License-Identifier: MIT
 
 from .client import BetwatchClient
+from .client_async import BetwatchAsyncClient
