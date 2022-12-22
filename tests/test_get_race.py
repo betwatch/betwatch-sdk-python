@@ -23,5 +23,6 @@ def test_get_race():
     assert race is not None
     assert race.id == "63a165a522ac7b5ed64336b2"
     assert race.status == RaceStatus.RESULTED
+    assert race.meeting is not None
     assert race.meeting.track == "Darwin"
     assert race.number == 6

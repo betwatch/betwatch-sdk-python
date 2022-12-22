@@ -15,7 +15,7 @@ async def main():
         next_open = next((r for r in races if r.is_open() and r.id), None)
         if next_open and next_open.id:
             race = await client.get_race(next_open.id)
-            if race:
+            if race and race.meeting:
                 print(f"Received race data for {race.meeting.track} R{race.number}")
 
 
