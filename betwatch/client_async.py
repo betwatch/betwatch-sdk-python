@@ -6,7 +6,13 @@ from gql.transport.websockets import WebsocketsTransport
 from gql.transport.aiohttp import AIOHTTPTransport
 from gql.client import ReconnectingAsyncClientSession, AsyncClientSession
 import typedload
-from betwatch.queries import QUERY_GET_RACE, QUERY_GET_RACES
+from betwatch.queries import (
+    QUERY_GET_RACE,
+    QUERY_GET_RACES,
+    SUBSCRIPTION_PRICE_UPDATES,
+    SUBSCRIPTION_RACES_UPDATES,
+)
+from betwatch.types.markets import BookmakerMarket
 from betwatch.types.race import Race
 from betwatch.__about__ import __version__
 import atexit
@@ -23,6 +29,7 @@ class BetwatchAsyncClient:
                 "User-Agent": f"betwatch-python-{__version__}",
             },
             init_payload={"apiKey": self.api_key},
+            ack_timeout=60,
         )
         self._gql_transport = AIOHTTPTransport(
             url="https://api.betwatch.com/query",
@@ -33,13 +40,15 @@ class BetwatchAsyncClient:
         )
         # Create a GraphQL client using the defined transport
         self._gql_sub_client = Client(
-            transport=self._gql_transport,
+            transport=self._gql_sub_transport,
             fetch_schema_from_transport=True,
+            execute_timeout=60,
             parse_results=True,
         )
         self._gql_client = Client(
             transport=self._gql_transport,
             fetch_schema_from_transport=True,
+            execute_timeout=60,
             parse_results=True,
         )
 
@@ -71,11 +80,12 @@ class BetwatchAsyncClient:
 
     async def __aenter__(self):
         """Pass through to the underlying client's __aenter__ method."""
-        self._session = await self._gql_sub_client.__aenter__()
+        self._session = await self._gql_sub_client.connect_async(reconnecting=True)
         return self._session
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Pass through to the underlying client's __aexit__ method."""
+        await self._gql_sub_client.close_async()
         self._session = self._http_session
         return self._session
 
@@ -113,6 +123,35 @@ class BetwatchAsyncClient:
             if raise_exceptions:
                 raise e
             return None
+
+    async def subscribe_price_updates(
+        self,
+        race_id: str,
+    ):
+        if not self._session:
+            raise Exception(
+                "Not connected to session. Use async with BetwatchAsyncClient():"
+            )
+
+        query = SUBSCRIPTION_PRICE_UPDATES
+        variables = {"id": race_id}
+
+        async for result in self._session.subscribe(query, variable_values=variables):
+            if result.get("priceUpdates"):
+                yield typedload.load(result["priceUpdates"], List[BookmakerMarket])
+
+    async def subscribe_races_updates(self, date_from: str, date_to: str):
+        if not self._session:
+            raise Exception(
+                "Not connected to session. Use async with BetwatchAsyncClient():"
+            )
+
+        query = SUBSCRIPTION_RACES_UPDATES
+        variables = {"dateFrom": date_from, "dateTo": date_to}
+
+        async for result in self._session.subscribe(query, variable_values=variables):
+            if result.get("racesUpdates"):
+                yield typedload.load(result["racesUpdates"], Race)
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     async def __get_race_by_id(self, race_id: str) -> Union[Race, None]:

@@ -83,9 +83,11 @@ class RaceLink:
 @dataclass
 class Race:
     id: str
-    number: int
+
     status: RaceStatus
-    meeting: Meeting
+
+    meeting: Optional[Meeting] = None
+    number: Optional[int] = None
 
     name: Optional[str] = None
     distance: Optional[int] = None
