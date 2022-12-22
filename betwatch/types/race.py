@@ -6,6 +6,12 @@ from typing import List, Optional
 from betwatch.types.markets import BetfairMarket, BookmakerMarket
 
 
+class MeetingType(Enum):
+    THOROUGHBRED = "Thoroughbred"
+    GREYHOUND = "Greyhound"
+    HARNESS = "Harness"
+
+
 class RaceStatus(Enum):
     OPEN = "Open"
     CLOSED = "Closed"
@@ -21,7 +27,7 @@ class RaceStatus(Enum):
 @dataclass
 class Meeting:
     id: str
-    type: str
+    type: MeetingType
     date: str
     track: str
     location: str
