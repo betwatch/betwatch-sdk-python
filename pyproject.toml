@@ -21,7 +21,7 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = ["gql[aiohttp]~=3.4.0", "typedload~=2.20"]
+dependencies = ["gql[aiohttp,websockets]~=3.5.0b0 ", "typedload~=2.20"]
 dynamic = ["version"]
 
 [project.urls]
@@ -34,7 +34,7 @@ Source = "https://github.com/betwatch/betwatch-sdk-python"
 path = "betwatch/__about__.py"
 
 [tool.hatch.envs.default]
-dependencies = ["pytest", "pytest-cov"]
+dependencies = ["pytest", "pytest-cov", "python-dotenv", "pytest-asyncio"]
 [tool.hatch.envs.default.scripts]
 cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=betwatch --cov=tests {args}"
 no-cov = "cov --no-cov {args}"

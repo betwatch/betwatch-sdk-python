@@ -13,8 +13,9 @@ async def get_race(race_id: str):
 
     client = BetwatchAsyncClient(api_key=api_key)
 
-    race = await client.get_race(race_id)
-    return race
+    async with client:
+        race = await client.get_race(race_id)
+        return race
 
 
 @pytest.mark.asyncio

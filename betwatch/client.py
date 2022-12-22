@@ -4,13 +4,18 @@ from gql.transport.aiohttp import AIOHTTPTransport
 import typedload
 from betwatch.queries import QUERY_GET_RACE, QUERY_GET_RACES
 from betwatch.types.race import Race
+from betwatch.__about__ import __version__
 
 
 class BetwatchClient:
     def __init__(self, api_key: str):
         self.api_key = api_key
         self._gql_transport = AIOHTTPTransport(
-            url="https://api.betwatch.com/query", headers={"X-API-KEY": self.api_key}
+            url="https://api.betwatch.com/query",
+            headers={
+                "X-API-KEY": self.api_key,
+                "User-Agent": f"betwatch-python-{__version__}",
+            },
         )
         # Create a GraphQL client using the defined transport
         self._gql_client = Client(
