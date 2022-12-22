@@ -61,6 +61,7 @@ QUERY_GET_RACES = gql(
                 type
                 date
             }
+            classConditions
             name
             number
             status
