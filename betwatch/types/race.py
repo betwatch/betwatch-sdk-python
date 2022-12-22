@@ -91,6 +91,9 @@ class Race:
 
     name: Optional[str] = None
     distance: Optional[int] = None
+    classConditions: Optional[str] = field(
+        metadata={"name": "classConditions"}, default=None
+    )
 
     links: Optional[List[RaceLink]] = field(default_factory=list)
     runners: Optional[List[Runner]] = field(default_factory=list)

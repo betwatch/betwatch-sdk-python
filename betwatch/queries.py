@@ -87,6 +87,7 @@ QUERY_GET_RACE = gql(
             number
             status
             distance
+            classConditions
             startTime
             results
             links {
