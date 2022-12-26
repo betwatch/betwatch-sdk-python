@@ -20,9 +20,6 @@ class RaceStatus(Enum):
     PAYING = "Paying"
     RESULTED = "Resulted"
 
-    def is_closed(self) -> bool:
-        return self != RaceStatus.OPEN
-
 
 @dataclass
 class Meeting:
@@ -123,3 +120,16 @@ class Race:
         self.created_at = (
             datetime.fromisoformat(self._created_at) if self._created_at else None
         )
+
+    def __str__(self) -> str:
+
+        # format start_time in local timezone
+        st = (
+            self.start_time.astimezone().strftime(" [%d/%m/%Y %H:%M]")
+            if self.start_time
+            else ""
+        )
+
+        if self.meeting is None:
+            return f"R{self.number} [{st}]"
+        return f"{self.meeting.track} R{self.number}{st}"

@@ -1,6 +1,7 @@
 import asyncio
 import atexit
 import logging
+from datetime import datetime, timedelta
 from typing import List, Union
 
 import backoff
@@ -63,10 +64,11 @@ class BetwatchAsyncClient:
             None, ReconnectingAsyncClientSession, AsyncClientSession
         ] = None
 
-        # register the cleaup function
+        # register the cleanup function to be called on exit
         atexit.register(self.__exit)
 
     async def __cleanup(self):
+        """Gracefully close clients."""
         try:
             await self._gql_client.close_async()
         except Exception:
@@ -102,6 +104,12 @@ class BetwatchAsyncClient:
             else:
                 return self._http_session
         return self._session
+
+    async def get_todays_races(self) -> List[Race]:
+        """Get all races for today."""
+        today = datetime.now().strftime("%Y-%m-%d")
+        tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        return await self.get_races(today, tomorrow)
 
     async def get_races(self, date_from: str, date_to: str) -> List[Race]:
         if not self._session:

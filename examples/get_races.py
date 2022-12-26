@@ -2,7 +2,7 @@ import os
 
 from dotenv import load_dotenv
 
-from betwatch import BetwatchClient
+import betwatch
 
 
 def main():
@@ -10,7 +10,7 @@ def main():
     if not api_key:
         raise Exception("API_KEY not set in .env file")
 
-    client = BetwatchClient(api_key=api_key)
+    client = betwatch.connect(api_key=api_key)
     races = client.get_races("2022-12-21", "2022-12-22")
     if races:
         next_open = next((r for r in races if r.is_open() and r.id), None)

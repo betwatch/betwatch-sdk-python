@@ -2,7 +2,7 @@ import os
 
 from dotenv import load_dotenv
 
-from betwatch import BetwatchClient
+import betwatch
 from betwatch.types.race import RaceStatus
 
 
@@ -12,7 +12,7 @@ def get_race(race_id: str):
     if not api_key:
         raise Exception("API_KEY not set in .env file")
 
-    client = BetwatchClient(api_key=api_key)
+    client = betwatch.connect(api_key=api_key)
 
     race = client.get_race(race_id)
     return race
@@ -26,5 +26,3 @@ def test_get_race():
     assert race.status == RaceStatus.RESULTED
     assert race.meeting is not None
     assert race.meeting.track == "Darwin"
-    assert race.number == 6
-    assert race.number == 6

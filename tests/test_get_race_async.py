@@ -3,7 +3,7 @@ import os
 import pytest
 from dotenv import load_dotenv
 
-from betwatch import BetwatchAsyncClient
+import betwatch
 from betwatch.types.race import RaceStatus
 
 
@@ -13,7 +13,7 @@ async def get_race(race_id: str):
     if not api_key:
         raise Exception("API_KEY not set in .env file")
 
-    client = BetwatchAsyncClient(api_key=api_key)
+    client = await betwatch.connect_async(api_key=api_key)
 
     async with client:
         race = await client.get_race(race_id)
@@ -28,7 +28,5 @@ async def test_get_race():
     assert race.id == "63a165a522ac7b5ed64336b2"
     assert race.status == RaceStatus.RESULTED
     assert race.meeting is not None
-    assert race.meeting.track == "Darwin"
-    assert race.number == 6
     assert race.meeting.track == "Darwin"
     assert race.number == 6

@@ -3,7 +3,7 @@ import os
 
 from dotenv import load_dotenv
 
-from betwatch import BetwatchAsyncClient
+import betwatch
 
 
 async def main():
@@ -11,7 +11,7 @@ async def main():
     if not api_key:
         raise Exception("API_KEY not set in .env file")
 
-    client = BetwatchAsyncClient(api_key=api_key)
+    client = await betwatch.connect_async(api_key=api_key)
     races = await client.get_races("2022-12-21", "2022-12-22")
     if races:
         next_open = next((r for r in races if r.is_open() and r.id), None)

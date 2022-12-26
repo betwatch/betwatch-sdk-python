@@ -5,13 +5,16 @@ from typing import AsyncGenerator, List
 
 from dotenv import load_dotenv
 
-from betwatch import BetwatchAsyncClient
+import betwatch
 from betwatch.types.markets import BookmakerMarket
+from betwatch.types.race import Race
 
 
-async def handle_price_updates(generator: AsyncGenerator[List[BookmakerMarket], None]):
+async def handle_price_updates(
+    race: Race, generator: AsyncGenerator[List[BookmakerMarket], None]
+):
     async for updates in generator:
-        print(updates)
+        print(f"Received updated prices for {race}")
 
 
 async def main():
@@ -19,11 +22,11 @@ async def main():
     if not api_key:
         raise Exception("API_KEY not set in .env file")
 
-    client = BetwatchAsyncClient(api_key)
+    client = await betwatch.connect_async(api_key)
 
     # get today in YYYY-MM-DD format
     today = datetime.today().strftime("%Y-%m-%d")
-    tomorrow = (datetime.today() + timedelta(days=1)).strftime("%Y-%m-%d")
+    tomorrow = (datetime.today() + timedelta(days=5)).strftime("%Y-%m-%d")
 
     async with client:
         # get all races between today and tomorrow
@@ -32,13 +35,14 @@ async def main():
         # filter only open races
         open_races = [r for r in races if r.is_open()]
 
-        # subscribe to the 10 next open races
+        # subscribe to the 5 next open races
         tasks = []
-        for i in range(10):
+        for i in range(min(100, len(open_races))):
+            print(f"Subscribing to price updates for {open_races[i]}...")
             tasks.append(
                 asyncio.create_task(
                     handle_price_updates(
-                        client.subscribe_price_updates(open_races[i].id)
+                        open_races[i], client.subscribe_price_updates(open_races[i].id)
                     )
                 )
             )
