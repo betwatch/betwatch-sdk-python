@@ -1,11 +1,16 @@
 import asyncio
+import atexit
 import logging
 from typing import List, Union
-from gql import Client
-from gql.transport.websockets import WebsocketsTransport
-from gql.transport.aiohttp import AIOHTTPTransport
-from gql.client import ReconnectingAsyncClientSession, AsyncClientSession
+
+import backoff
 import typedload
+from gql import Client
+from gql.client import AsyncClientSession, ReconnectingAsyncClientSession
+from gql.transport.aiohttp import AIOHTTPTransport
+from gql.transport.websockets import WebsocketsTransport
+
+from betwatch.__about__ import __version__
 from betwatch.queries import (
     QUERY_GET_RACE,
     QUERY_GET_RACES,
@@ -14,9 +19,6 @@ from betwatch.queries import (
 )
 from betwatch.types.markets import BookmakerMarket
 from betwatch.types.race import Race
-from betwatch.__about__ import __version__
-import atexit
-import backoff
 
 
 class BetwatchAsyncClient:

@@ -1,6 +1,8 @@
 import os
-from betwatch import BetwatchClient
+
 from dotenv import load_dotenv
+
+from betwatch import BetwatchClient
 
 
 def main():
@@ -19,5 +21,7 @@ def main():
 
 
 if __name__ == "__main__":
+    load_dotenv()
+    main()
     load_dotenv()
     main()

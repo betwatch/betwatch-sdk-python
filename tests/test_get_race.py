@@ -1,7 +1,8 @@
 import os
-from betwatch import BetwatchClient
+
 from dotenv import load_dotenv
 
+from betwatch import BetwatchClient
 from betwatch.types.race import RaceStatus
 
 
@@ -25,4 +26,5 @@ def test_get_race():
     assert race.status == RaceStatus.RESULTED
     assert race.meeting is not None
     assert race.meeting.track == "Darwin"
+    assert race.number == 6
     assert race.number == 6

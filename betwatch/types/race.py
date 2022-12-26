@@ -110,7 +110,7 @@ class Race:
     _created_at: Optional[str] = field(metadata={"name": "createdAt"}, default=None)
 
     def is_open(self) -> bool:
-        # FIXME: should i raise an exception if status is None?
+        # NOTE: Perhaps this should raise an exception if the Race object does not have a status
         return self.status == RaceStatus.OPEN
 
     def __post_init__(self):

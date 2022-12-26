@@ -1,10 +1,12 @@
 import asyncio
-from datetime import datetime, timedelta
 import os
+from datetime import datetime, timedelta
 from typing import AsyncGenerator, List
+
+from dotenv import load_dotenv
+
 from betwatch import BetwatchAsyncClient
 from betwatch.types.markets import BookmakerMarket
-from dotenv import load_dotenv
 
 
 async def handle_price_updates(generator: AsyncGenerator[List[BookmakerMarket], None]):
@@ -46,5 +48,7 @@ async def main():
 
 
 if __name__ == "__main__":
+    load_dotenv()
+    asyncio.run(main())
     load_dotenv()
     asyncio.run(main())

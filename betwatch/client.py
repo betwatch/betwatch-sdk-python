@@ -1,10 +1,12 @@
 from typing import List, Union
+
+import typedload
 from gql import Client
 from gql.transport.aiohttp import AIOHTTPTransport
-import typedload
+
+from betwatch.__about__ import __version__
 from betwatch.queries import QUERY_GET_RACE, QUERY_GET_RACES
 from betwatch.types.race import Race
-from betwatch.__about__ import __version__
 
 
 class BetwatchClient:

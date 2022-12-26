@@ -1,7 +1,9 @@
 import asyncio
 import os
-from betwatch import BetwatchAsyncClient
+
 from dotenv import load_dotenv
+
+from betwatch import BetwatchAsyncClient
 
 
 async def main():
@@ -20,5 +22,7 @@ async def main():
 
 
 if __name__ == "__main__":
+    load_dotenv()
+    asyncio.run(main())
     load_dotenv()
     asyncio.run(main())
