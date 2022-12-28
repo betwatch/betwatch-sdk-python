@@ -28,6 +28,7 @@ SUBSCRIPTION_PRICE_UPDATES = gql(
     subscription PriceUpdates($id: ID!) {
       priceUpdates(id: $id) {
         id
+        bookmaker
         fixedPlace {
           price
           lastUpdated
@@ -67,6 +68,46 @@ QUERY_GET_RACES = gql(
             status
             startTime
             results
+        }
+    }
+    """
+)
+
+QUERY_GET_RACES_WITH_MARKETS = gql(
+    """
+    query GetRaces($dateFrom: String!, $dateTo: String!) {
+        races(dateFrom: $dateFrom, dateTo: $dateTo) {
+            id
+            meeting {
+                id
+                location
+                track
+                type
+                date
+            }
+            classConditions
+            name
+            number
+            status
+            startTime
+            results
+            runners {
+                id
+                name
+                number
+                bookmakerMarkets {
+                    id
+                    bookmaker
+                    fixedWin {
+                        price
+                        lastUpdated
+                    }
+                    fixedPlace {
+                        price
+                        lastUpdated
+                    }
+                }
+            }
         }
     }
     """
@@ -121,6 +162,21 @@ QUERY_GET_RACE = gql(
                         }
                     }
                 }
+            }
+        }
+    }
+    """
+)
+
+QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE = gql(
+    """
+    query GetRace($id: ID!) {
+        race(id: $id) {
+            id
+            status
+            links {
+                bookmaker
+                lastSuccessfulPriceUpdate
             }
         }
     }

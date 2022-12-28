@@ -1,8 +1,7 @@
 import asyncio
 import atexit
-import logging
 from datetime import datetime, timedelta
-from typing import List, Union
+from typing import Dict, List, Union
 
 import backoff
 import typedload
@@ -13,12 +12,15 @@ from gql.transport.websockets import WebsocketsTransport
 
 from betwatch.__about__ import __version__
 from betwatch.queries import (
+    QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
     QUERY_GET_RACE,
     QUERY_GET_RACES,
+    QUERY_GET_RACES_WITH_MARKETS,
     SUBSCRIPTION_PRICE_UPDATES,
     SUBSCRIPTION_RACES_UPDATES,
 )
 from betwatch.types.markets import BookmakerMarket
+from betwatch.types.projection import RaceProjection
 from betwatch.types.race import Race
 
 
@@ -69,12 +71,25 @@ class BetwatchAsyncClient:
 
     async def __cleanup(self):
         """Gracefully close clients."""
+        # try:
+        #     await self._gql_client.close_async()
+        # except Exception:
+        #     pass
+        # try:
+        #     await self._gql_sub_client.close_async()
+        # except Exception:
+        #     pass
         try:
-            await self._gql_client.close_async()
+            await self._gql_transport.close()
         except Exception:
             pass
         try:
-            await self._gql_sub_client.close_async()
+            await self._gql_sub_transport.close()
+        except Exception:
+            pass
+        try:
+            if self._http_session:
+                await self._http_session.client.close_async()
         except Exception:
             pass
 
@@ -111,11 +126,13 @@ class BetwatchAsyncClient:
         tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
         return await self.get_races(today, tomorrow)
 
-    async def get_races(self, date_from: str, date_to: str) -> List[Race]:
+    async def get_races(
+        self, date_from: str, date_to: str, projection=RaceProjection()
+    ) -> List[Race]:
         if not self._session:
             self._session = await self.__connect()
 
-        query = QUERY_GET_RACES
+        query = QUERY_GET_RACES_WITH_MARKETS if projection.markets else QUERY_GET_RACES
         variables = {"dateFrom": date_from, "dateTo": date_to}
 
         result = await self._session.execute(query, variable_values=variables)
@@ -124,15 +141,8 @@ class BetwatchAsyncClient:
 
         return []
 
-    async def get_race(self, race_id: str, raise_exceptions=False) -> Union[Race, None]:
-        # raise the exceptions for retrying, but then silently return none
-        try:
-            return await self.__get_race_by_id(race_id)
-        except Exception as e:
-            logging.error(f"Error getting race {race_id}: {e}")
-            if raise_exceptions:
-                raise e
-            return None
+    async def get_race(self, race_id: str) -> Union[Race, None]:
+        return await self._get_race_by_id(race_id)
 
     async def subscribe_price_updates(
         self,
@@ -164,11 +174,12 @@ class BetwatchAsyncClient:
                 yield typedload.load(result["racesUpdates"], Race)
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
-    async def __get_race_by_id(self, race_id: str) -> Union[Race, None]:
+    async def _get_race_by_id(
+        self, race_id: str, query=QUERY_GET_RACE
+    ) -> Union[Race, None]:
         if not self._session:
             self._session = await self.__connect()
 
-        query = QUERY_GET_RACE
         variables = {"id": race_id}
 
         result = await self._session.execute(query, variable_values=variables)
@@ -176,3 +187,25 @@ class BetwatchAsyncClient:
         if result.get("race"):
             return typedload.load(result["race"], Race)
         return None
+
+    async def get_race_last_updated_times(self, race_id: str) -> Dict[str, datetime]:
+        """Get the last time each bookmaker was checked for a price update.
+           This does not mean that the price was updated, just that the bookmaker was checked.
+
+        Args:
+            race_id (str): race id to be checked
+
+        Returns:
+            Dict[str, datetime]: dictionary with bookmaker name as key and datetime as value
+        """
+        race = await self._get_race_by_id(
+            race_id, QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE
+        )
+        if not race or not race.links:
+            return {}
+
+        return {
+            link.bookmaker: link.last_successful_price_update
+            for link in race.links
+            if link.bookmaker and link.last_successful_price_update
+        }

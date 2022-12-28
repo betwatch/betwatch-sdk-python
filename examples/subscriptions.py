@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 import betwatch
 from betwatch.types.markets import BookmakerMarket
+from betwatch.types.projection import RaceProjection
 from betwatch.types.race import Race
 
 
@@ -14,7 +15,27 @@ async def handle_price_updates(
     race: Race, generator: AsyncGenerator[List[BookmakerMarket], None]
 ):
     async for updates in generator:
-        print(f"Received updated prices for {race}")
+        # find associated runner
+        if not race.runners:
+            continue
+        for update in updates:
+            runner = next(
+                (
+                    r
+                    for r in race.runners
+                    if r.bookmaker_markets
+                    for m in r.bookmaker_markets
+                    if m.id == update.id
+                ),
+                None,
+            )
+            if not runner:
+                continue
+
+            # print price update
+            print(
+                f"{race} - {runner.number}. {runner.name} - {update.fixed_win} @ {update.bookmaker}"
+            )
 
 
 async def main():
@@ -26,18 +47,23 @@ async def main():
 
     # get today in YYYY-MM-DD format
     today = datetime.today().strftime("%Y-%m-%d")
-    tomorrow = (datetime.today() + timedelta(days=5)).strftime("%Y-%m-%d")
+    tomorrow = (datetime.today() + timedelta(days=1)).strftime("%Y-%m-%d")
 
+    # request market data in order to map to request bookmaker market updates
+    projection = RaceProjection(markets=True)
+
+    # get all races between today and tomorrow
+    races = await client.get_races(today, tomorrow, projection)
+
+    # open up a context manager to handle the connection
+    # this creates a websocket connection to the Betwatch API
     async with client:
-        # get all races between today and tomorrow
-        races = await client.get_races(today, tomorrow)
-
         # filter only open races
         open_races = [r for r in races if r.is_open()]
 
         # subscribe to the 5 next open races
         tasks = []
-        for i in range(min(100, len(open_races))):
+        for i in range(min(10, len(open_races))):
             print(f"Subscribing to price updates for {open_races[i]}...")
             tasks.append(
                 asyncio.create_task(

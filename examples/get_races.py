@@ -1,8 +1,10 @@
 import os
+from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
 
 import betwatch
+from betwatch.types import RaceProjection
 
 
 def main():
@@ -11,7 +13,15 @@ def main():
         raise Exception("API_KEY not set in .env file")
 
     client = betwatch.connect(api_key=api_key)
-    races = client.get_races("2022-12-21", "2022-12-22")
+
+    # get today in YYYY-MM-DD format
+    today = datetime.today().strftime("%Y-%m-%d")
+    tomorrow = (datetime.today() + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    # don't request runner data (much faster)
+    projection = RaceProjection(markets=False)
+
+    races = client.get_races(today, tomorrow, projection)
     if races:
         next_open = next((r for r in races if r.is_open() and r.id), None)
         if next_open and next_open.id:
