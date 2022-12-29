@@ -1,3 +1,3 @@
 from .bookmakers import Bookmaker
-from .projection import RaceProjection
+from .filters import RaceProjection
 from .race import Race

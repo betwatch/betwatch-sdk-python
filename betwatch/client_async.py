@@ -19,9 +19,8 @@ from betwatch.queries import (
     SUBSCRIPTION_PRICE_UPDATES,
     SUBSCRIPTION_RACES_UPDATES,
 )
+from betwatch.types import Race, RaceProjection
 from betwatch.types.markets import BookmakerMarket
-from betwatch.types.projection import RaceProjection
-from betwatch.types.race import Race
 
 
 class BetwatchAsyncClient:

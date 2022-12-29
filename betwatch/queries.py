@@ -68,6 +68,14 @@ QUERY_GET_RACES = gql(
             status
             startTime
             results
+            runners {
+                id
+                name
+                number
+                bookmakerMarkets {
+                    id
+                }
+            }
         }
     }
     """

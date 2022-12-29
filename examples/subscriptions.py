@@ -6,9 +6,8 @@ from typing import AsyncGenerator, List
 from dotenv import load_dotenv
 
 import betwatch
+from betwatch.types import Race, RaceProjection
 from betwatch.types.markets import BookmakerMarket
-from betwatch.types.projection import RaceProjection
-from betwatch.types.race import Race
 
 
 async def handle_price_updates(

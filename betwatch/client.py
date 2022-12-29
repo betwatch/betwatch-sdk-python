@@ -14,7 +14,7 @@ from betwatch.queries import (
     QUERY_GET_RACES,
     QUERY_GET_RACES_WITH_MARKETS,
 )
-from betwatch.types.projection import RaceProjection
+from betwatch.types.filters import RaceProjection
 from betwatch.types.race import Race
 
 
