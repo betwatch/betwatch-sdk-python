@@ -70,6 +70,17 @@ class BetwatchAsyncClient:
         # register the cleanup function to be called on exit
         atexit.register(self.__exit)
 
+        # lock to prevent multiple sessions being created
+        self._session_lock = asyncio.Lock()
+
+    async def disconnect(self):
+        """Disconnect from the websocket connection."""
+        async with self._session_lock:
+            await self._gql_client.close_async()
+            await self._gql_sub_client.close_async()
+            self._http_session = None
+            self._websocket_session = None
+
     async def __cleanup(self):
         """Gracefully close clients."""
         # try:
@@ -80,50 +91,58 @@ class BetwatchAsyncClient:
         #     await self._gql_sub_client.close_async()
         # except Exception:
         #     pass
-        try:
-            await self._gql_transport.close()
-        except Exception:
-            pass
-        try:
-            await self._gql_sub_transport.close()
-        except Exception:
-            pass
-        try:
-            if self._http_session:
-                await self._http_session.client.close_async()
-        except Exception:
-            pass
+        async with self._session_lock:
+            try:
+                await self._gql_transport.close()
+            except Exception:
+                pass
+            try:
+                await self._gql_sub_transport.close()
+            except Exception:
+                pass
+            try:
+                if self._http_session:
+                    await self._http_session.client.close_async()
+            except Exception:
+                pass
 
     def __exit(self):
         """Close the client."""
-        logging.debug("closing connection to Betwatch API")
+        logging.info("closing connection to Betwatch API (may take a few seconds)")
         asyncio.run(self.__cleanup())
 
     async def __aenter__(self):
         """Pass through to the underlying client's __aenter__ method."""
-        self._websocket_session = await self._gql_sub_client.connect_async(
-            reconnecting=True
-        )
+        async with self._session_lock:
+            if not self._websocket_session:
+                self._websocket_session = await self._gql_sub_client.connect_async(
+                    reconnecting=True
+                )
         return self._websocket_session
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Pass through to the underlying client's __aexit__ method."""
-        await self._gql_sub_client.close_async()
-        self._websocket_session = self._http_session
+        async with self._session_lock:
+            if self._websocket_session:
+                self._websocket_session = (
+                    await self._websocket_session.client.close_async()
+                )
         return self._websocket_session
 
     async def _setup_websocket_session(self):
         """Connect to websocket connection"""
-        if not self._websocket_session:
-            self._websocket_session = await self._gql_sub_client.connect_async(
-                reconnecting=True
-            )
+        async with self._session_lock:
+            if not self._websocket_session:
+                self._websocket_session = await self._gql_sub_client.connect_async(
+                    reconnecting=True
+                )
         return self._websocket_session
 
     async def _setup_http_session(self):
         """Setup the HTTP session."""
-        if not self._http_session:
-            self._http_session = await self._gql_client.connect_async()
+        async with self._session_lock:
+            if not self._http_session:
+                self._http_session = await self._gql_client.connect_async()
         return self._http_session
 
     async def get_races_today(self) -> List[Race]:
