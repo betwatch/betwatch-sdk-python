@@ -17,8 +17,8 @@ async def get_races():
     races_from = "2022-12-21"
     races_to = "2022-12-22"
 
-    async with client:
-        races = await client.get_races(races_from, races_to)
+    races = await client.get_races_between_dates(races_from, races_to)
+
     return races
 
 

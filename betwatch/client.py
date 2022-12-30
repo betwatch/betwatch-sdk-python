@@ -1,5 +1,5 @@
 import atexit
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Union
 
 import backoff
@@ -32,8 +32,6 @@ class BetwatchClient:
         # Create a GraphQL client using the defined transport
         self._gql_client = Client(
             transport=self._gql_transport,
-            fetch_schema_from_transport=True,
-            parse_results=True,
         )
 
         # register the cleanup function to be called on exit
@@ -46,7 +44,7 @@ class BetwatchClient:
         self._gql_client.close_sync()
         self._gql_transport.close()
 
-    def get_races(
+    def get_races_between_dates(
         self, date_from: str, date_to: str, projection=RaceProjection()
     ) -> List[Race]:
         query = QUERY_GET_RACES_WITH_MARKETS if projection.markets else QUERY_GET_RACES
@@ -60,6 +58,12 @@ class BetwatchClient:
 
     def get_race(self, race_id: str) -> Union[Race, None]:
         return self._get_race_by_id(race_id)
+
+    def get_races_today(self) -> List[Race]:
+        """Get all races for today."""
+        today = datetime.now().strftime("%Y-%m-%d")
+        tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        return self.get_races_between_dates(today, tomorrow)
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     def _get_race_by_id(self, race_id: str, query=QUERY_GET_RACE) -> Union[Race, None]:

@@ -45,15 +45,11 @@ class BetwatchAsyncClient:
         # Create a GraphQL client using the defined transport
         self._gql_sub_client = Client(
             transport=self._gql_sub_transport,
-            fetch_schema_from_transport=True,
             execute_timeout=60,
-            parse_results=True,
         )
         self._gql_client = Client(
             transport=self._gql_transport,
-            fetch_schema_from_transport=True,
             execute_timeout=60,
-            parse_results=True,
         )
 
         self._http_session: Union[
@@ -61,7 +57,7 @@ class BetwatchAsyncClient:
         ] = None
 
         # flag to indicate if we have entered the context manager
-        self._session: Union[
+        self._websocket_session: Union[
             None, ReconnectingAsyncClientSession, AsyncClientSession
         ] = None
 
@@ -98,77 +94,112 @@ class BetwatchAsyncClient:
 
     async def __aenter__(self):
         """Pass through to the underlying client's __aenter__ method."""
-        self._session = await self._gql_sub_client.connect_async(reconnecting=True)
-        return self._session
+        self._websocket_session = await self._gql_sub_client.connect_async(
+            reconnecting=True
+        )
+        return self._websocket_session
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Pass through to the underlying client's __aexit__ method."""
         await self._gql_sub_client.close_async()
-        self._session = self._http_session
-        return self._session
+        self._websocket_session = self._http_session
+        return self._websocket_session
 
-    async def __connect(self):
-        """Connect to the GraphQL endpoint."""
-        if not self._session:
-            if not self._http_session:
-                self._http_session = await self._gql_client.connect_async(
-                    reconnecting=True
-                )
-                return self._http_session
-            else:
-                return self._http_session
-        return self._session
+    async def _setup_websocket_session(self):
+        """Connect to websocket connection"""
+        if not self._websocket_session:
+            self._websocket_session = await self._gql_sub_client.connect_async(
+                reconnecting=True
+            )
+        return self._websocket_session
 
-    async def get_todays_races(self) -> List[Race]:
+    async def _setup_http_session(self):
+        """Setup the HTTP session."""
+        if not self._http_session:
+            self._http_session = await self._gql_client.connect_async()
+        return self._http_session
+
+    async def get_races_today(self) -> List[Race]:
         """Get all races for today."""
         today = datetime.now().strftime("%Y-%m-%d")
         tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-        return await self.get_races(today, tomorrow)
+        return await self.get_races_between_dates(today, tomorrow)
 
-    async def get_races(
-        self, date_from: str, date_to: str, projection=RaceProjection()
+    async def get_races_between_dates(
+        self,
+        date_from: Union[str, datetime],
+        date_to: Union[str, datetime],
+        projection=RaceProjection(),
     ) -> List[Race]:
-        if not self._session:
-            self._session = await self.__connect()
+        """Get a list of races in between two dates.
+
+        Args:
+            date_from (Union[str, datetime]): Date to start from (inclusive)
+            date_to (Union[str, datetime]): Date to end at (inclusive   )
+            projection (_type_, optional): The fields to return. Defaults to RaceProjection().
+
+        Returns:
+            List[Race]: List of races that match the criteria
+        """
+
+        session = await self._setup_http_session()
 
         query = QUERY_GET_RACES_WITH_MARKETS if projection.markets else QUERY_GET_RACES
+
+        # convert to string if datetime
+        if isinstance(date_from, datetime):
+            date_from = date_from.strftime("%Y-%m-%d")
+        if isinstance(date_to, datetime):
+            date_to = date_to.strftime("%Y-%m-%d")
+
         variables = {"dateFrom": date_from, "dateTo": date_to}
 
-        result = await self._session.execute(query, variable_values=variables)
+        result = await session.execute(query, variable_values=variables)
+
         if result.get("races"):
             return typedload.load(result["races"], List[Race])
 
         return []
 
     async def get_race(self, race_id: str) -> Union[Race, None]:
+        """Get all details of a specific race by id.
+
+        Args:
+            race_id (str): The id of a race. This can be obtained from the `get_races` method.
+
+        Returns:
+            Union[Race, None]: The race object or None if the race is not found.
+        """
         return await self._get_race_by_id(race_id)
 
     async def subscribe_price_updates(
         self,
         race_id: str,
     ):
-        if not self._session:
-            raise Exception(
-                "Not connected to session. Use async with BetwatchAsyncClient():"
-            )
+        """Subscribe to price updates for a specific race.
+
+        Args:
+            race_id (str): The id of a specific race. This can be obtained from the `get_races` method.
+
+        Yields:
+            List[BookmakerMarket]: A list of bookmaker markets with updated prices.
+        """
+        session = await self._setup_websocket_session()
 
         query = SUBSCRIPTION_PRICE_UPDATES
         variables = {"id": race_id}
 
-        async for result in self._session.subscribe(query, variable_values=variables):
+        async for result in session.subscribe(query, variable_values=variables):
             if result.get("priceUpdates"):
                 yield typedload.load(result["priceUpdates"], List[BookmakerMarket])
 
     async def subscribe_races_updates(self, date_from: str, date_to: str):
-        if not self._session:
-            raise Exception(
-                "Not connected to session. Use async with BetwatchAsyncClient():"
-            )
+        session = await self._setup_websocket_session()
 
         query = SUBSCRIPTION_RACES_UPDATES
         variables = {"dateFrom": date_from, "dateTo": date_to}
 
-        async for result in self._session.subscribe(query, variable_values=variables):
+        async for result in session.subscribe(query, variable_values=variables):
             if result.get("racesUpdates"):
                 yield typedload.load(result["racesUpdates"], Race)
 
@@ -176,12 +207,11 @@ class BetwatchAsyncClient:
     async def _get_race_by_id(
         self, race_id: str, query=QUERY_GET_RACE
     ) -> Union[Race, None]:
-        if not self._session:
-            self._session = await self.__connect()
+        session = await self._setup_http_session()
 
         variables = {"id": race_id}
 
-        result = await self._session.execute(query, variable_values=variables)
+        result = await session.execute(query, variable_values=variables)
 
         if result.get("race"):
             return typedload.load(result["race"], Race)

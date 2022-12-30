@@ -22,7 +22,7 @@ async def main():
     # don't request runner data (much faster)
     projection = RaceProjection(markets=False)
 
-    races = await client.get_races(today, tomorrow, projection)
+    races = await client.get_races_between_dates(today, tomorrow, projection)
     if races:
         next_open = next((r for r in races if r.is_open() and r.id), None)
         if next_open and next_open.id:

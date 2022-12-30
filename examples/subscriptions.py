@@ -52,7 +52,7 @@ async def main():
     projection = RaceProjection(markets=True)
 
     # get all races between today and tomorrow
-    races = await client.get_races(today, tomorrow, projection)
+    races = await client.get_races_between_dates(today, tomorrow, projection)
 
     # open up a context manager to handle the connection
     # this creates a websocket connection to the Betwatch API
