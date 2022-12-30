@@ -1,5 +1,6 @@
 import asyncio
 import atexit
+import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Union
 
@@ -8,7 +9,9 @@ import typedload
 from gql import Client
 from gql.client import AsyncClientSession, ReconnectingAsyncClientSession
 from gql.transport.aiohttp import AIOHTTPTransport
+from gql.transport.aiohttp import log as aiohttp_logger
 from gql.transport.websockets import WebsocketsTransport
+from gql.transport.websockets import log as websockets_logger
 
 from betwatch.__about__ import __version__
 from betwatch.queries import (
@@ -24,7 +27,7 @@ from betwatch.types.markets import BookmakerMarket
 
 
 class BetwatchAsyncClient:
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, transport_logging_level: int = logging.WARNING):
         self.api_key = api_key
         self._gql_sub_transport = WebsocketsTransport(
             url="wss://api.betwatch.com/sub",
@@ -61,6 +64,9 @@ class BetwatchAsyncClient:
             None, ReconnectingAsyncClientSession, AsyncClientSession
         ] = None
 
+        websockets_logger.setLevel(transport_logging_level)
+        aiohttp_logger.setLevel(transport_logging_level)
+
         # register the cleanup function to be called on exit
         atexit.register(self.__exit)
 
@@ -90,6 +96,7 @@ class BetwatchAsyncClient:
 
     def __exit(self):
         """Close the client."""
+        logging.debug("closing connection to Betwatch API")
         asyncio.run(self.__cleanup())
 
     async def __aenter__(self):
@@ -141,6 +148,7 @@ class BetwatchAsyncClient:
         Returns:
             List[Race]: List of races that match the criteria
         """
+        logging.info(f"getting races between {date_from} and {date_to}")
 
         session = await self._setup_http_session()
 
@@ -157,6 +165,7 @@ class BetwatchAsyncClient:
         result = await session.execute(query, variable_values=variables)
 
         if result.get("races"):
+            logging.debug(f"Found {len(result['races'])} races")
             return typedload.load(result["races"], List[Race])
 
         return []
@@ -207,6 +216,7 @@ class BetwatchAsyncClient:
     async def _get_race_by_id(
         self, race_id: str, query=QUERY_GET_RACE
     ) -> Union[Race, None]:
+        logging.info(f"Getting race (id={race_id})")
         session = await self._setup_http_session()
 
         variables = {"id": race_id}

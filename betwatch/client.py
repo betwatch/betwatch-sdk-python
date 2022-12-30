@@ -1,11 +1,14 @@
 import atexit
 from datetime import datetime, timedelta
+import logging
 from typing import Dict, List, Union
 
 import backoff
 import typedload
 from gql import Client
 from gql.transport.requests import RequestsHTTPTransport
+
+from gql.transport.requests import log as http_logger
 
 from betwatch.__about__ import __version__
 from betwatch.queries import (
@@ -19,7 +22,7 @@ from betwatch.types.race import Race
 
 
 class BetwatchClient:
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, transport_logging_level: int = logging.WARNING):
         self.api_key = api_key
         self._gql_transport = RequestsHTTPTransport(
             url="https://api.betwatch.com/query",
@@ -34,10 +37,13 @@ class BetwatchClient:
             transport=self._gql_transport,
         )
 
+        http_logger.setLevel(transport_logging_level)
+
         # register the cleanup function to be called on exit
         atexit.register(self.__exit)
 
     def __exit(self):
+        logging.debug("closing connection to Betwatch API")
         self.disconnect()
 
     def disconnect(self):
@@ -47,6 +53,7 @@ class BetwatchClient:
     def get_races_between_dates(
         self, date_from: str, date_to: str, projection=RaceProjection()
     ) -> List[Race]:
+        logging.info(f"getting races between {date_from} and {date_to}")
         query = QUERY_GET_RACES_WITH_MARKETS if projection.markets else QUERY_GET_RACES
         variables = {"dateFrom": date_from, "dateTo": date_to}
         result = self._gql_client.execute(query, variable_values=variables)
@@ -67,6 +74,7 @@ class BetwatchClient:
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     def _get_race_by_id(self, race_id: str, query=QUERY_GET_RACE) -> Union[Race, None]:
+        logging.info(f"getting race (id={race_id})")
         variables = {"id": race_id}
         result = self._gql_client.execute(query, variable_values=variables)
 
