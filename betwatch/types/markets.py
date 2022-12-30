@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Union
 
+from betwatch.types.bookmakers import Bookmaker
+
 
 @dataclass
 class Fluc:
@@ -29,7 +31,7 @@ class Price:
 @dataclass
 class BookmakerMarket:
     id: Optional[str] = None
-    bookmaker: Optional[str] = None
+    bookmaker: Optional[Bookmaker] = None
     fixed_win: Optional[Price] = field(metadata={"name": "fixedWin"}, default=None)
     fixed_place: Optional[Price] = field(metadata={"name": "fixedPlace"}, default=None)
 
