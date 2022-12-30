@@ -7,6 +7,7 @@ from typing import Dict, List, Union
 import backoff
 import typedload
 from gql import Client
+from graphql import DocumentNode
 from gql.client import AsyncClientSession, ReconnectingAsyncClientSession
 from gql.transport.aiohttp import AIOHTTPTransport
 from gql.transport.aiohttp import log as aiohttp_logger
@@ -16,11 +17,10 @@ from gql.transport.websockets import log as websockets_logger
 from betwatch.__about__ import __version__
 from betwatch.queries import (
     QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
-    QUERY_GET_RACE,
-    QUERY_GET_RACES,
-    QUERY_GET_RACES_WITH_MARKETS,
     SUBSCRIPTION_PRICE_UPDATES,
     SUBSCRIPTION_RACES_UPDATES,
+    query_get_race,
+    query_get_races,
 )
 from betwatch.types import Race, RaceProjection
 from betwatch.types.bookmakers import Bookmaker
@@ -166,7 +166,7 @@ class BetwatchAsyncClient:
 
         session = await self._setup_http_session()
 
-        query = QUERY_GET_RACES_WITH_MARKETS if projection.markets else QUERY_GET_RACES
+        query = query_get_races(projection)
 
         # convert to string if datetime
         if isinstance(date_from, datetime):
@@ -184,16 +184,20 @@ class BetwatchAsyncClient:
 
         return []
 
-    async def get_race(self, race_id: str) -> Union[Race, None]:
+    async def get_race(
+        self, race_id: str, projection=RaceProjection(markets=True)
+    ) -> Union[Race, None]:
         """Get all details of a specific race by id.
 
         Args:
             race_id (str): The id of a race. This can be obtained from the `get_races` method.
+            projection (RaceProjection, optional): The fields to return. Defaults to RaceProjection(markets=True).
 
         Returns:
             Union[Race, None]: The race object or None if the race is not found.
         """
-        return await self._get_race_by_id(race_id)
+        query = query_get_race(projection)
+        return await self._get_race_by_id(race_id, query)
 
     async def subscribe_price_updates(
         self,
@@ -228,7 +232,7 @@ class BetwatchAsyncClient:
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     async def _get_race_by_id(
-        self, race_id: str, query=QUERY_GET_RACE
+        self, race_id: str, query: DocumentNode
     ) -> Union[Race, None]:
         logging.info(f"Getting race (id={race_id})")
         session = await self._setup_http_session()

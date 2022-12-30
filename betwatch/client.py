@@ -7,15 +7,14 @@ import backoff
 import typedload
 from gql import Client
 from gql.transport.requests import RequestsHTTPTransport
-
+from graphql import DocumentNode
 from gql.transport.requests import log as http_logger
 
 from betwatch.__about__ import __version__
 from betwatch.queries import (
     QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
-    QUERY_GET_RACE,
-    QUERY_GET_RACES,
-    QUERY_GET_RACES_WITH_MARKETS,
+    query_get_race,
+    query_get_races,
 )
 from betwatch.types.bookmakers import Bookmaker
 from betwatch.types.filters import RaceProjection
@@ -55,7 +54,7 @@ class BetwatchClient:
         self, date_from: str, date_to: str, projection=RaceProjection()
     ) -> List[Race]:
         logging.info(f"getting races between {date_from} and {date_to}")
-        query = QUERY_GET_RACES_WITH_MARKETS if projection.markets else QUERY_GET_RACES
+        query = query_get_races(projection)
         variables = {"dateFrom": date_from, "dateTo": date_to}
         result = self._gql_client.execute(query, variable_values=variables)
 
@@ -64,8 +63,11 @@ class BetwatchClient:
 
         return []
 
-    def get_race(self, race_id: str) -> Union[Race, None]:
-        return self._get_race_by_id(race_id)
+    def get_race(
+        self, race_id: str, projection=RaceProjection(markets=True)
+    ) -> Union[Race, None]:
+        query = query_get_race(projection)
+        return self._get_race_by_id(race_id, query)
 
     def get_races_today(self) -> List[Race]:
         """Get all races for today."""
@@ -74,7 +76,7 @@ class BetwatchClient:
         return self.get_races_between_dates(today, tomorrow)
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
-    def _get_race_by_id(self, race_id: str, query=QUERY_GET_RACE) -> Union[Race, None]:
+    def _get_race_by_id(self, race_id: str, query: DocumentNode) -> Union[Race, None]:
         logging.info(f"getting race (id={race_id})")
         variables = {"id": race_id}
         result = self._gql_client.execute(query, variable_values=variables)

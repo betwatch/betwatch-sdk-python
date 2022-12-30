@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 
 import betwatch
+from betwatch.types.filters import RaceProjection
 
 
 def get_races():
@@ -29,4 +30,6 @@ def test_get_races():
         for r in races
         if r.meeting and r.meeting.date not in ["2022-12-21", "2022-12-22"]
     ]
+    races_with_markets = [r for r in races if r.runners]
     assert len(invalid_races) == 0
+    assert len(races_with_markets) == 0
