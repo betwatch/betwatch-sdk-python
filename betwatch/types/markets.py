@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 
 from typing import Optional, Union
 
@@ -29,12 +30,24 @@ class Price:
         )
 
 
+class PriceType(Enum):
+    FIXED_WIN = "FIXED_WIN"
+    FIXED_PLACE = "FIXED_PLACE"
+
+
 @dataclass
 class BookmakerMarket:
     id: Optional[str] = None
     bookmaker: Optional[Bookmaker] = None
     fixed_win: Optional[Price] = field(metadata={"name": "fixedWin"}, default=None)
     fixed_place: Optional[Price] = field(metadata={"name": "fixedPlace"}, default=None)
+
+    def get_market(self, market_type: PriceType) -> Optional[Price]:
+        if market_type == PriceType.FIXED_WIN:
+            return self.fixed_win
+        if market_type == PriceType.FIXED_PLACE:
+            return self.fixed_place
+        return None
 
 
 @dataclass

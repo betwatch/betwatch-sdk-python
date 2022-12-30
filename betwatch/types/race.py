@@ -4,7 +4,7 @@ from enum import Enum
 from typing import List, Optional
 from betwatch.types.bookmakers import Bookmaker
 
-from betwatch.types.markets import BetfairMarket, BookmakerMarket
+from betwatch.types.markets import BetfairMarket, BookmakerMarket, PriceType, Price
 
 
 class MeetingType(Enum):
@@ -66,6 +66,78 @@ class Runner:
             if self._scratched_time
             else None
         )
+
+    def get_bookmaker_market(self, bookmaker: Bookmaker) -> Optional[BookmakerMarket]:
+        if not self.bookmaker_markets:
+            return None
+        for market in self.bookmaker_markets:
+            if market.bookmaker == bookmaker:
+                return market
+        return None
+
+    def get_bookmaker_markets_by_price(
+        self,
+        bookmakers: List[Bookmaker] = [bookmaker for bookmaker in Bookmaker],
+        price_type: PriceType = PriceType.FIXED_WIN,
+        max_length: Optional[int] = None,
+    ) -> List[BookmakerMarket]:
+        """Sorts the bookmaker markets for a runner with the given price type by price"""
+        if not self.bookmaker_markets:
+            return []
+        best_markets: List[BookmakerMarket] = []
+        best_prices: List[Price] = []
+        for market in self.bookmaker_markets:
+            if market.bookmaker in bookmakers:
+                price = market.get_market(price_type)
+                if not price or not price.price:
+                    continue
+
+                if not best_markets or not best_prices:
+                    best_markets.append(market)
+                    best_prices.append(price)
+                    continue
+
+                for i, best_price in enumerate(best_prices):
+                    if not best_price or not best_price.price:
+                        continue
+                    if price.price > best_price.price:
+                        best_markets.insert(i, market)
+                        best_prices.insert(i, price)
+                        break
+                    elif i == len(best_prices) - 1:
+                        best_markets.append(market)
+                        best_prices.append(price)
+                        break
+
+        if max_length:
+            return best_markets[:max_length]
+        return best_markets
+
+    def get_highest_bookmaker_market(
+        self,
+        bookmakers: List[Bookmaker] = [bookmaker for bookmaker in Bookmaker],
+        market_type: PriceType = PriceType.FIXED_WIN,
+    ) -> Optional[BookmakerMarket]:
+        """Returns the best bookmaker market for a runner with the given market type"""
+        best_markets = self.get_bookmaker_markets_by_price(
+            bookmakers=bookmakers, price_type=market_type, max_length=1
+        )
+        if best_markets:
+            return best_markets[0]
+        return None
+
+    def get_lowest_bookmaker_market(
+        self,
+        bookmakers: List[Bookmaker] = [bookmaker for bookmaker in Bookmaker],
+        market_type: PriceType = PriceType.FIXED_WIN,
+    ) -> Optional[BookmakerMarket]:
+        """Returns the worst bookmaker market for a runner with the given market type"""
+        best_markets = self.get_bookmaker_markets_by_price(
+            bookmakers=bookmakers, price_type=market_type
+        )
+        if best_markets:
+            return best_markets[-1]
+        return None
 
 
 @dataclass
