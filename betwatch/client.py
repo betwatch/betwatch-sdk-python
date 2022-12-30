@@ -17,6 +17,7 @@ from betwatch.queries import (
     QUERY_GET_RACES,
     QUERY_GET_RACES_WITH_MARKETS,
 )
+from betwatch.types.bookmakers import Bookmaker
 from betwatch.types.filters import RaceProjection
 from betwatch.types.race import Race
 
@@ -82,7 +83,7 @@ class BetwatchClient:
             return typedload.load(result["race"], Race)
         return None
 
-    def get_race_last_updated_times(self, race_id: str) -> Dict[str, datetime]:
+    def get_race_last_updated_times(self, race_id: str) -> Dict[Bookmaker, datetime]:
         """Get the last time each bookmaker was checked for a price update.
            This does not mean that the price was updated, just that the bookmaker was checked.
 

@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
+from betwatch.types.bookmakers import Bookmaker
 
 from betwatch.types.markets import BetfairMarket, BookmakerMarket
 
@@ -69,7 +70,7 @@ class Runner:
 
 @dataclass
 class RaceLink:
-    bookmaker: Optional[str] = None
+    bookmaker: Optional[Bookmaker] = None
     nav_link: Optional[str] = field(metadata={"name": "navLink"}, default=None)
     _last_successful_price_update: Optional[str] = field(
         metadata={"name": "lastSuccessfulPriceUpdate"}, default=None

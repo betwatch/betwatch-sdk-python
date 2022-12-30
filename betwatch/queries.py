@@ -72,9 +72,6 @@ QUERY_GET_RACES = gql(
                 id
                 name
                 number
-                bookmakerMarkets {
-                    id
-                }
             }
         }
     }
@@ -120,6 +117,7 @@ QUERY_GET_RACES_WITH_MARKETS = gql(
     }
     """
 )
+
 
 QUERY_GET_RACE = gql(
     """

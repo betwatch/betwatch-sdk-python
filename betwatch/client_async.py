@@ -23,6 +23,7 @@ from betwatch.queries import (
     SUBSCRIPTION_RACES_UPDATES,
 )
 from betwatch.types import Race, RaceProjection
+from betwatch.types.bookmakers import Bookmaker
 from betwatch.types.markets import BookmakerMarket
 
 
@@ -246,7 +247,9 @@ class BetwatchAsyncClient:
             return typedload.load(result["race"], Race)
         return None
 
-    async def get_race_last_updated_times(self, race_id: str) -> Dict[str, datetime]:
+    async def get_race_last_updated_times(
+        self, race_id: str
+    ) -> Dict[Bookmaker, datetime]:
         """Get the last time each bookmaker was checked for a price update.
            This does not mean that the price was updated, just that the bookmaker was checked.
 
