@@ -30,6 +30,28 @@ from betwatch.types.markets import BookmakerMarket
 class BetwatchAsyncClient:
     def __init__(self, api_key: str, transport_logging_level: int = logging.WARNING):
         self.api_key = api_key
+
+        self.connect()
+
+        self._http_session: Union[
+            None, ReconnectingAsyncClientSession, AsyncClientSession
+        ] = None
+
+        # flag to indicate if we have entered the context manager
+        self._websocket_session: Union[
+            None, ReconnectingAsyncClientSession, AsyncClientSession
+        ] = None
+
+        websockets_logger.setLevel(transport_logging_level)
+        aiohttp_logger.setLevel(transport_logging_level)
+
+        # register the cleanup function to be called on exit
+        atexit.register(self.__exit)
+
+        # lock to prevent multiple sessions being created
+        self._session_lock = asyncio.Lock()
+
+    def connect(self):
         self._gql_sub_transport = WebsocketsTransport(
             url="wss://api.betwatch.com/sub",
             headers={
@@ -56,54 +78,22 @@ class BetwatchAsyncClient:
             execute_timeout=60,
         )
 
-        self._http_session: Union[
-            None, ReconnectingAsyncClientSession, AsyncClientSession
-        ] = None
-
-        # flag to indicate if we have entered the context manager
-        self._websocket_session: Union[
-            None, ReconnectingAsyncClientSession, AsyncClientSession
-        ] = None
-
-        websockets_logger.setLevel(transport_logging_level)
-        aiohttp_logger.setLevel(transport_logging_level)
-
-        # register the cleanup function to be called on exit
-        atexit.register(self.__exit)
-
-        # lock to prevent multiple sessions being created
-        self._session_lock = asyncio.Lock()
-
     async def disconnect(self):
         """Disconnect from the websocket connection."""
-        async with self._session_lock:
-            await self._gql_client.close_async()
-            await self._gql_sub_client.close_async()
-            self._http_session = None
-            self._websocket_session = None
+        logging.debug("disconnecting from client sessions")
+        await self.__cleanup()
 
     async def __cleanup(self):
         """Gracefully close clients."""
-        # try:
-        #     await self._gql_client.close_async()
-        # except Exception:
-        #     pass
-        # try:
-        #     await self._gql_sub_client.close_async()
-        # except Exception:
-        #     pass
         async with self._session_lock:
             try:
-                await self._gql_transport.close()
+                self._http_session = None
+                await self._gql_client.close_async()
             except Exception:
                 pass
             try:
-                await self._gql_sub_transport.close()
-            except Exception:
-                pass
-            try:
-                if self._http_session:
-                    await self._http_session.client.close_async()
+                self._websocket_session = None
+                await self._gql_sub_client.close_async()
             except Exception:
                 pass
 
@@ -111,6 +101,10 @@ class BetwatchAsyncClient:
         """Close the client."""
         logging.info("closing connection to Betwatch API (may take a few seconds)")
         asyncio.run(self.__cleanup())
+
+    async def reconnect(self):
+        await self.disconnect()
+        self.connect()
 
     async def __aenter__(self):
         """Pass through to the underlying client's __aenter__ method."""
