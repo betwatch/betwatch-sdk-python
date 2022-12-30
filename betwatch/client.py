@@ -69,11 +69,11 @@ class BetwatchClient:
         query = query_get_race(projection)
         return self._get_race_by_id(race_id, query)
 
-    def get_races_today(self) -> List[Race]:
+    def get_races_today(self, projection=RaceProjection()) -> List[Race]:
         """Get all races for today."""
         today = datetime.now().strftime("%Y-%m-%d")
-        tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-        return self.get_races_between_dates(today, tomorrow)
+        tomorrow = (datetime.now() + timedelta(days=0)).strftime("%Y-%m-%d")
+        return self.get_races_between_dates(today, tomorrow, projection)
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     def _get_race_by_id(self, race_id: str, query: DocumentNode) -> Union[Race, None]:

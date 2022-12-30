@@ -140,11 +140,11 @@ class BetwatchAsyncClient:
                 self._http_session = await self._gql_client.connect_async()
         return self._http_session
 
-    async def get_races_today(self) -> List[Race]:
+    async def get_races_today(self, projection=RaceProjection()) -> List[Race]:
         """Get all races for today."""
         today = datetime.now().strftime("%Y-%m-%d")
-        tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-        return await self.get_races_between_dates(today, tomorrow)
+        tomorrow = (datetime.now() + timedelta(days=0)).strftime("%Y-%m-%d")
+        return await self.get_races_between_dates(today, tomorrow, projection)
 
     async def get_races_between_dates(
         self,
