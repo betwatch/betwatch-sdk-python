@@ -246,6 +246,15 @@ class Race:
             return f"R{self.number} [{st}]"
         return f"({self.meeting.type}) {self.meeting.track} R{self.number}{st}"
 
+    def get_bookmaker_link(self, bookmaker: Bookmaker) -> Optional[RaceLink]:
+        """Returns the link for the given bookmaker"""
+        if not self.links:
+            return None
+        for link in self.links:
+            if link.bookmaker == bookmaker:
+                return link
+        return None
+
     def get_runners_by_price(self, market_type: MarketPriceType) -> List[Runner]:
         """Sorts the runners by the given market types best price"""
         if not self.runners:

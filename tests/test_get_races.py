@@ -3,7 +3,6 @@ import os
 from dotenv import load_dotenv
 
 import betwatch
-from betwatch.types.filters import RaceProjection
 
 
 def get_races():
