@@ -9,6 +9,11 @@ def get_race_query_from_projection(projection: RaceProjection) -> str:
     runners_gql = (
         "runners { id name number "
         + (
+            "betfairMarkets { id sp marketName totalMatched marketTotalMatched back { price size lastUpdated } lay { price size lastUpdated } } "
+            if projection.betfair
+            else ""
+        )
+        + (
             "bookmakerMarkets { id bookmaker "
             + "fixedWin { price lastUpdated "
             + ("flucs { price lastUpdated } " if projection.flucs else "")
@@ -23,7 +28,7 @@ def get_race_query_from_projection(projection: RaceProjection) -> str:
     )
 
     return (
-        " id meeting { id location track type date } "
+        " id betfairMapping { win place } meeting { id location track type date } "
         + "classConditions name number status startTime results "
         + runners_gql
         + (
