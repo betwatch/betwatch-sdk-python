@@ -4,7 +4,12 @@ from enum import Enum
 from typing import List, Optional
 from betwatch.types.bookmakers import Bookmaker
 
-from betwatch.types.markets import BetfairMarket, BookmakerMarket, PriceType, Price
+from betwatch.types.markets import (
+    BetfairMarket,
+    BookmakerMarket,
+    MarketPriceType,
+    Price,
+)
 
 
 class MeetingType(Enum):
@@ -78,7 +83,7 @@ class Runner:
     def get_bookmaker_markets_by_price(
         self,
         bookmakers: List[Bookmaker] = [bookmaker for bookmaker in Bookmaker],
-        price_type: PriceType = PriceType.FIXED_WIN,
+        price_type: MarketPriceType = MarketPriceType.FIXED_WIN,
         max_length: Optional[int] = None,
     ) -> List[BookmakerMarket]:
         """Sorts the bookmaker markets for a runner with the given price type by price"""
@@ -88,7 +93,7 @@ class Runner:
         best_prices: List[Price] = []
         for market in self.bookmaker_markets:
             if market.bookmaker in bookmakers:
-                price = market.get_market(price_type)
+                price = market.get_price(price_type)
                 if not price or not price.price:
                     continue
 
@@ -116,7 +121,7 @@ class Runner:
     def get_highest_bookmaker_market(
         self,
         bookmakers: List[Bookmaker] = [bookmaker for bookmaker in Bookmaker],
-        market_type: PriceType = PriceType.FIXED_WIN,
+        market_type: MarketPriceType = MarketPriceType.FIXED_WIN,
     ) -> Optional[BookmakerMarket]:
         """Returns the best bookmaker market for a runner with the given market type"""
         best_markets = self.get_bookmaker_markets_by_price(
@@ -129,7 +134,7 @@ class Runner:
     def get_lowest_bookmaker_market(
         self,
         bookmakers: List[Bookmaker] = [bookmaker for bookmaker in Bookmaker],
-        market_type: PriceType = PriceType.FIXED_WIN,
+        market_type: MarketPriceType = MarketPriceType.FIXED_WIN,
     ) -> Optional[BookmakerMarket]:
         """Returns the worst bookmaker market for a runner with the given market type"""
         best_markets = self.get_bookmaker_markets_by_price(
@@ -206,3 +211,36 @@ class Race:
         if self.meeting is None:
             return f"R{self.number} [{st}]"
         return f"{self.meeting.track} R{self.number}{st}"
+
+    def get_runners_by_price(self, market_type: MarketPriceType) -> List[Runner]:
+        """Sorts the runners by the given market types best price"""
+        if not self.runners:
+            return []
+        best_runners: List[Runner] = []
+        best_prices: List[Price] = []
+        for runner in self.runners:
+            market = runner.get_highest_bookmaker_market(market_type=market_type)
+            if not market:
+                continue
+            price = market.get_price(market_type)
+            if not price or not price.price:
+                continue
+
+            if not best_runners or not best_prices:
+                best_runners.append(runner)
+                best_prices.append(price)
+                continue
+
+            for i, best_price in enumerate(best_prices):
+                if not best_price or not best_price.price:
+                    continue
+                if price.price < best_price.price:
+                    best_runners.insert(i, runner)
+                    best_prices.insert(i, price)
+                    break
+                elif i == len(best_prices) - 1:
+                    best_runners.append(runner)
+                    best_prices.append(price)
+                    break
+
+        return best_runners

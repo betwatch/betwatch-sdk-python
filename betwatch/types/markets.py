@@ -30,7 +30,7 @@ class Price:
         )
 
 
-class PriceType(Enum):
+class MarketPriceType(Enum):
     FIXED_WIN = "FIXED_WIN"
     FIXED_PLACE = "FIXED_PLACE"
 
@@ -42,10 +42,10 @@ class BookmakerMarket:
     fixed_win: Optional[Price] = field(metadata={"name": "fixedWin"}, default=None)
     fixed_place: Optional[Price] = field(metadata={"name": "fixedPlace"}, default=None)
 
-    def get_market(self, market_type: PriceType) -> Optional[Price]:
-        if market_type == PriceType.FIXED_WIN:
+    def get_price(self, market_type: MarketPriceType) -> Optional[Price]:
+        if market_type == MarketPriceType.FIXED_WIN:
             return self.fixed_win
-        if market_type == PriceType.FIXED_PLACE:
+        if market_type == MarketPriceType.FIXED_PLACE:
             return self.fixed_place
         return None
 
