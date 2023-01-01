@@ -90,6 +90,30 @@ SUBSCRIPTION_PRICE_UPDATES = gql(
 )
 
 
+SUBSCRIPTION_BETFAIR_UPDATES = gql(
+    """
+    subscription BetfairUpdates($id: ID!) {
+      betfairUpdates(id: $id) {
+        id
+        sp
+        totalMatched
+        marketTotalMatched
+        back {
+          price
+          size
+          lastUpdated
+        }
+        lay {
+          price
+          size
+          lastUpdated
+        }
+      }
+    }
+    """
+)
+
+
 def query_get_races(projection: RaceProjection) -> DocumentNode:
     return gql(
         """

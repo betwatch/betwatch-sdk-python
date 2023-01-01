@@ -17,6 +17,7 @@ from gql.transport.websockets import log as websockets_logger
 from betwatch.__about__ import __version__
 from betwatch.queries import (
     QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
+    SUBSCRIPTION_BETFAIR_UPDATES,
     SUBSCRIPTION_PRICE_UPDATES,
     SUBSCRIPTION_RACES_UPDATES,
     query_get_race,
@@ -24,7 +25,7 @@ from betwatch.queries import (
 )
 from betwatch.types import Race, RaceProjection
 from betwatch.types.bookmakers import Bookmaker
-from betwatch.types.markets import BookmakerMarket
+from betwatch.types.markets import BetfairMarket, BookmakerMarket
 
 
 class BetwatchAsyncClient:
@@ -219,6 +220,27 @@ class BetwatchAsyncClient:
         async for result in session.subscribe(query, variable_values=variables):
             if result.get("priceUpdates"):
                 yield typedload.load(result["priceUpdates"], List[BookmakerMarket])
+
+    async def subscribe_betfair_updates(
+        self,
+        race_id: str,
+    ):
+        """Subscribe to betfair price updates for a specific race.
+
+        Args:
+            race_id (str): The id of a specific race. This can be obtained from the `get_races` method.
+
+        Yields:
+            List[BetfairMarket]: A list of betfair markets with updated prices.
+        """
+        session = await self._setup_websocket_session()
+
+        query = SUBSCRIPTION_BETFAIR_UPDATES
+        variables = {"id": race_id}
+
+        async for result in session.subscribe(query, variable_values=variables):
+            if result.get("betfairUpdates"):
+                yield typedload.load(result["betfairUpdates"], List[BetfairMarket])
 
     async def subscribe_races_updates(self, date_from: str, date_to: str):
         session = await self._setup_websocket_session()
