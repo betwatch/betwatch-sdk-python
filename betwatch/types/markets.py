@@ -62,6 +62,11 @@ class BetfairTick:
         )
 
 
+class BetfairSide(Enum):
+    BACK = "BACK"
+    LAY = "LAY"
+
+
 @dataclass
 class BetfairMarket:
     id: Optional[str] = None
