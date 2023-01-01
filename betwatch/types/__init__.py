@@ -9,4 +9,5 @@ from .markets import (
     BetfairSide,
     BookmakerMarket,
     BetfairMarket,
+    BetfairTick,
 )

@@ -80,6 +80,22 @@ class Runner:
                 return market
         return None
 
+    def get_betfair_win_market(self) -> Optional[BetfairMarket]:
+        if not self.betfair_markets:
+            return None
+        for market in self.betfair_markets:
+            if market.market_name == "win":
+                return market
+        return None
+
+    def get_betfair_place_market(self) -> Optional[BetfairMarket]:
+        if not self.betfair_markets:
+            return None
+        for market in self.betfair_markets:
+            if market.market_name == "place":
+                return market
+        return None
+
     def get_bookmaker_markets_by_price(
         self,
         bookmakers: List[Bookmaker] = [bookmaker for bookmaker in Bookmaker],
