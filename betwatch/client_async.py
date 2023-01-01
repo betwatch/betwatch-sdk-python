@@ -163,17 +163,17 @@ class BetwatchAsyncClient:
         Returns:
             List[Race]: List of races that match the criteria
         """
-        logging.info(f"getting races between {date_from} and {date_to}")
-
-        session = await self._setup_http_session()
-
-        query = query_get_races(projection)
-
         # convert to string if datetime
         if isinstance(date_from, datetime):
             date_from = date_from.strftime("%Y-%m-%d")
         if isinstance(date_to, datetime):
             date_to = date_to.strftime("%Y-%m-%d")
+
+        logging.info(f"getting races between {date_from} and {date_to}")
+
+        session = await self._setup_http_session()
+
+        query = query_get_races(projection)
 
         variables = {"dateFrom": date_from, "dateTo": date_to}
 

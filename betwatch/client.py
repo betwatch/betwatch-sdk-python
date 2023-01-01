@@ -51,8 +51,16 @@ class BetwatchClient:
         self._gql_transport.close()
 
     def get_races_between_dates(
-        self, date_from: str, date_to: str, projection=RaceProjection()
+        self,
+        date_from: Union[str, datetime],
+        date_to: Union[str, datetime],
+        projection=RaceProjection(),
     ) -> List[Race]:
+        if isinstance(date_from, datetime):
+            date_from = date_from.strftime("%Y-%m-%d")
+        if isinstance(date_to, datetime):
+            date_to = date_to.strftime("%Y-%m-%d")
+
         logging.info(f"getting races between {date_from} and {date_to}")
         query = query_get_races(projection)
         variables = {"dateFrom": date_from, "dateTo": date_to}
