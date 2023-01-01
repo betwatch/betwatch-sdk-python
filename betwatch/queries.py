@@ -7,7 +7,7 @@ def get_race_query_from_projection(projection: RaceProjection) -> str:
     """Get a GQL query based on a projection."""
 
     runners_gql = (
-        "runners { id name number "
+        "runners { id betfairId name number "
         + (
             "betfairMarkets { id sp marketName totalMatched marketTotalMatched back { price size lastUpdated } lay { price size lastUpdated } } "
             if projection.betfair

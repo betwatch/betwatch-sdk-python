@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 
 import betwatch
+from betwatch.types.filters import RaceProjection
 from betwatch.types.race import RaceStatus
 
 
@@ -14,7 +15,9 @@ def get_race(race_id: str):
 
     client = betwatch.connect(api_key=api_key)
 
-    race = client.get_race(race_id)
+    projection = RaceProjection(markets=True, flucs=True, links=True, betfair=True)
+
+    race = client.get_race(race_id, projection)
     return race
 
 
@@ -26,3 +29,4 @@ def test_get_race():
     assert race.status == RaceStatus.RESULTED
     assert race.meeting is not None
     assert race.meeting.track == "Darwin"
+    assert race.runners and race.runners[0].betfair_id != ""
