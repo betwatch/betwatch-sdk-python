@@ -17,6 +17,15 @@ class MeetingType(Enum):
     GREYHOUND = "Greyhound"
     HARNESS = "Harness"
 
+    def __str__(self) -> str:
+        if self == MeetingType.THOROUGHBRED:
+            return "R"
+        if self == MeetingType.GREYHOUND:
+            return "G"
+        if self == MeetingType.HARNESS:
+            return "H"
+        return "Unknown"
+
 
 class RaceStatus(Enum):
     OPEN = "Open"
@@ -37,6 +46,9 @@ class Meeting:
     rail_position: Optional[str] = field(
         metadata={"name": "railPosition"}, default=None
     )
+
+    def __str__(self) -> str:
+        return f"({self.type}) {self.track} [{self.date}]"
 
 
 @dataclass
@@ -61,6 +73,12 @@ class Runner:
     betfair_markets: Optional[List[BetfairMarket]] = field(
         metadata={"name": "betfairMarkets"}, default_factory=list
     )
+
+    def __str__(self) -> str:
+        return f"{self.number}. {self.name}"
+
+    def __repr__(self) -> str:
+        return f"{self.number}. {self.name}"
 
     def is_scratched(self) -> bool:
         return self._scratched_time is not None
@@ -226,7 +244,7 @@ class Race:
 
         if self.meeting is None:
             return f"R{self.number} [{st}]"
-        return f"{self.meeting.track} R{self.number}{st}"
+        return f"({self.meeting.type}) {self.meeting.track} R{self.number}{st}"
 
     def get_runners_by_price(self, market_type: MarketPriceType) -> List[Runner]:
         """Sorts the runners by the given market types best price"""
