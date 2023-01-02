@@ -94,9 +94,9 @@ def subscription_race_price_updates(projection: RaceProjection) -> DocumentNode:
           }
         }
         """
+            if projection.place_markets
+            else ""
         )
-        if projection.place_markets
-        else ""
         + """}
     }
     """
