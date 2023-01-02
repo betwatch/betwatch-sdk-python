@@ -18,9 +18,14 @@ def get_race_query_from_projection(projection: RaceProjection) -> str:
             + "fixedWin { price lastUpdated "
             + ("flucs { price lastUpdated } " if projection.flucs else "")
             + "} "
-            + "fixedPlace { price lastUpdated "
-            + ("flucs { price lastUpdated } " if projection.flucs else "")
-            + "} } "
+            + (
+                "fixedPlace { price lastUpdated "
+                + ("flucs { price lastUpdated } " if projection.flucs else "")
+                + "} "
+                if projection.place_markets
+                else ""
+            )
+            + "} "
         )
         + "}"
         if projection.markets
@@ -62,20 +67,14 @@ SUBSCRIPTION_RUNNER_UPDATES = gql(
     """
 )
 
-SUBSCRIPTION_PRICE_UPDATES = gql(
-    """
+
+def subscription_race_price_updates(projection: RaceProjection) -> DocumentNode:
+    return gql(
+        """
     subscription PriceUpdates($id: ID!) {
       priceUpdates(id: $id) {
         id
         bookmaker
-        fixedPlace {
-          price
-          lastUpdated
-          flucs {
-            price
-            lastUpdated
-          }
-        }
         fixedWin {
           price
           lastUpdated
@@ -84,10 +83,24 @@ SUBSCRIPTION_PRICE_UPDATES = gql(
             lastUpdated
           }
         }
-      }
+        """
+        + (
+            """fixedPlace {
+          price
+          lastUpdated
+          flucs {
+            price
+            lastUpdated
+          }
+        }
+        """
+        )
+        if projection.place_markets
+        else ""
+        + """}
     }
     """
-)
+    )
 
 
 SUBSCRIPTION_BETFAIR_UPDATES = gql(

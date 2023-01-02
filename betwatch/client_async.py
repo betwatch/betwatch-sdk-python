@@ -18,10 +18,10 @@ from betwatch.__about__ import __version__
 from betwatch.queries import (
     QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
     SUBSCRIPTION_BETFAIR_UPDATES,
-    SUBSCRIPTION_PRICE_UPDATES,
     SUBSCRIPTION_RACES_UPDATES,
     query_get_race,
     query_get_races,
+    subscription_race_price_updates,
 )
 from betwatch.types import Race, RaceProjection
 from betwatch.types.bookmakers import Bookmaker
@@ -203,6 +203,7 @@ class BetwatchAsyncClient:
     async def subscribe_price_updates(
         self,
         race_id: str,
+        projection=RaceProjection(markets=True),
     ):
         """Subscribe to price updates for a specific race.
 
@@ -214,7 +215,7 @@ class BetwatchAsyncClient:
         """
         session = await self._setup_websocket_session()
 
-        query = SUBSCRIPTION_PRICE_UPDATES
+        query = subscription_race_price_updates(projection)
         variables = {"id": race_id}
 
         async for result in session.subscribe(query, variable_values=variables):
