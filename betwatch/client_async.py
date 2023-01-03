@@ -147,6 +147,7 @@ class BetwatchAsyncClient:
         tomorrow = (datetime.now() + timedelta(days=0)).strftime("%Y-%m-%d")
         return await self.get_races_between_dates(today, tomorrow, projection)
 
+    @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     async def get_races_between_dates(
         self,
         date_from: Union[str, datetime],
