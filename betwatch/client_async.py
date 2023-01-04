@@ -60,9 +60,9 @@ class BetwatchAsyncClient:
         self._session_lock = asyncio.Lock()
 
         self._subscription_queue: asyncio.Queue[SubscriptionUpdate] = asyncio.Queue()
-        self._subscriptions_betfair: Dict[str, List[asyncio.Task]] = {}
-        self._subscriptions_prices: Dict[str, List[asyncio.Task]] = {}
-        self._subscriptions_updates: Dict[Tuple[str, str], List[asyncio.Task]] = {}
+        self._subscriptions_betfair: Dict[str, asyncio.Task] = {}
+        self._subscriptions_prices: Dict[str, asyncio.Task] = {}
+        self._subscriptions_updates: Dict[Tuple[str, str], asyncio.Task] = {}
         self._subscription_reconnect_task: asyncio.Task | None = (
             None  # handle resubscribing only once
         )
@@ -236,16 +236,29 @@ class BetwatchAsyncClient:
             self._subscription_queue.task_done()
             yield update
 
+    async def unsubscribe_race(self, race_id: str):
+        await self.unsubscribe_betfair_updates(race_id)
+        await self.unsubscribe_bookmaker_updates(race_id)
+
+    async def unsubscribe_bookmaker_updates(self, race_id: str):
+        if race_id not in self._subscriptions_prices:
+            logging.info(f"Not subscribed to {race_id} bookmaker updates")
+            return
+
+        self._subscriptions_prices[race_id].cancel()
+        del self._subscriptions_prices
+
     async def subscribe_bookmaker_updates(
         self,
         race_id: str,
         projection=RaceProjection(markets=True),
     ):
-        if race_id not in self._subscriptions_prices:
-            self._subscriptions_prices[race_id] = []
+        if race_id in self._subscriptions_prices:
+            logging.info(f"Already subscribed to {race_id} bookmaker updates")
+            return
 
-        self._subscriptions_prices[race_id].append(
-            asyncio.create_task(self._subscribe_bookmaker_updates(race_id, projection))
+        self._subscriptions_prices[race_id] = asyncio.create_task(
+            self._subscribe_bookmaker_updates(race_id, projection)
         )
 
     @backoff.on_exception(
@@ -273,7 +286,7 @@ class BetwatchAsyncClient:
             query = subscription_race_price_updates(projection)
             variables = {"id": race_id}
 
-            logging.info(f"Subscribing to price updates for {race_id}")
+            logging.info(f"Subscribing to bookmaker updates for {race_id}")
 
             async for result in session.subscribe(query, variable_values=variables):
                 if result.get("priceUpdates"):
@@ -293,12 +306,22 @@ class BetwatchAsyncClient:
             await self.reconnect()
             raise e
 
-    async def subscribe_betfair_updates(self, race_id: str):
+    async def unsubscribe_betfair_updates(self, race_id: str):
         if race_id not in self._subscriptions_betfair:
-            self._subscriptions_betfair[race_id] = []
+            logging.info(f"Not subscribed to {race_id} betfair updates")
+            return
 
-        self._subscriptions_betfair[race_id].append(
-            asyncio.create_task(self._subscribe_betfair_updates(race_id))
+        self._subscriptions_betfair[race_id].cancel()
+        del self._subscriptions_betfair[race_id]
+        logging.info(f"Unsubscribed from {race_id} betfair updates")
+
+    async def subscribe_betfair_updates(self, race_id: str):
+        if race_id in self._subscriptions_betfair:
+            logging.info(f"Already subscribed to {race_id} betfair updates")
+            return
+
+        self._subscriptions_betfair[race_id] = asyncio.create_task(
+            self._subscribe_betfair_updates(race_id)
         )
 
     @backoff.on_exception(
@@ -345,12 +368,24 @@ class BetwatchAsyncClient:
             await self.reconnect()
             raise e
 
-    async def subscribe_race_updates(self, date_from: str, date_to: str):
+    async def unsubscribe_race_updates(self, date_from: str, date_to: str):
         if (date_from, date_to) not in self._subscriptions_updates:
-            self._subscriptions_updates[(date_from, date_to)] = []
+            logging.info(f"Not subscribed to races updates for {date_from} - {date_to}")
+            return
 
-        self._subscriptions_updates[(date_from, date_to)].append(
-            asyncio.create_task(self._subscribe_race_updates(date_from, date_to))
+        self._subscriptions_updates[(date_from, date_to)].cancel()
+        del self._subscriptions_updates[(date_from, date_to)]
+        logging.info(f"Unsubscribed from races updates for {date_from} - {date_to}")
+
+    async def subscribe_race_updates(self, date_from: str, date_to: str):
+        if (date_from, date_to) in self._subscriptions_updates:
+            logging.info(
+                f"Already subscribed to races updates for {date_from} - {date_to}"
+            )
+            return
+
+        self._subscriptions_updates[(date_from, date_to)] = asyncio.create_task(
+            self._subscribe_race_updates(date_from, date_to)
         )
 
     @backoff.on_exception(
