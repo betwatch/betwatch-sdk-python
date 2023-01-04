@@ -236,6 +236,13 @@ class BetwatchAsyncClient:
             self._subscription_queue.task_done()
             yield update
 
+    def get_subscribed_race_ids(self) -> List[str]:
+        """Get a list of all subscribed races"""
+        unique = list(self._subscriptions_prices.keys()) + list(
+            self._subscriptions_betfair.keys()
+        )
+        return list(set(unique)) if unique else []
+
     async def unsubscribe_race(self, race_id: str):
         await self.unsubscribe_betfair_updates(race_id)
         await self.unsubscribe_bookmaker_updates(race_id)
