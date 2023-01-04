@@ -61,7 +61,7 @@ class BetwatchClient:
         if isinstance(date_to, datetime):
             date_to = date_to.strftime("%Y-%m-%d")
 
-        logging.info(f"getting races between {date_from} and {date_to}")
+        logging.info(f"Getting races between {date_from} and {date_to}")
         query = query_get_races(projection)
         variables = {"dateFrom": date_from, "dateTo": date_to}
         result = self._gql_client.execute(query, variable_values=variables)
@@ -85,7 +85,7 @@ class BetwatchClient:
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     def _get_race_by_id(self, race_id: str, query: DocumentNode) -> Union[Race, None]:
-        logging.info(f"getting race (id={race_id})")
+        logging.info(f"Getting race (id={race_id})")
         variables = {"id": race_id}
         result = self._gql_client.execute(query, variable_values=variables)
 

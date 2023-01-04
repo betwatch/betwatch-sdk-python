@@ -170,7 +170,7 @@ class BetwatchAsyncClient:
         if isinstance(date_to, datetime):
             date_to = date_to.strftime("%Y-%m-%d")
 
-        logging.info(f"getting races between {date_from} and {date_to}")
+        logging.info(f"Getting races between {date_from} and {date_to}")
 
         session = await self._setup_http_session()
 
