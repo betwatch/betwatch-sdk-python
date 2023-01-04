@@ -12,6 +12,14 @@ from betwatch.types.markets import (
 )
 
 
+@dataclass
+class SubscriptionUpdate:
+    race_id: str
+    bookmaker_markets: list[BookmakerMarket] = field(default_factory=list)
+    betfair_markets: list[BetfairMarket] = field(default_factory=list)
+    race_update: Optional["RaceUpdate"] = None
+
+
 class MeetingType(Enum):
     THOROUGHBRED = "Thoroughbred"
     GREYHOUND = "Greyhound"
@@ -193,6 +201,18 @@ class RaceLink:
             if self._last_successful_price_update
             else None
         )
+
+
+@dataclass
+class RaceUpdate:
+    """Only the fields that are returned in the RacesUpdated query"""
+
+    id: str
+    status: RaceStatus
+    _start_time: str = field(metadata={"name": "startTime"})
+
+    def __post_init__(self):
+        self.start_time = datetime.fromisoformat(self._start_time)
 
 
 @dataclass

@@ -1,40 +1,8 @@
 import asyncio
 import os
 from datetime import datetime, timedelta
-from typing import AsyncGenerator, List
-
 from dotenv import load_dotenv
-
 import betwatch
-from betwatch.types import Race, RaceProjection
-from betwatch.types.markets import BookmakerMarket
-
-
-async def handle_price_updates(
-    race: Race, generator: AsyncGenerator[List[BookmakerMarket], None]
-):
-    async for updates in generator:
-        # find associated runner
-        if not race.runners:
-            continue
-        for update in updates:
-            runner = next(
-                (
-                    r
-                    for r in race.runners
-                    if r.bookmaker_markets
-                    for m in r.bookmaker_markets
-                    if m.id == update.id
-                ),
-                None,
-            )
-            if not runner:
-                continue
-
-            # print price update
-            print(
-                f"{race} - {runner.number}. {runner.name} - {update.fixed_win} @ {update.bookmaker}"
-            )
 
 
 async def main():
@@ -48,32 +16,29 @@ async def main():
     today = datetime.today().strftime("%Y-%m-%d")
     tomorrow = (datetime.today() + timedelta(days=1)).strftime("%Y-%m-%d")
 
-    # request market data in order to map to request bookmaker market updates
-    projection = RaceProjection(markets=True)
-
     # get all races between today and tomorrow
-    races = await client.get_races_between_dates(today, tomorrow, projection)
+    races = await client.get_races_between_dates(today, tomorrow)
 
-    # open up a context manager to handle the connection
-    # this creates a websocket connection to the Betwatch API
-    async with client:
-        # filter only open races
-        open_races = [r for r in races if r.is_open()]
+    # filter only open races
+    open_races = [r for r in races if r.is_open()]
 
-        # subscribe to the 5 next open races
-        tasks = []
-        for i in range(min(10, len(open_races))):
-            print(f"Subscribing to price updates for {open_races[i]}...")
-            tasks.append(
-                asyncio.create_task(
-                    handle_price_updates(
-                        open_races[i], client.subscribe_price_updates(open_races[i].id)
-                    )
-                )
-            )
+    # subscribe to the 5 next open races
+    for i in range(min(5, len(open_races))):
+        await client.subscribe_bookmaker_updates(open_races[i].id)
 
-        # wait for all tasks to finish (in this case this will never happen)
-        await asyncio.gather(*tasks)
+    async for update in client.listen():
+        print(f"Received an update for {update.race_id}")
+
+        # could contain a variety of information
+        if update.betfair_markets:
+            # has updated betfair market / prices
+            pass
+        if update.bookmaker_markets:
+            # has updated bookmaker market / prices
+            pass
+        if update.race_update:
+            # has updated race info (e.g. status, updated start tiem)
+            pass
 
 
 if __name__ == "__main__":
