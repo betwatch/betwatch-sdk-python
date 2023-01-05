@@ -26,11 +26,11 @@ from betwatch.queries import (
     subscription_race_price_updates,
 )
 from betwatch.types import (
-    Race,
-    RaceProjection,
+    BetfairMarket,
     Bookmaker,
     BookmakerMarket,
-    BetfairMarket,
+    Race,
+    RaceProjection,
 )
 from betwatch.types.race import RaceUpdate, SubscriptionUpdate
 
