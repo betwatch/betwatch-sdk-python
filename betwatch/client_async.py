@@ -252,6 +252,7 @@ class BetwatchAsyncClient:
                 logging.warning(
                     f"Subscription queue is {self._subscription_queue.qsize()} items behind"
                 )
+                last_warning = datetime.now()
 
     def get_subscribed_race_ids(self) -> List[str]:
         """Get a list of all subscribed races"""
