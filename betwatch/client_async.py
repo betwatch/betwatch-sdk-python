@@ -256,6 +256,7 @@ class BetwatchAsyncClient:
 
         self._subscriptions_prices[race_id].cancel()
         del self._subscriptions_prices[race_id]
+        logging.debug(f"Unsubscribed from {race_id} bookmaker updates")
 
     async def subscribe_bookmaker_updates(
         self,
@@ -322,7 +323,7 @@ class BetwatchAsyncClient:
 
         self._subscriptions_betfair[race_id].cancel()
         del self._subscriptions_betfair[race_id]
-        logging.info(f"Unsubscribed from {race_id} betfair updates")
+        logging.debug(f"Unsubscribed from {race_id} betfair updates")
 
     async def subscribe_betfair_updates(self, race_id: str):
         if race_id in self._subscriptions_betfair:
