@@ -40,6 +40,7 @@ dependencies = [
     "python-dotenv",
     "pytest-asyncio",
     "black",
+    "pre-commit",
 ]
 [tool.hatch.envs.default.scripts]
 cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=betwatch --cov=tests {args}"
