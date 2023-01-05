@@ -255,7 +255,7 @@ class BetwatchAsyncClient:
             return
 
         self._subscriptions_prices[race_id].cancel()
-        del self._subscriptions_prices
+        del self._subscriptions_prices[race_id]
 
     async def subscribe_bookmaker_updates(
         self,
