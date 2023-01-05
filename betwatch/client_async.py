@@ -76,6 +76,7 @@ class BetwatchAsyncClient:
             },
             init_payload={"apiKey": self.api_key},
             ack_timeout=60,
+            ping_interval=10,
         )
         self._gql_transport = AIOHTTPTransport(
             url="https://api.betwatch.com/query",
@@ -124,6 +125,7 @@ class BetwatchAsyncClient:
         async with self._session_lock:
             if not self._subscription_reconnect_task:
                 self._subscription_reconnect_task = asyncio.create_task(self._connect())
+                logging.info("reconnecting to Betwatch API")
 
     async def _connect(self):
         self.connect()
@@ -293,7 +295,7 @@ class BetwatchAsyncClient:
             query = subscription_race_price_updates(projection)
             variables = {"id": race_id}
 
-            logging.info(f"Subscribing to bookmaker updates for {race_id}")
+            logging.debug(f"Subscribing to bookmaker updates for {race_id}")
 
             async for result in session.subscribe(query, variable_values=variables):
                 if result.get("priceUpdates"):
@@ -355,7 +357,7 @@ class BetwatchAsyncClient:
             query = SUBSCRIPTION_BETFAIR_UPDATES
             variables = {"id": race_id}
 
-            logging.info(f"Subscribing to betfair updates for {race_id}")
+            logging.debug(f"Subscribing to betfair updates for {race_id}")
 
             async for result in session.subscribe(query, variable_values=variables):
                 if result.get("betfairUpdates"):
@@ -408,7 +410,7 @@ class BetwatchAsyncClient:
             query = SUBSCRIPTION_RACES_UPDATES
             variables = {"dateFrom": date_from, "dateTo": date_to}
 
-            logging.info(f"Subscribing to race updates for {date_from} - {date_to}")
+            logging.debug(f"Subscribing to race updates for {date_from} - {date_to}")
 
             async for result in session.subscribe(query, variable_values=variables):
                 if result.get("racesUpdates"):
