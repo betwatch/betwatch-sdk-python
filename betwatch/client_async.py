@@ -14,7 +14,7 @@ from gql.transport.aiohttp import log as aiohttp_logger
 from gql.transport.websockets import WebsocketsTransport
 from gql.transport.websockets import log as websockets_logger
 from graphql import DocumentNode
-from websockets.exceptions import ConnectionClosedError
+from websockets.exceptions import ConnectionClosedError, WebSocketException
 
 from betwatch.__about__ import __version__
 from betwatch.queries import (
@@ -76,6 +76,8 @@ class BetwatchAsyncClient:
             },
             init_payload={"apiKey": self.api_key},
             ack_timeout=60,
+            pong_timeout=60,
+            keep_alive_timeout=60,
             ping_interval=10,
         )
         self._gql_transport = AIOHTTPTransport(
@@ -233,10 +235,23 @@ class BetwatchAsyncClient:
             and len(self._subscriptions_updates) < 1
         ):
             raise Exception("You must subscribe to a race before listening for updates")
+
+        # dont spam the user with warnings of queue size
+        last_warning = datetime.now()
+
         while True:
             update = await self._subscription_queue.get()
             self._subscription_queue.task_done()
             yield update
+
+            # check if we are falling behind
+            if (
+                self._subscription_queue.qsize() > 25
+                and (datetime.now() - last_warning).seconds > 10
+            ):
+                logging.warning(
+                    f"Subscription queue is {self._subscription_queue.qsize()} items behind"
+                )
 
     def get_subscribed_race_ids(self) -> List[str]:
         """Get a list of all subscribed races"""
@@ -273,7 +288,7 @@ class BetwatchAsyncClient:
 
     @backoff.on_exception(
         backoff.expo,
-        (ConnectionClosedError, ClientError, ClientOSError),
+        (ConnectionClosedError, ClientError, ClientOSError, WebSocketException),
         max_time=60,
         max_tries=5,
     )
@@ -336,7 +351,7 @@ class BetwatchAsyncClient:
 
     @backoff.on_exception(
         backoff.expo,
-        (ConnectionClosedError, ClientError, ClientOSError),
+        (ConnectionClosedError, ClientError, ClientOSError, WebSocketException),
         max_time=60,
         max_tries=5,
     )
@@ -400,7 +415,7 @@ class BetwatchAsyncClient:
 
     @backoff.on_exception(
         backoff.expo,
-        (ConnectionClosedError, ClientError, ClientOSError),
+        (ConnectionClosedError, ClientError, ClientOSError, WebSocketException),
         max_time=60,
         max_tries=5,
     )
