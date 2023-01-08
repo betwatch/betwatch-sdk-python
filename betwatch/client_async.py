@@ -290,8 +290,8 @@ class BetwatchAsyncClient:
     @backoff.on_exception(
         backoff.expo,
         (ConnectionClosedError, ClientError, ClientOSError, WebSocketException),
-        max_time=60,
-        max_tries=5,
+        max_time=300,
+        max_tries=10,
     )
     async def _subscribe_bookmaker_updates(
         self,
@@ -353,8 +353,8 @@ class BetwatchAsyncClient:
     @backoff.on_exception(
         backoff.expo,
         (ConnectionClosedError, ClientError, ClientOSError, WebSocketException),
-        max_time=60,
-        max_tries=5,
+        max_time=300,
+        max_tries=10,
     )
     async def _subscribe_betfair_updates(
         self,
@@ -417,8 +417,8 @@ class BetwatchAsyncClient:
     @backoff.on_exception(
         backoff.expo,
         (ConnectionClosedError, ClientError, ClientOSError, WebSocketException),
-        max_time=60,
-        max_tries=5,
+        max_time=300,
+        max_tries=10,
     )
     async def _subscribe_race_updates(self, date_from: str, date_to: str):
         try:
