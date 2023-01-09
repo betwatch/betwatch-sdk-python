@@ -244,19 +244,23 @@ class BetwatchAsyncClient:
         last_warning = datetime.now()
 
         while True:
-            update = await self._subscription_queue.get()
-            self._subscription_queue.task_done()
-            yield update
+            try:
+                update = await self._subscription_queue.get()
+                self._subscription_queue.task_done()
+                yield update
 
-            # check if we are falling behind
-            if (
-                self._subscription_queue.qsize() > 25
-                and (datetime.now() - last_warning).seconds > 10
-            ):
-                logging.warning(
-                    f"Subscription queue is {self._subscription_queue.qsize()} items behind"
-                )
-                last_warning = datetime.now()
+                # check if we are falling behind
+                if (
+                    self._subscription_queue.qsize() > 25
+                    and (datetime.now() - last_warning).seconds > 10
+                ):
+                    logging.warning(
+                        f"Subscription queue is {self._subscription_queue.qsize()} items behind"
+                    )
+                    last_warning = datetime.now()
+            except asyncio.CancelledError:
+                logging.info("Subscription queue cancelled")
+                return
 
     def get_subscribed_race_ids(self) -> List[str]:
         """Get a list of all subscribed races"""
@@ -352,6 +356,9 @@ class BetwatchAsyncClient:
             logging.error(
                 f"Error subscribing to bookmaker updates: {e.errors[0].get('message') if e.errors and e.errors[0].get('message') else e}"
             )
+        except asyncio.CancelledError:
+            await self.unsubscribe_bookmaker_updates(race_id)
+            return
 
     async def unsubscribe_betfair_updates(self, race_id: str):
         if race_id not in self._subscriptions_betfair:
@@ -431,6 +438,9 @@ class BetwatchAsyncClient:
             logging.error(
                 f"Error subscribing to betfair updates: {e.errors[0].get('message') if e.errors and e.errors[0].get('message') else e}"
             )
+        except asyncio.CancelledError:
+            await self.unsubscribe_betfair_updates(race_id)
+            return
 
     async def unsubscribe_race_updates(self, date_from: str, date_to: str):
         if (date_from, date_to) not in self._subscriptions_updates:
