@@ -360,6 +360,9 @@ class BetwatchAsyncClient:
         except asyncio.CancelledError:
             await self.unsubscribe_bookmaker_updates(race_id)
             return
+        except Exception as e:
+            logging.exception(f"Error subscribing to bookmaker updates: {e}")
+            raise e
 
     async def unsubscribe_betfair_updates(self, race_id: str):
         if race_id not in self._subscriptions_betfair:
@@ -437,11 +440,6 @@ class BetwatchAsyncClient:
             # handle connection closed errors by reconnecting
             # raise the error to trigger the backoff decorator and retry all subscriptions
             logging.warning("Connection closed, reconnecting...")
-            import logging
-
-            logger = logging.getLogger("websockets")
-            logger.setLevel(logging.DEBUG)
-            logger.addHandler(logging.StreamHandler())
             await self.reconnect()
             raise e
         except TransportQueryError as e:
@@ -451,6 +449,9 @@ class BetwatchAsyncClient:
         except asyncio.CancelledError:
             await self.unsubscribe_betfair_updates(race_id)
             return
+        except Exception as e:
+            logging.exception(f"Error subscribing to betfair updates: {e}")
+            raise e
 
     async def unsubscribe_race_updates(self, date_from: str, date_to: str):
         if (date_from, date_to) not in self._subscriptions_updates:
@@ -493,16 +494,26 @@ class BetwatchAsyncClient:
                         race_update=ru,
                     )
                     self._subscription_queue.put_nowait(update)
-        except (WebSocketException, ClientError) as e:
+        except (
+            WebSocketException,
+            ClientError,
+            ConnectionClosedError,
+            ClientOSError,
+        ) as e:
             # handle connection closed errors by reconnecting
             # raise the error to trigger the backoff decorator and retry all subscriptions
             logging.warning("Connection closed, reconnecting...")
-            import logging
-
-            logger = logging.getLogger("websockets")
-            logger.setLevel(logging.DEBUG)
-            logger.addHandler(logging.StreamHandler())
             await self.reconnect()
+            raise e
+        except TransportQueryError as e:
+            logging.error(
+                f"Error subscribing to race updates: {e.errors[0].get('message') if e.errors and e.errors[0].get('message') else e}"
+            )
+        except asyncio.CancelledError:
+            await self.unsubscribe_race_updates(date_from, date_to)
+            return
+        except Exception as e:
+            logging.exception(f"Error subscribing to race updates: {e}")
             raise e
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
