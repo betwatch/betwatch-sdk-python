@@ -6,7 +6,7 @@ from typing import Dict, List, Tuple, Union
 
 import backoff
 import typedload
-from aiohttp.client_exceptions import ClientError
+from aiohttp.client_exceptions import ClientError, ClientOSError
 from gql import Client
 from gql.client import AsyncClientSession, ReconnectingAsyncClientSession
 from gql.transport.aiohttp import AIOHTTPTransport
@@ -15,7 +15,7 @@ from gql.transport.aiohttp import log as aiohttp_logger
 from gql.transport.websockets import WebsocketsTransport
 from gql.transport.websockets import log as websockets_logger
 from graphql import DocumentNode
-from websockets.exceptions import WebSocketException
+from websockets.exceptions import WebSocketException, ConnectionClosedError
 
 from betwatch.__about__ import __version__
 from betwatch.queries import (
@@ -345,7 +345,12 @@ class BetwatchAsyncClient:
                     )
 
                     self._subscription_queue.put_nowait(update)
-        except (WebSocketException, ClientError) as e:
+        except (
+            WebSocketException,
+            ClientError,
+            ConnectionClosedError,
+            ClientOSError,
+        ) as e:
             # handle connection closed errors by reconnecting
             # raise the error to trigger the backoff decorator and retry all subscriptions
             logging.warning("Connection closed, reconnecting...")
@@ -427,7 +432,12 @@ class BetwatchAsyncClient:
                     )
                     self._subscription_queue.put_nowait(update)
 
-        except (WebSocketException, ClientError) as e:
+        except (
+            WebSocketException,
+            ClientError,
+            ConnectionClosedError,
+            ClientOSError,
+        ) as e:
             # handle connection closed errors by reconnecting
             # raise the error to trigger the backoff decorator and retry all subscriptions
             logging.warning("Connection closed, reconnecting...")
