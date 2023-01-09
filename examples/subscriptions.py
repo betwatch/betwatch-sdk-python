@@ -2,7 +2,9 @@ import asyncio
 import logging
 import os
 from datetime import datetime, timedelta
+
 from dotenv import load_dotenv
+
 import betwatch
 
 

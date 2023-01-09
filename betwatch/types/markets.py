@@ -1,10 +1,9 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-
 from typing import Optional, Union
 
-from betwatch.types.bookmakers import Bookmaker
+from betwatch.types import Bookmaker
 
 
 @dataclass

@@ -4,7 +4,7 @@ import pytest
 from dotenv import load_dotenv
 
 import betwatch
-from betwatch.types.race import RaceStatus
+from betwatch.types import RaceStatus
 
 
 async def get_race(race_id: str):

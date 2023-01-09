@@ -10,12 +10,12 @@ from aiohttp.client_exceptions import ClientError, ClientOSError
 from gql import Client
 from gql.client import AsyncClientSession, ReconnectingAsyncClientSession
 from gql.transport.aiohttp import AIOHTTPTransport
-from gql.transport.exceptions import TransportQueryError
 from gql.transport.aiohttp import log as aiohttp_logger
+from gql.transport.exceptions import TransportQueryError
 from gql.transport.websockets import WebsocketsTransport
 from gql.transport.websockets import log as websockets_logger
 from graphql import DocumentNode
-from websockets.exceptions import WebSocketException, ConnectionClosedError
+from websockets.exceptions import ConnectionClosedError, WebSocketException
 
 from betwatch.__about__ import __version__
 from betwatch.queries import (
@@ -32,8 +32,9 @@ from betwatch.types import (
     BookmakerMarket,
     Race,
     RaceProjection,
+    RaceUpdate,
+    SubscriptionUpdate,
 )
-from betwatch.types.race import RaceUpdate, SubscriptionUpdate
 
 
 class BetwatchAsyncClient:

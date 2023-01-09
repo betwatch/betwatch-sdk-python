@@ -1,14 +1,14 @@
 import atexit
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 from typing import Dict, List, Union
 
 import backoff
 import typedload
 from gql import Client
 from gql.transport.requests import RequestsHTTPTransport
-from graphql import DocumentNode
 from gql.transport.requests import log as http_logger
+from graphql import DocumentNode
 
 from betwatch.__about__ import __version__
 from betwatch.queries import (
@@ -16,9 +16,7 @@ from betwatch.queries import (
     query_get_race,
     query_get_races,
 )
-from betwatch.types.bookmakers import Bookmaker
-from betwatch.types.filters import RaceProjection
-from betwatch.types.race import Race
+from betwatch.types import Bookmaker, Race, RaceProjection
 
 
 class BetwatchClient:

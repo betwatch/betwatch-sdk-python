@@ -2,10 +2,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
-from betwatch.types.bookmakers import Bookmaker
 
-from betwatch.types.markets import (
+from betwatch.types import (
     BetfairMarket,
+    Bookmaker,
     BookmakerMarket,
     MarketPriceType,
     Price,

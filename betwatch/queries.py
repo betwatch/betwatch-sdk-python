@@ -1,6 +1,7 @@
 from gql import gql
-from betwatch.types import RaceProjection
 from graphql import DocumentNode
+
+from betwatch.types import RaceProjection
 
 
 def get_race_query_from_projection(projection: RaceProjection) -> str:
