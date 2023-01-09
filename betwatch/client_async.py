@@ -6,15 +6,16 @@ from typing import Dict, List, Tuple, Union
 
 import backoff
 import typedload
-from aiohttp.client_exceptions import ClientError, ClientOSError
+from aiohttp.client_exceptions import ClientError
 from gql import Client
 from gql.client import AsyncClientSession, ReconnectingAsyncClientSession
 from gql.transport.aiohttp import AIOHTTPTransport
+from gql.transport.exceptions import TransportQueryError
 from gql.transport.aiohttp import log as aiohttp_logger
 from gql.transport.websockets import WebsocketsTransport
 from gql.transport.websockets import log as websockets_logger
 from graphql import DocumentNode
-from websockets.exceptions import ConnectionClosedError, WebSocketException
+from websockets.exceptions import WebSocketException
 
 from betwatch.__about__ import __version__
 from betwatch.queries import (
@@ -72,19 +73,17 @@ class BetwatchAsyncClient:
             url="wss://api.betwatch.com/sub",
             headers={
                 "X-API-KEY": self.api_key,
-                "User-Agent": f"betwatch-python-{__version__}",
+                "User-Agent": f"betwatch-sdk-python-{__version__}",
             },
             init_payload={"apiKey": self.api_key},
-            ack_timeout=60,
             pong_timeout=60,
-            keep_alive_timeout=60,
-            ping_interval=10,
+            ping_interval=5,
         )
         self._gql_transport = AIOHTTPTransport(
             url="https://api.betwatch.com/query",
             headers={
                 "X-API-KEY": self.api_key,
-                "User-Agent": f"betwatch-python-{__version__}",
+                "User-Agent": f"betwatch-sdk-python-{__version__}",
             },
         )
         # Create a GraphQL client using the defined transport
@@ -173,7 +172,7 @@ class BetwatchAsyncClient:
         tomorrow = (datetime.now() + timedelta(days=0)).strftime("%Y-%m-%d")
         return await self.get_races_between_dates(today, tomorrow, projection)
 
-    @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
+    @backoff.on_exception(backoff.expo, (Exception))
     async def get_races_between_dates(
         self,
         date_from: Union[str, datetime],
@@ -190,27 +189,32 @@ class BetwatchAsyncClient:
         Returns:
             List[Race]: List of races that match the criteria
         """
-        # convert to string if datetime
-        if isinstance(date_from, datetime):
-            date_from = date_from.strftime("%Y-%m-%d")
-        if isinstance(date_to, datetime):
-            date_to = date_to.strftime("%Y-%m-%d")
+        try:
+            # convert to string if datetime
+            if isinstance(date_from, datetime):
+                date_from = date_from.strftime("%Y-%m-%d")
+            if isinstance(date_to, datetime):
+                date_to = date_to.strftime("%Y-%m-%d")
 
-        logging.info(f"Getting races between {date_from} and {date_to}")
+            logging.info(f"Getting races between {date_from} and {date_to}")
 
-        session = await self._setup_http_session()
+            session = await self._setup_http_session()
 
-        query = query_get_races(projection)
+            query = query_get_races(projection)
 
-        variables = {"dateFrom": date_from, "dateTo": date_to}
+            variables = {"dateFrom": date_from, "dateTo": date_to}
 
-        result = await session.execute(query, variable_values=variables)
+            result = await session.execute(query, variable_values=variables)
 
-        if result.get("races"):
-            logging.debug(f"Found {len(result['races'])} races")
-            return typedload.load(result["races"], List[Race])
+            if result.get("races"):
+                logging.debug(f"Found {len(result['races'])} races")
+                return typedload.load(result["races"], List[Race])
 
-        return []
+            return []
+        except Exception as e:
+            await self.disconnect()
+            self.connect()
+            raise e
 
     async def get_race(
         self, race_id: str, projection=RaceProjection(markets=True)
@@ -267,12 +271,16 @@ class BetwatchAsyncClient:
 
     async def unsubscribe_bookmaker_updates(self, race_id: str):
         if race_id not in self._subscriptions_prices:
-            logging.info(f"Not subscribed to {race_id} bookmaker updates")
+            logging.info(
+                f"Not subscribed to {race_id if race_id else 'all races'} bookmaker updates"
+            )
             return
 
         self._subscriptions_prices[race_id].cancel()
         del self._subscriptions_prices[race_id]
-        logging.debug(f"Unsubscribed from {race_id} bookmaker updates")
+        logging.debug(
+            f"Unsubscribed from {race_id if race_id else 'all races'} bookmaker updates"
+        )
 
     async def subscribe_bookmaker_updates(
         self,
@@ -280,7 +288,16 @@ class BetwatchAsyncClient:
         projection=RaceProjection(markets=True),
     ):
         if race_id in self._subscriptions_prices:
-            logging.info(f"Already subscribed to {race_id} bookmaker updates")
+            logging.info(
+                f"Already subscribed to {race_id if race_id else 'all races'} bookmaker updates"
+            )
+            return
+
+        # make sure the total subscriptions is less than 10
+        if len(self._subscriptions_prices) >= 10:
+            logging.warning(
+                "Cannot subscribe to more than 10 races at one time. Use an empty race_id to subscribe to all races in one subscription"
+            )
             return
 
         self._subscriptions_prices[race_id] = asyncio.create_task(
@@ -289,9 +306,7 @@ class BetwatchAsyncClient:
 
     @backoff.on_exception(
         backoff.expo,
-        (ConnectionClosedError, ClientError, ClientOSError, WebSocketException),
-        max_time=300,
-        max_tries=10,
+        (WebSocketException, ClientError),
     )
     async def _subscribe_bookmaker_updates(
         self,
@@ -312,7 +327,9 @@ class BetwatchAsyncClient:
             query = subscription_race_price_updates(projection)
             variables = {"id": race_id}
 
-            logging.debug(f"Subscribing to bookmaker updates for {race_id}")
+            logging.info(
+                f"Subscribing to bookmaker updates for {race_id if race_id else 'all races'}"
+            )
 
             async for result in session.subscribe(query, variable_values=variables):
                 if result.get("priceUpdates"):
@@ -322,28 +339,45 @@ class BetwatchAsyncClient:
                             result["priceUpdates"], List[BookmakerMarket]
                         ),
                     )
-                    self._subscription_queue.put_nowait(update)
 
-        except (ConnectionClosedError, ClientOSError) as e:
+                    self._subscription_queue.put_nowait(update)
+        except (WebSocketException, ClientError) as e:
             # handle connection closed errors by reconnecting
             # raise the error to trigger the backoff decorator and retry all subscriptions
             logging.warning("Connection closed, reconnecting...")
 
             await self.reconnect()
             raise e
+        except TransportQueryError as e:
+            logging.error(
+                f"Error subscribing to bookmaker updates: {e.errors[0].get('message') if e.errors and e.errors[0].get('message') else e}"
+            )
 
     async def unsubscribe_betfair_updates(self, race_id: str):
         if race_id not in self._subscriptions_betfair:
-            logging.info(f"Not subscribed to {race_id} betfair updates")
+            logging.info(
+                f"Not subscribed to {race_id if race_id else 'all races'} betfair updates"
+            )
             return
 
         self._subscriptions_betfair[race_id].cancel()
         del self._subscriptions_betfair[race_id]
-        logging.debug(f"Unsubscribed from {race_id} betfair updates")
+        logging.debug(
+            f"Unsubscribed from {race_id if race_id else 'all races'} betfair updates"
+        )
 
     async def subscribe_betfair_updates(self, race_id: str):
         if race_id in self._subscriptions_betfair:
-            logging.info(f"Already subscribed to {race_id} betfair updates")
+            logging.info(
+                f"Already subscribed to {race_id if race_id else 'all races'} betfair updates"
+            )
+            return
+
+        # make sure the total subscriptions is less than 10
+        if len(self._subscriptions_betfair) >= 10:
+            logging.warning(
+                "Cannot subscribe to more than 10 races at one time. Use an empty race_id to subscribe to all races in one subscription"
+            )
             return
 
         self._subscriptions_betfair[race_id] = asyncio.create_task(
@@ -352,9 +386,7 @@ class BetwatchAsyncClient:
 
     @backoff.on_exception(
         backoff.expo,
-        (ConnectionClosedError, ClientError, ClientOSError, WebSocketException),
-        max_time=300,
-        max_tries=10,
+        (WebSocketException, ClientError),
     )
     async def _subscribe_betfair_updates(
         self,
@@ -374,7 +406,9 @@ class BetwatchAsyncClient:
             query = SUBSCRIPTION_BETFAIR_UPDATES
             variables = {"id": race_id}
 
-            logging.debug(f"Subscribing to betfair updates for {race_id}")
+            logging.info(
+                f"Subscribing to betfair updates for {race_id if race_id else 'all races'}"
+            )
 
             async for result in session.subscribe(query, variable_values=variables):
                 if result.get("betfairUpdates"):
@@ -386,13 +420,17 @@ class BetwatchAsyncClient:
                     )
                     self._subscription_queue.put_nowait(update)
 
-        except (ConnectionClosedError, ClientOSError) as e:
+        except (WebSocketException, ClientError) as e:
             # handle connection closed errors by reconnecting
             # raise the error to trigger the backoff decorator and retry all subscriptions
             logging.warning("Connection closed, reconnecting...")
 
             await self.reconnect()
             raise e
+        except TransportQueryError as e:
+            logging.error(
+                f"Error subscribing to betfair updates: {e.errors[0].get('message') if e.errors and e.errors[0].get('message') else e}"
+            )
 
     async def unsubscribe_race_updates(self, date_from: str, date_to: str):
         if (date_from, date_to) not in self._subscriptions_updates:
@@ -416,9 +454,7 @@ class BetwatchAsyncClient:
 
     @backoff.on_exception(
         backoff.expo,
-        (ConnectionClosedError, ClientError, ClientOSError, WebSocketException),
-        max_time=300,
-        max_tries=10,
+        (WebSocketException, ClientError),
     )
     async def _subscribe_race_updates(self, date_from: str, date_to: str):
         try:
@@ -437,7 +473,7 @@ class BetwatchAsyncClient:
                         race_update=ru,
                     )
                     self._subscription_queue.put_nowait(update)
-        except (ConnectionClosedError, ClientOSError) as e:
+        except (WebSocketException, ClientError) as e:
             # handle connection closed errors by reconnecting
             # raise the error to trigger the backoff decorator and retry all subscriptions
             logging.warning("Connection closed, reconnecting...")
