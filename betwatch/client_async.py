@@ -64,6 +64,7 @@ class BetwatchAsyncClient:
         self._subscriptions_betfair: Dict[str, asyncio.Task] = {}
         self._subscriptions_prices: Dict[str, asyncio.Task] = {}
         self._subscriptions_updates: Dict[Tuple[str, str], asyncio.Task] = {}
+        self._subscription_reconnect_lock = asyncio.Lock()
         self._subscription_reconnect_task: asyncio.Task | None = (
             None  # handle resubscribing only once
         )
@@ -121,16 +122,11 @@ class BetwatchAsyncClient:
         asyncio.run(self.__cleanup())
 
     async def reconnect(self):
-        await self.disconnect()
-
-        async with self._session_lock:
+        async with self._subscription_reconnect_lock:
             if not self._subscription_reconnect_task:
-                self._subscription_reconnect_task = asyncio.create_task(self._connect())
                 logging.info("reconnecting to Betwatch API")
-
-    async def _connect(self):
-        self.connect()
-        await asyncio.sleep(10)
+                await self.disconnect()
+                self.connect()
 
     async def __aenter__(self):
         """Pass through to the underlying client's __aenter__ method."""
@@ -441,7 +437,11 @@ class BetwatchAsyncClient:
             # handle connection closed errors by reconnecting
             # raise the error to trigger the backoff decorator and retry all subscriptions
             logging.warning("Connection closed, reconnecting...")
+            import logging
 
+            logger = logging.getLogger("websockets")
+            logger.setLevel(logging.DEBUG)
+            logger.addHandler(logging.StreamHandler())
             await self.reconnect()
             raise e
         except TransportQueryError as e:
@@ -497,7 +497,11 @@ class BetwatchAsyncClient:
             # handle connection closed errors by reconnecting
             # raise the error to trigger the backoff decorator and retry all subscriptions
             logging.warning("Connection closed, reconnecting...")
+            import logging
 
+            logger = logging.getLogger("websockets")
+            logger.setLevel(logging.DEBUG)
+            logger.addHandler(logging.StreamHandler())
             await self.reconnect()
             raise e
 
