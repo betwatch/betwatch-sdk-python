@@ -248,6 +248,7 @@ class BetwatchAsyncClient:
                     # change the offset to the next page
                     filter.offset += filter.limit
                 else:
+                    filter.offset = 0
                     logging.debug("No more races found")
                     done = True
 
