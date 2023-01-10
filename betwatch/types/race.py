@@ -298,7 +298,8 @@ class Race:
             for i, best_price in enumerate(best_prices):
                 if not best_price or not best_price.price:
                     continue
-                if price.price < best_price.price:
+                # put price at back if zero
+                if price.price < best_price.price and price.price:
                     best_runners.insert(i, runner)
                     best_prices.insert(i, price)
                     break
