@@ -276,14 +276,20 @@ class Race:
                 return link
         return None
 
-    def get_runners_by_price(self, market_type: MarketPriceType) -> List[Runner]:
+    def get_runners_by_price(
+        self,
+        market_type: MarketPriceType,
+        bookmakers: List[Bookmaker] = [bookmaker for bookmaker in Bookmaker],
+    ) -> List[Runner]:
         """Sorts the runners by the given market types best price"""
         if not self.runners:
             return []
         best_runners: List[Runner] = []
         best_prices: List[Price] = []
         for runner in self.runners:
-            market = runner.get_highest_bookmaker_market(market_type=market_type)
+            market = runner.get_highest_bookmaker_market(
+                market_type=market_type, bookmakers=bookmakers
+            )
             if not market:
                 continue
             price = market.get_price(market_type)
