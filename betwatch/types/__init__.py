@@ -14,6 +14,7 @@ from .race import (
     MeetingType,
     Race,
     RaceLink,
+    RaceStatus,
     RaceUpdate,
     Runner,
     SubscriptionUpdate,
