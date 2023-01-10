@@ -125,9 +125,14 @@ class BetwatchAsyncClient:
     async def reconnect(self):
         async with self._subscription_reconnect_lock:
             if not self._subscription_reconnect_task:
-                logging.info("reconnecting to Betwatch API")
+                logging.info("Reconnecting to Betwatch API")
                 await self.disconnect()
                 self.connect()
+
+                # sleep for 10 seconds to allow the connection to be established
+                self._subscription_reconnect_task = asyncio.create_task(
+                    asyncio.sleep(10)
+                )
 
     async def __aenter__(self):
         """Pass through to the underlying client's __aenter__ method."""
@@ -209,8 +214,8 @@ class BetwatchAsyncClient:
 
             return []
         except Exception as e:
-            await self.disconnect()
-            self.connect()
+            logging.warning(f"Disconnected from Betwatch API: {e}")
+            await self.reconnect()
             raise e
 
     async def get_race(
@@ -307,7 +312,12 @@ class BetwatchAsyncClient:
 
     @backoff.on_exception(
         backoff.expo,
-        (WebSocketException, ClientError),
+        (
+            WebSocketException,
+            ClientError,
+            ConnectionClosedError,
+            ClientOSError,
+        ),
     )
     async def _subscribe_bookmaker_updates(
         self,
@@ -398,7 +408,7 @@ class BetwatchAsyncClient:
 
     @backoff.on_exception(
         backoff.expo,
-        (WebSocketException, ClientError),
+        (WebSocketException, ClientError, ConnectionClosedError, ClientOSError),
     )
     async def _subscribe_betfair_updates(
         self,
