@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
-from typing import Optional, Union
+from typing import List, Optional, Union
+
+import dateutil.parser
 
 from betwatch.types import Bookmaker
 
@@ -13,19 +14,19 @@ class Fluc:
 
     def __post_init__(self):
         self.last_updated = (
-            datetime.fromisoformat(self._last_updated) if self._last_updated else None
+            dateutil.parser.isoparse(self._last_updated) if self._last_updated else None
         )
 
 
 @dataclass
 class Price:
     price: Optional[float] = None
-    flucs: Optional[list[Fluc]] = field(default_factory=list)
+    flucs: Optional[List[Fluc]] = field(default_factory=list)
     _last_updated: Optional[str] = field(metadata={"name": "lastUpdated"}, default=None)
 
     def __post_init__(self):
         self.last_updated = (
-            datetime.fromisoformat(self._last_updated) if self._last_updated else None
+            dateutil.parser.isoparse(self._last_updated) if self._last_updated else None
         )
 
 
@@ -57,7 +58,7 @@ class BetfairTick:
 
     def __post_init__(self):
         self.last_updated = (
-            datetime.fromisoformat(self._last_updated) if self._last_updated else None
+            dateutil.parser.isoparse(self._last_updated) if self._last_updated else None
         )
 
 
@@ -82,8 +83,8 @@ class BetfairMarket:
     )
     starting_price: Optional[float] = field(metadata={"name": "sp"}, default=None)
 
-    back: Optional[list[BetfairTick]] = field(default_factory=list)
-    lay: Optional[list[BetfairTick]] = field(default_factory=list)
+    back: Optional[List[BetfairTick]] = None
+    lay: Optional[List[BetfairTick]] = None
 
     @property
     def sp(self) -> Union[float, None]:

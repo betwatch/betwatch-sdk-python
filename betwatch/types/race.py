@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
 from typing import List, Optional
+
+import dateutil.parser
 
 from betwatch.types.markets import (
     BetfairMarket,
@@ -15,8 +16,8 @@ from betwatch.types.markets import (
 @dataclass
 class SubscriptionUpdate:
     race_id: str
-    bookmaker_markets: list[BookmakerMarket] = field(default_factory=list)
-    betfair_markets: list[BetfairMarket] = field(default_factory=list)
+    bookmaker_markets: List[BookmakerMarket] = field(default_factory=list)
+    betfair_markets: List[BetfairMarket] = field(default_factory=list)
     race_update: Optional["RaceUpdate"] = None
 
 
@@ -79,7 +80,7 @@ class Runner:
     )
 
     betfair_markets: Optional[List[BetfairMarket]] = field(
-        metadata={"name": "betfairMarkets"}, default_factory=list
+        metadata={"name": "betfairMarkets"}, default=None
     )
 
     def __str__(self) -> str:
@@ -93,7 +94,7 @@ class Runner:
 
     def __post_init__(self):
         self.scratched_time = (
-            datetime.fromisoformat(self._scratched_time)
+            dateutil.parser.isoparse(self._scratched_time)
             if self._scratched_time
             else None
         )
@@ -197,7 +198,7 @@ class RaceLink:
 
     def __post_init__(self):
         self.last_successful_price_update = (
-            datetime.fromisoformat(self._last_successful_price_update)
+            dateutil.parser.isoparse(self._last_successful_price_update)
             if self._last_successful_price_update
             else None
         )
@@ -212,7 +213,7 @@ class RaceUpdate:
     _start_time: str = field(metadata={"name": "startTime"})
 
     def __post_init__(self):
-        self.start_time = datetime.fromisoformat(self._start_time)
+        self.start_time = dateutil.parser.isoparse(self._start_time)
 
 
 @dataclass
@@ -230,9 +231,9 @@ class Race:
         metadata={"name": "classConditions"}, default=None
     )
 
-    links: Optional[List[RaceLink]] = field(default_factory=list)
-    runners: Optional[List[Runner]] = field(default_factory=list)
-    results: Optional[List[List[int]]] = field(default_factory=list)
+    links: Optional[List[RaceLink]] = None
+    runners: Optional[List[Runner]] = None
+    results: Optional[List[List[int]]] = None
 
     _start_time: Optional[str] = field(metadata={"name": "startTime"}, default=None)
     _updated_at: Optional[str] = field(metadata={"name": "updatedAt"}, default=None)
@@ -244,13 +245,13 @@ class Race:
 
     def __post_init__(self):
         self.start_time = (
-            datetime.fromisoformat(self._start_time) if self._start_time else None
+            dateutil.parser.isoparse(self._start_time) if self._start_time else None
         )
         self.updated_at = (
-            datetime.fromisoformat(self._updated_at) if self._updated_at else None
+            dateutil.parser.isoparse(self._updated_at) if self._updated_at else None
         )
         self.created_at = (
-            datetime.fromisoformat(self._created_at) if self._created_at else None
+            dateutil.parser.isoparse(self._created_at) if self._created_at else None
         )
 
     def __str__(self) -> str:

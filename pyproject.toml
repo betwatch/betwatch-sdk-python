@@ -21,7 +21,11 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = ["gql[aiohttp,websockets,requests]~=3.5.0b0 ", "typedload~=2.20"]
+dependencies = [
+    "gql[aiohttp,websockets,requests]",
+    "typedload",
+    "python-dateutil",
+]
 dynamic = ["version"]
 
 [project.urls]
