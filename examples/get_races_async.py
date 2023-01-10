@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 import betwatch
-from betwatch.types import RaceProjection
+from betwatch.types import MeetingType, RaceProjection, RacesFilter
+from betwatch.types.bookmakers import Bookmaker
 
 
 async def main():
@@ -16,23 +17,24 @@ async def main():
 
     client = await betwatch.connect_async(api_key=api_key)
 
-    # get dates
-    today = datetime.today()
-    tomorrow = datetime.today() + timedelta(days=1)
+    # define the projection of the returned data
+    # we can filter out for certain bookmakers as well as define whether we want market data or flucs
+    projection = RaceProjection(
+        markets=True, flucs=True, bookmakers=[Bookmaker.SPORTSBET, Bookmaker.BLUEBET]
+    )
 
-    # don't request market data (much faster)
-    projection = RaceProjection(markets=False)
+    # define the filter for the query
+    # here we can filter by date, type of meeting, and various other parameters
+    races_filter = RacesFilter(
+        date_from=datetime.now() - timedelta(days=7),
+        date_to=datetime.now() + timedelta(days=2),
+        type=MeetingType.THOROUGHBRED,
+        has_riders=["bowman", "mccoy"],
+    )
 
-    races = await client.get_races_between_dates(today, tomorrow, projection)
-    if races:
-        next_open = next((r for r in races if r.is_open() and r.id), None)
-        if next_open and next_open.id:
-            # get_race will always return the full data set (markets, flucs, etc)
-            race = await client.get_race(next_open.id)
-            if race and race.meeting:
-                logging.info(
-                    f"Received race data for {race.meeting.track} R{race.number}"
-                )
+    races = await client.get_races(projection, races_filter)
+
+    print(f"Found {len(races)} races matching the query")
 
 
 if __name__ == "__main__":

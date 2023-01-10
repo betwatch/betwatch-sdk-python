@@ -4,8 +4,13 @@ from graphql import DocumentNode
 from betwatch.types import RaceProjection
 
 
-def get_race_query_from_projection(projection: RaceProjection) -> str:
+def get_race_query(projection=RaceProjection()) -> str:
     """Get a GQL query based on a projection."""
+    bookmakers = (
+        "["
+        + ",".join(['"' + bookmaker.value + '"' for bookmaker in projection.bookmakers])
+        + "]"
+    )
 
     runners_gql = (
         "runners { id betfairId name number scratchedTime barrier trainerName riderName "
@@ -15,7 +20,9 @@ def get_race_query_from_projection(projection: RaceProjection) -> str:
             else ""
         )
         + (
-            "bookmakerMarkets { id bookmaker "
+            "bookmakerMarkets(bookmakers: "
+            + bookmakers
+            + ") { id bookmaker "
             + "fixedWin { price lastUpdated "
             + ("flucs { price lastUpdated } " if projection.flucs else "")
             + "} "
@@ -131,10 +138,10 @@ SUBSCRIPTION_BETFAIR_UPDATES = gql(
 def query_get_races(projection: RaceProjection) -> DocumentNode:
     return gql(
         """
-            query GetRaces($dateFrom: String!, $dateTo: String!) {
-                races(dateFrom: $dateFrom, dateTo: $dateTo) {
+            query GetRaces($limit: Int, $offset: Int, $type: RaceType, $track: String, $location: String, $hasBookmakers: [String!], $hasRunners: [String!], $hasTrainers: [String!], $hasRiders: [String!], $dateFrom: String!, $dateTo: String!) {
+                races(limit: $limit, offset: $offset, type: $type, track: $track, location: $location, hasBookmakers: $hasBookmakers, hasRunners: $hasRunners, hasTrainers: $hasTrainers, hasRiders: $hasRiders, dateFrom: $dateFrom, dateTo: $dateTo) {
         """
-        + get_race_query_from_projection(projection)
+        + get_race_query(projection)
         + """
                 }
             }
@@ -148,7 +155,7 @@ def query_get_race(projection: RaceProjection) -> DocumentNode:
     query GetRace($id: ID!) {
         race(id: $id) {
          """
-        + get_race_query_from_projection(projection)
+        + get_race_query(projection)
         + """
         }
     }

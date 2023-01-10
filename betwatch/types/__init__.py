@@ -1,5 +1,5 @@
 from .bookmakers import Bookmaker
-from .filters import RaceProjection
+from .filters import RaceProjection, RacesFilter
 from .markets import (
     BetfairMarket,
     BetfairSide,

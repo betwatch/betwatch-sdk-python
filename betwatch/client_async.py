@@ -7,6 +7,7 @@ from typing import Dict, List, Tuple, Union
 import backoff
 import typedload
 from aiohttp.client_exceptions import ClientError, ClientOSError
+from aiohttp.web_exceptions import HTTPClientError, HTTPServerError
 from gql import Client
 from gql.client import AsyncClientSession, ReconnectingAsyncClientSession
 from gql.transport.aiohttp import AIOHTTPTransport
@@ -35,6 +36,7 @@ from betwatch.types import (
     RaceUpdate,
     SubscriptionUpdate,
 )
+from betwatch.types.filters import RacesFilter
 
 
 class BetwatchAsyncClient:
@@ -168,18 +170,20 @@ class BetwatchAsyncClient:
                 self._http_session = await self._gql_client.connect_async()
         return self._http_session
 
-    async def get_races_today(self, projection=RaceProjection()) -> List[Race]:
+    async def get_races_today(
+        self, projection=RaceProjection(), filter=RacesFilter()
+    ) -> List[Race]:
         """Get all races for today."""
-        today = datetime.now().strftime("%Y-%m-%d")
-        tomorrow = (datetime.now() + timedelta(days=0)).strftime("%Y-%m-%d")
-        return await self.get_races_between_dates(today, tomorrow, projection)
+        today = datetime.today().strftime("%Y-%m-%d")
+        tomorrow = (datetime.today() + timedelta(days=0)).strftime("%Y-%m-%d")
+        return await self.get_races_between_dates(today, tomorrow, projection, filter)
 
-    @backoff.on_exception(backoff.expo, (Exception))
     async def get_races_between_dates(
         self,
         date_from: Union[str, datetime],
         date_to: Union[str, datetime],
         projection=RaceProjection(),
+        filter=RacesFilter(),
     ) -> List[Race]:
         """Get a list of races in between two dates.
 
@@ -191,32 +195,88 @@ class BetwatchAsyncClient:
         Returns:
             List[Race]: List of races that match the criteria
         """
+        if isinstance(date_from, datetime):
+            date_from = date_from.strftime("%Y-%m-%d")
+        if isinstance(date_to, datetime):
+            date_to = date_to.strftime("%Y-%m-%d")
+
+        # prefer the date_from and date_to passed into the function
+        if filter.date_from and filter.date_from != date_from:
+            logging.warning(
+                f"Overriding date_from in filter ({filter.date_from} with {date_from})"
+            )
+            filter.date_from = datetime.strptime(date_from, "%Y-%m-%d")
+        if filter.date_to and filter.date_to != date_to:
+            logging.warning(
+                f"Overriding date_to in filter ({filter.date_to} with {date_to})"
+            )
+            filter.date_to = datetime.strptime(date_to, "%Y-%m-%d")
+        return await self.get_races(projection, filter)
+
+    async def query_races(self, projection=RaceProjection(), filter=RacesFilter()):
+        pass
+
+    @backoff.on_exception(backoff.expo, (ClientError, HTTPClientError, HTTPServerError))
+    async def get_races(
+        self,
+        projection=RaceProjection(),
+        filter=RacesFilter(),
+    ) -> List[Race]:
         try:
-            # convert to string if datetime
-            if isinstance(date_from, datetime):
-                date_from = date_from.strftime("%Y-%m-%d")
-            if isinstance(date_to, datetime):
-                date_to = date_to.strftime("%Y-%m-%d")
+            logging.info(
+                f"Getting races with projection {projection} and filter {filter}"
+            )
 
-            logging.info(f"Getting races between {date_from} and {date_to}")
+            done = False
+            races: List[Race] = []
+            # iterate until no more races are found
+            while not done:
+                session = await self._setup_http_session()
 
-            session = await self._setup_http_session()
+                query = query_get_races(projection)
 
-            query = query_get_races(projection)
+                variables = filter.to_dict()
 
-            variables = {"dateFrom": date_from, "dateTo": date_to}
+                result = await session.execute(query, variable_values=variables)
 
-            result = await session.execute(query, variable_values=variables)
+                if result.get("races"):
+                    logging.debug(
+                        f"Received {len(result['races'])} races - attempting to get more"
+                    )
+                    races.extend(typedload.load(result["races"], List[Race]))
 
-            if result.get("races"):
-                logging.debug(f"Found {len(result['races'])} races")
-                return typedload.load(result["races"], List[Race])
+                    # change the offset to the next page
+                    filter.offset += filter.limit
+                else:
+                    logging.debug("No more races found")
+                    done = True
 
-            return []
-        except Exception as e:
-            logging.warning(f"Disconnected from Betwatch API: {e}")
-            await self.reconnect()
+            return races
+        except (ClientError, HTTPClientError, HTTPServerError) as e:
+            logging.warning(f"Error reaching Betwatch API: {e}")
             raise e
+        except TransportQueryError as e:
+            if e.errors:
+                for error in e.errors:
+                    if msg := error.get("message"):
+                        # sometimes we can provide better feedback
+                        if "limit argument" in msg:
+                            # adjust the limit and try again
+
+                            filter.limit = int(
+                                msg.split("limit argument less than")[1].strip()
+                            )
+                            logging.info(
+                                f"Adjusting limit to {filter.limit} and trying again"
+                            )
+                            return await self.get_races(projection, filter)
+                        else:
+                            logging.error(f"{error}")
+                    else:
+                        logging.error(f"{error}")
+            else:
+                logging.error(f"Error querying Betwatch API: {e}")
+            return []
 
     async def get_race(
         self, race_id: str, projection=RaceProjection(markets=True)
