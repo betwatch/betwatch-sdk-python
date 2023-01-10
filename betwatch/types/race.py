@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
-from betwatch.types import (
+from betwatch.types.markets import (
     BetfairMarket,
     Bookmaker,
     BookmakerMarket,
