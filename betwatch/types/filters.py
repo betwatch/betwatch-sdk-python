@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, List, Optional, Union, Dict
+from typing import Any, Dict, List, Union
 
 from betwatch.types.bookmakers import Bookmaker
 from betwatch.types.race import MeetingType
@@ -10,9 +10,9 @@ class RacesFilter:
         self,
         limit: int = 100,
         offset: int = 0,
-        type: Optional[Union[MeetingType, str]] = None,
-        track: Optional[str] = None,
-        location: Optional[str] = None,
+        types: List[Union[MeetingType, str]] = [],
+        tracks: List[str] = [],
+        locations: List[str] = [],
         has_bookmakers: List[Bookmaker] = [],
         has_runners: List[str] = [],
         has_trainers: List[str] = [],
@@ -22,9 +22,9 @@ class RacesFilter:
     ) -> None:
         self.limit = limit
         self.offset = offset
-        self.type = type
-        self.track = track
-        self.location = location
+        self.types = types
+        self.tracks = tracks
+        self.locations = locations
         self.has_bookmakers = has_bookmakers
         self.has_runners = has_runners
         self.has_trainers = has_trainers
@@ -37,11 +37,9 @@ class RacesFilter:
         return {
             "limit": self.limit,
             "offset": self.offset,
-            "type": self.type.value
-            if isinstance(self.type, MeetingType)
-            else self.type,
-            "track": self.track,
-            "location": self.location,
+            "types": [t.value if isinstance(t, MeetingType) else t for t in self.types],
+            "tracks": self.tracks,
+            "locations": self.locations,
             "hasBookmakers": [bookmaker.value for bookmaker in self.has_bookmakers],
             "hasRunners": self.has_runners,
             "hasTrainers": self.has_trainers,
@@ -51,7 +49,7 @@ class RacesFilter:
         }
 
     def __str__(self) -> str:
-        return f"RacesFilter({('limit='+str(self.limit)+' ') if self.limit else ''}{'offset='+str(self.offset)+' ' if self.offset else ''}{'type='+str(self.type)+' ' if self.type else ''}{'track='+str(self.track)+' ' if self.track else ''}{'location='+str(self.location)+' ' if self.location else ''}{'has_bookmakers='+str([b.value for b in self.has_bookmakers])+' ' if self.has_bookmakers else ''}{'has_runners='+str(self.has_runners)+' ' if self.has_runners else ''}{'has_trainers='+str(self.has_trainers)+' ' if self.has_trainers else ''}{'has_riders='+str(self.has_riders)+' ' if self.has_riders else ''}{'date_from='+self.date_from.strftime('%Y-%m-%d')+' ' if self.date_from else ''}{'date_to='+self.date_to.strftime('%Y-%m-%d') if self.date_to else ''})"
+        return f"RacesFilter({('limit='+str(self.limit)+' ') if self.limit else ''}{'offset='+str(self.offset)+' ' if self.offset else ''}{'types=' + ','.join([t.value if isinstance(t, MeetingType) else t for t in self.types])}{'tracks='+str(self.tracks)}{'locations='+str(self.locations)}{'has_bookmakers='+str([b.value for b in self.has_bookmakers])+' ' if self.has_bookmakers else ''}{'has_runners='+str(self.has_runners)+' ' if self.has_runners else ''}{'has_trainers='+str(self.has_trainers)+' ' if self.has_trainers else ''}{'has_riders='+str(self.has_riders)+' ' if self.has_riders else ''}{'date_from='+self.date_from.strftime('%Y-%m-%d')+' ' if self.date_from else ''}{'date_to='+self.date_to.strftime('%Y-%m-%d') if self.date_to else ''})"
 
 
 class RaceProjection:

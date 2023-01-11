@@ -28,7 +28,7 @@ async def main():
     races_filter = RacesFilter(
         date_from=datetime.now() - timedelta(days=7),
         date_to=datetime.now() + timedelta(days=2),
-        type=MeetingType.THOROUGHBRED,
+        types=[MeetingType.THOROUGHBRED],
         has_riders=["bowman", "mccoy"],
     )
 
