@@ -259,7 +259,8 @@ class BetwatchAsyncClient:
         except TransportQueryError as e:
             if e.errors:
                 for error in e.errors:
-                    if msg := error.get("message"):
+                    msg = error.get("message")
+                    if msg:
                         # sometimes we can provide better feedback
                         if "limit argument" in msg:
                             # adjust the limit and try again
