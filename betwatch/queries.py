@@ -138,8 +138,8 @@ SUBSCRIPTION_BETFAIR_UPDATES = gql(
 def query_get_races(projection: RaceProjection) -> DocumentNode:
     return gql(
         """
-            query GetRaces($limit: Int, $offset: Int, $type: RaceType, $track: String, $location: String, $hasBookmakers: [String!], $hasRunners: [String!], $hasTrainers: [String!], $hasRiders: [String!], $dateFrom: String!, $dateTo: String!) {
-                races(limit: $limit, offset: $offset, type: $type, track: $track, location: $location, hasBookmakers: $hasBookmakers, hasRunners: $hasRunners, hasTrainers: $hasTrainers, hasRiders: $hasRiders, dateFrom: $dateFrom, dateTo: $dateTo) {
+            query GetRaces($limit: Int, $offset: Int, $types: [RaceType!], $tracks: [String!], $locations: [String!], $hasBookmakers: [String!], $hasRunners: [String!], $hasTrainers: [String!], $hasRiders: [String!], $dateFrom: String!, $dateTo: String!) {
+                races(limit: $limit, offset: $offset, types: $types, tracks: $tracks, locations: $locations, hasBookmakers: $hasBookmakers, hasRunners: $hasRunners, hasTrainers: $hasTrainers, hasRiders: $hasRiders, dateFrom: $dateFrom, dateTo: $dateTo) {
         """
         + get_race_query(projection)
         + """
