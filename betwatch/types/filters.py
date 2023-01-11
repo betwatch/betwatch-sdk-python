@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Union, Dict
 
 from betwatch.types.bookmakers import Bookmaker
 from betwatch.types.race import MeetingType
@@ -32,7 +32,7 @@ class RacesFilter:
         self.date_from = date_from
         self.date_to = date_to
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to a dict."""
         return {
             "limit": self.limit,
