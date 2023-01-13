@@ -15,34 +15,36 @@ def get_race_query(projection=RaceProjection()) -> str:
     runners_gql = (
         "runners { id betfairId name number scratchedTime barrier trainerName riderName "
         + (
-            "betfairMarkets { id sp marketName totalMatched marketTotalMatched back { price size lastUpdated } lay { price size lastUpdated } } "
+            "betfairMarkets { id sp marketName marketId totalMatched marketTotalMatched lastPriceTraded back { price size lastUpdated } lay { price size lastUpdated } } "
             if projection.betfair
             else ""
         )
         + (
-            "bookmakerMarkets(bookmakers: "
-            + bookmakers
-            + ") { id bookmaker "
-            + "fixedWin { price lastUpdated "
-            + ("flucs { price lastUpdated } " if projection.flucs else "")
-            + "} "
-            + (
-                "fixedPlace { price lastUpdated "
+            (
+                "bookmakerMarkets(bookmakers: "
+                + bookmakers
+                + ") { id bookmaker "
+                + "fixedWin { price lastUpdated "
                 + ("flucs { price lastUpdated } " if projection.flucs else "")
                 + "} "
-                if projection.place_markets
-                else ""
+                + (
+                    "fixedPlace { price lastUpdated "
+                    + ("flucs { price lastUpdated } " if projection.flucs else "")
+                    + "} "
+                    if projection.place_markets
+                    else ""
+                )
+                + "} "
             )
-            + "} "
+            if projection.markets
+            else ""
         )
         + "}"
-        if projection.markets
-        else ""
     )
 
     return (
         " id betfairMapping { win place } meeting { id location track type date } "
-        + "classConditions name number status startTime results "
+        + "classConditions name number status startTime results distance "
         + runners_gql
         + (
             " links { bookmaker lastSuccessfulPriceUpdate navLink } "

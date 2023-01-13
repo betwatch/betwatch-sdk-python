@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
@@ -52,9 +53,9 @@ class Meeting:
     date: str
     track: str
     location: str
-    rail_position: Optional[str] = field(
-        metadata={"name": "railPosition"}, default=None
-    )
+    # rail_position: Optional[str] = field(
+    #     metadata={"name": "railPosition"}, default=None
+    # )
 
     def __str__(self) -> str:
         return f"({self.type}) {self.track} [{self.date}]"
@@ -64,12 +65,12 @@ class Meeting:
 class Runner:
     id: str
     number: int
-    betfair_id: Optional[str] = field(metadata={"name": "betfairId"}, default=None)
-    barrier: Optional[int] = None
-    name: Optional[str] = None
-    rider_name: Optional[str] = field(metadata={"name": "riderName"}, default=None)
-    trainer_name: Optional[str] = field(metadata={"name": "trainerName"}, default=None)
-    age: Optional[int] = None
+    betfair_id: str = field(metadata={"name": "betfairId"})
+    barrier: int
+    name: str
+    rider_name: str = field(metadata={"name": "riderName"})
+    trainer_name: str = field(metadata={"name": "trainerName"})
+    # age: Optional[int] = None
 
     _scratched_time: Optional[str] = field(
         metadata={"name": "scratchedTime"}, default=None
@@ -220,7 +221,9 @@ class RaceUpdate:
 class Race:
     id: str
 
-    status: RaceStatus
+    status: Optional[RaceStatus] = None
+
+    runners: Optional[List[Runner]] = None
 
     meeting: Optional[Meeting] = None
     number: Optional[int] = None
@@ -230,29 +233,29 @@ class Race:
     classConditions: Optional[str] = field(
         metadata={"name": "classConditions"}, default=None
     )
-
-    links: Optional[List[RaceLink]] = None
-    runners: Optional[List[Runner]] = None
     results: Optional[List[List[int]]] = None
 
+    links: Optional[List[RaceLink]] = None
+
     _start_time: Optional[str] = field(metadata={"name": "startTime"}, default=None)
-    _updated_at: Optional[str] = field(metadata={"name": "updatedAt"}, default=None)
-    _created_at: Optional[str] = field(metadata={"name": "createdAt"}, default=None)
+
+    # _updated_at: Optional[str] = field(metadata={"name": "updatedAt"}, default=None)
+    # _created_at: Optional[str] = field(metadata={"name": "createdAt"}, default=None)
 
     def is_open(self) -> bool:
         # NOTE: Perhaps this should raise an exception if the Race object does not have a status
         return self.status == RaceStatus.OPEN
 
     def __post_init__(self):
-        self.start_time = (
+        self.start_time: Optional[datetime] = (
             dateutil.parser.isoparse(self._start_time) if self._start_time else None
         )
-        self.updated_at = (
-            dateutil.parser.isoparse(self._updated_at) if self._updated_at else None
-        )
-        self.created_at = (
-            dateutil.parser.isoparse(self._created_at) if self._created_at else None
-        )
+        # self.updated_at = (
+        #     dateutil.parser.isoparse(self._updated_at) if self._updated_at else None
+        # )
+        # self.created_at = (
+        #     dateutil.parser.isoparse(self._created_at) if self._created_at else None
+        # )
 
     def __str__(self) -> str:
 

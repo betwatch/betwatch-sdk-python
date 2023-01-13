@@ -6,6 +6,7 @@ from typing import Dict, List, Union
 import backoff
 import typedload
 from gql import Client
+from gql.transport.exceptions import TransportQueryError
 from gql.transport.requests import RequestsHTTPTransport
 from gql.transport.requests import log as http_logger
 from graphql import DocumentNode
@@ -17,6 +18,7 @@ from betwatch.queries import (
     query_get_races,
 )
 from betwatch.types import Bookmaker, Race, RaceProjection
+from betwatch.types.filters import RacesFilter
 
 
 class BetwatchClient:
@@ -53,21 +55,98 @@ class BetwatchClient:
         date_from: Union[str, datetime],
         date_to: Union[str, datetime],
         projection=RaceProjection(),
+        filter=RacesFilter(),
     ) -> List[Race]:
+        """Get a list of races in between two dates.
+
+        Args:
+            date_from (Union[str, datetime]): Date to start from (inclusive)
+            date_to (Union[str, datetime]): Date to end at (inclusive   )
+            projection (_type_, optional): The fields to return. Defaults to RaceProjection().
+            filter (_type_, optional): Filter the results. Defaults to RacesFilter().
+
+        Returns:
+            List[Race]: List of races that match the criteria
+        """
         if isinstance(date_from, datetime):
             date_from = date_from.strftime("%Y-%m-%d")
         if isinstance(date_to, datetime):
             date_to = date_to.strftime("%Y-%m-%d")
 
-        logging.info(f"Getting races between {date_from} and {date_to}")
-        query = query_get_races(projection)
-        variables = {"dateFrom": date_from, "dateTo": date_to}
-        result = self._gql_client.execute(query, variable_values=variables)
+        # prefer the date_from and date_to passed into the function
+        if filter.date_from and filter.date_from != date_from:
+            logging.warning(
+                f"Overriding date_from in filter ({filter.date_from} with {date_from})"
+            )
+            filter.date_from = datetime.strptime(date_from, "%Y-%m-%d")
+        if filter.date_to and filter.date_to != date_to:
+            logging.warning(
+                f"Overriding date_to in filter ({filter.date_to} with {date_to})"
+            )
+            filter.date_to = datetime.strptime(date_to, "%Y-%m-%d")
+        return self.get_races(projection, filter)
 
-        if result.get("races"):
-            return typedload.load(result["races"], List[Race])
+    def get_races(
+        self,
+        projection=RaceProjection(),
+        filter=RacesFilter(),
+    ) -> List[Race]:
+        try:
+            logging.info(
+                f"Getting races with projection {projection} and filter {filter}"
+            )
 
-        return []
+            done = False
+            races: List[Race] = []
+            # iterate until no more races are found
+            while not done:
+
+                query = query_get_races(projection)
+
+                variables = filter.to_dict()
+
+                result = self._gql_client.execute(query, variable_values=variables)
+
+                if result.get("races"):
+                    logging.debug(
+                        f"Received {len(result['races'])} races - attempting to get more"
+                    )
+                    races.extend(typedload.load(result["races"], List[Race]))
+
+                    # change the offset to the next page
+                    filter.offset += filter.limit
+                else:
+                    filter.offset = 0
+                    logging.debug("No more races found")
+                    done = True
+
+            return races
+        # except (ClientError, HTTPClientError, HTTPServerError) as e:
+        #     logging.warning(f"Error reaching Betwatch API: {e}")
+        #     raise e
+        except TransportQueryError as e:
+            if e.errors:
+                for error in e.errors:
+                    msg = error.get("message")
+                    if msg:
+                        # sometimes we can provide better feedback
+                        if "limit argument" in msg:
+                            # adjust the limit and try again
+
+                            filter.limit = int(
+                                msg.split("limit argument less than")[1].strip()
+                            )
+                            logging.info(
+                                f"Cannot query more than {filter.limit} - adjusting limit to {filter.limit} and trying again"
+                            )
+                            return self.get_races(projection, filter)
+                        else:
+                            logging.error(f"{error}")
+                    else:
+                        logging.error(f"{error}")
+            else:
+                logging.error(f"Error querying Betwatch API: {e}")
+            return []
 
     def get_race(
         self, race_id: str, projection=RaceProjection(markets=True)

@@ -75,6 +75,11 @@ class Bookmaker(Enum):
     BEAZABET = "Beazabet"
     PUNTONDOGS = "PuntOnDogs"
     PICKLEBET = "Picklebet"
+    BETGALAXY = "Betgalaxy"
+    DIAMONDBET = "Diamondbet"
+    BITWINNING = "Bitwinning"
+    COMBET = "Combet"
+    BETM = "BetM"
 
     def __str__(self):
         return self.value

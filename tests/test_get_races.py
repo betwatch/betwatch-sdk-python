@@ -29,6 +29,8 @@ def test_get_races():
         for r in races
         if r.meeting and r.meeting.date not in ["2022-12-21", "2022-12-22"]
     ]
-    races_with_markets = [r for r in races if r.runners]
+    races_with_markets = [
+        r for race in races if race.runners for r in race.runners if r.bookmaker_markets
+    ]
     assert len(invalid_races) == 0
     assert len(races_with_markets) == 0

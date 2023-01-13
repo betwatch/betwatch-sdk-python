@@ -73,6 +73,7 @@ class BetwatchAsyncClient:
         )
 
     def connect(self):
+        logging.debug("connecting to client sessions")
         self._gql_sub_transport = WebsocketsTransport(
             url="wss://api.betwatch.com/sub",
             headers={
@@ -99,11 +100,13 @@ class BetwatchAsyncClient:
             transport=self._gql_transport,
             execute_timeout=60,
         )
+        logging.debug("connected to client sessions")
 
     async def disconnect(self):
         """Disconnect from the websocket connection."""
         logging.debug("disconnecting from client sessions")
         await self.__cleanup()
+        logging.debug("disconnected from client sessions")
 
     async def __cleanup(self):
         """Gracefully close clients."""
@@ -125,6 +128,7 @@ class BetwatchAsyncClient:
         asyncio.run(self.__cleanup())
 
     async def reconnect(self):
+        logging.debug("reconnecting to client sessions")
         async with self._subscription_reconnect_lock:
             if not self._subscription_reconnect_task:
                 logging.info("Reconnecting to Betwatch API")
@@ -135,32 +139,39 @@ class BetwatchAsyncClient:
                 self._subscription_reconnect_task = asyncio.create_task(
                     asyncio.sleep(10)
                 )
+        logging.debug("reconnected to client sessions")
 
     async def __aenter__(self):
         """Pass through to the underlying client's __aenter__ method."""
+        logging.debug("entering context manager")
         async with self._session_lock:
             if not self._websocket_session:
                 self._websocket_session = await self._gql_sub_client.connect_async(
                     reconnecting=True
                 )
+        logging.debug("entered context manager")
         return self._websocket_session
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Pass through to the underlying client's __aexit__ method."""
+        logging.debug("exiting context manager")
         async with self._session_lock:
             if self._websocket_session:
                 self._websocket_session = (
                     await self._websocket_session.client.close_async()
                 )
+        logging.debug("exited context manager")
         return self._websocket_session
 
     async def _setup_websocket_session(self):
         """Connect to websocket connection"""
+        logging.debug("setting up websocket session")
         async with self._session_lock:
             if not self._websocket_session:
                 self._websocket_session = await self._gql_sub_client.connect_async(
                     reconnecting=True
                 )
+        logging.debug("websocket session setup")
         return self._websocket_session
 
     async def _setup_http_session(self):
@@ -191,6 +202,7 @@ class BetwatchAsyncClient:
             date_from (Union[str, datetime]): Date to start from (inclusive)
             date_to (Union[str, datetime]): Date to end at (inclusive   )
             projection (_type_, optional): The fields to return. Defaults to RaceProjection().
+            filter (_type_, optional): The filter to apply. Defaults to RacesFilter().
 
         Returns:
             List[Race]: List of races that match the criteria
@@ -269,7 +281,7 @@ class BetwatchAsyncClient:
                                 msg.split("limit argument less than")[1].strip()
                             )
                             logging.info(
-                                f"Adjusting limit to {filter.limit} and trying again"
+                                f"Cannot query more than {filter.limit} - adjusting limit to {filter.limit} and trying again"
                             )
                             return await self.get_races(projection, filter)
                         else:
@@ -309,9 +321,11 @@ class BetwatchAsyncClient:
 
         while True:
             try:
+                logging.debug("Waiting for subscription update")
                 update = await self._subscription_queue.get()
                 self._subscription_queue.task_done()
                 yield update
+                logging.debug("Subscription update received")
 
                 # check if we are falling behind
                 if (
@@ -325,6 +339,8 @@ class BetwatchAsyncClient:
             except asyncio.CancelledError:
                 logging.info("Subscription queue cancelled")
                 return
+            except Exception as e:
+                logging.error(f"Error in subscription queue: {e}")
 
     def get_subscribed_race_ids(self) -> List[str]:
         """Get a list of all subscribed races"""
@@ -425,6 +441,7 @@ class BetwatchAsyncClient:
             logging.warning("Connection closed, reconnecting...")
 
             await self.reconnect()
+
             raise e
         except TransportQueryError as e:
             logging.error(

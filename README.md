@@ -4,7 +4,6 @@
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/betwatch.svg)](https://pypi.org/project/betwatch)
 
 -----
-
 The Betwatch Python SDK allows you to interact with the [Betwatch.com](https://www.betwatch.com) API to integrate up to date racing price data into your Python applications.
 
 ### Disclaimer

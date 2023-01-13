@@ -9,25 +9,34 @@ from betwatch.types import Bookmaker
 
 @dataclass
 class Fluc:
-    price: Optional[float] = None
-    _last_updated: Optional[str] = field(metadata={"name": "lastUpdated"}, default=None)
+    price: float
+    _last_updated: str = field(metadata={"name": "lastUpdated"})
+
+    def __repr__(self) -> str:
+        return f"Fluc({self.price}, {self.last_updated})"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
     def __post_init__(self):
-        self.last_updated = (
-            dateutil.parser.isoparse(self._last_updated) if self._last_updated else None
-        )
+        self.last_updated = dateutil.parser.isoparse(self._last_updated)
 
 
 @dataclass
 class Price:
-    price: Optional[float] = None
+    price: float
+    _last_updated: str = field(metadata={"name": "lastUpdated"})
+
     flucs: Optional[List[Fluc]] = field(default_factory=list)
-    _last_updated: Optional[str] = field(metadata={"name": "lastUpdated"}, default=None)
+
+    def __repr__(self) -> str:
+        return f"Price({self.price}, {self.last_updated}, {len(self.flucs) if self.flucs else 0} flucs)"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
     def __post_init__(self):
-        self.last_updated = (
-            dateutil.parser.isoparse(self._last_updated) if self._last_updated else None
-        )
+        self.last_updated = dateutil.parser.isoparse(self._last_updated)
 
 
 class MarketPriceType(Enum):
@@ -37,10 +46,16 @@ class MarketPriceType(Enum):
 
 @dataclass
 class BookmakerMarket:
-    id: Optional[str] = None
-    bookmaker: Optional[Bookmaker] = None
-    fixed_win: Optional[Price] = field(metadata={"name": "fixedWin"}, default=None)
+    id: str
+    bookmaker: Bookmaker
+    fixed_win: Price = field(metadata={"name": "fixedWin"})
     fixed_place: Optional[Price] = field(metadata={"name": "fixedPlace"}, default=None)
+
+    def __repr__(self) -> str:
+        return f"BookmakerMarket({self.bookmaker.value}, FW:{self.fixed_win}, FP:{self.fixed_place})"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
     def get_price(self, market_type: MarketPriceType) -> Optional[Price]:
         if market_type == MarketPriceType.FIXED_WIN:
@@ -52,14 +67,12 @@ class BookmakerMarket:
 
 @dataclass
 class BetfairTick:
-    price: Optional[float] = None
-    size: Optional[float] = None
-    _last_updated: Optional[str] = field(metadata={"name": "lastUpdated"}, default=None)
+    price: float
+    size: float
+    _last_updated: str = field(metadata={"name": "lastUpdated"})
 
     def __post_init__(self):
-        self.last_updated = (
-            dateutil.parser.isoparse(self._last_updated) if self._last_updated else None
-        )
+        self.last_updated = dateutil.parser.isoparse(self._last_updated)
 
 
 class BetfairSide(Enum):
@@ -69,22 +82,19 @@ class BetfairSide(Enum):
 
 @dataclass
 class BetfairMarket:
-    id: Optional[str] = None
-    market_id: Optional[str] = field(metadata={"name": "marketId"}, default=None)
+    id: str
+    total_matched: float = field(metadata={"name": "totalMatched"})
+    market_total_matched: float = field(metadata={"name": "marketTotalMatched"})
+    starting_price: float = field(metadata={"name": "sp"})
+
+    back: List[BetfairTick]
+    lay: List[BetfairTick]
+
     market_name: Optional[str] = field(metadata={"name": "marketName"}, default=None)
-    total_matched: Optional[float] = field(
-        metadata={"name": "totalMatched"}, default=None
-    )
-    market_total_matched: Optional[float] = field(
-        metadata={"name": "marketTotalMatched"}, default=None
-    )
     last_price_traded: Optional[float] = field(
         metadata={"name": "lastPriceTraded"}, default=None
     )
-    starting_price: Optional[float] = field(metadata={"name": "sp"}, default=None)
-
-    back: Optional[List[BetfairTick]] = None
-    lay: Optional[List[BetfairTick]] = None
+    market_id: Optional[str] = field(metadata={"name": "marketId"}, default=None)
 
     @property
     def sp(self) -> Union[float, None]:

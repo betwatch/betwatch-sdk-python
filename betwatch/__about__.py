@@ -1,4 +1,4 @@
 # SPDX-FileCopyrightText: 2022-present Jamie Watts <jamie@betwatch.com>
 #
 # SPDX-License-Identifier: MIT
-__version__ = "0.8.5"
+__version__ = "0.9.2"
