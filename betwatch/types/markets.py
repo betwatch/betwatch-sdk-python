@@ -69,10 +69,12 @@ class BookmakerMarket:
 class BetfairTick:
     price: float
     size: float
-    _last_updated: str = field(metadata={"name": "lastUpdated"})
+    _last_updated: Optional[str] = field(metadata={"name": "lastUpdated"}, default=None)
 
     def __post_init__(self):
-        self.last_updated = dateutil.parser.isoparse(self._last_updated)
+        self.last_updated = (
+            dateutil.parser.isoparse(self._last_updated) if self._last_updated else None
+        )
 
 
 class BetfairSide(Enum):

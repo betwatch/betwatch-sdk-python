@@ -80,6 +80,7 @@ class Bookmaker(Enum):
     BITWINNING = "Bitwinning"
     COMBET = "Combet"
     BETM = "BetM"
+    ULTRABET = "Ultrabet"
 
     def __str__(self):
         return self.value

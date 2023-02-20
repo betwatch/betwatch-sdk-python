@@ -41,6 +41,11 @@ def main():
         print("No races found")
         return
     print(f"Observing race {races[0]}")
+
+    if not races[0].runners:
+        print("No runners found")
+        return
+
     # we only requested sportsbet and bluebet data in the projection
     for runner in races[0].runners:
         print(f"Runner: {runner.number}. {runner.name}")

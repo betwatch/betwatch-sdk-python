@@ -42,6 +42,10 @@ async def main():
         print("No races found")
         return
 
+    if not races[0].runners:
+        print("No runners found")
+        return
+
     # we only requested sportsbet and bluebet data in the projection
     for runner in races[0].runners:
         print(f"Runner: {runner.number}. {runner.name}")
