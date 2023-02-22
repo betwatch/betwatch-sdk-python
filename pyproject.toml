@@ -22,9 +22,9 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-    "gql[aiohttp,websockets,requests]",
-    "typedload",
-    "python-dateutil",
+    "gql[aiohttp,websockets,requests]==3.5.0b0",
+    "typedload==2.21",
+    "aiohttp==3.8.3",
 ]
 dynamic = ["version"]
 
