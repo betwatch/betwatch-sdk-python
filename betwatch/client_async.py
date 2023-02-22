@@ -2,6 +2,7 @@ import asyncio
 import atexit
 import logging
 from datetime import datetime, timedelta
+from time import monotonic
 from typing import Dict, List, Tuple, Union
 
 import backoff
@@ -67,10 +68,9 @@ class BetwatchAsyncClient:
         self._subscriptions_betfair: Dict[str, asyncio.Task] = {}
         self._subscriptions_prices: Dict[str, asyncio.Task] = {}
         self._subscriptions_updates: Dict[Tuple[str, str], asyncio.Task] = {}
-        self._subscription_reconnect_lock = asyncio.Lock()
-        self._subscription_reconnect_task: asyncio.Task | None = (
-            None  # handle resubscribing only once
-        )
+
+        self._monitor_task: asyncio.Task = asyncio.create_task(self._monitor())
+        self._last_reconnect: float = monotonic()
 
     def connect(self):
         logging.debug("connecting to client sessions")
@@ -254,7 +254,7 @@ class BetwatchAsyncClient:
         except TypedloadException as e:
             logging.error(f"Error parsing Betwatch API response: {e}")
             raise e
-        except (ClientError, HTTPClientError, HTTPServerError) as e:
+        except (ClientError, HTTPClientError, HTTPServerError, TimeoutError) as e:
             logging.warning(f"Error reaching Betwatch API: {e}")
             raise e
         except TransportQueryError as e:
@@ -295,6 +295,52 @@ class BetwatchAsyncClient:
         """
         query = query_get_race(projection)
         return await self._get_race_by_id(race_id, query)
+
+    async def _monitor(self):
+        """Monitor the subscription tasks and restart them if they fail"""
+        logging.debug("Starting subscription monitor")
+        while True:
+            try:
+                await asyncio.sleep(1)
+                for d in [
+                    self._subscriptions_prices,
+                    self._subscriptions_updates,
+                    self._subscriptions_betfair,
+                ]:
+                    for key, task in d.items():
+                        if task.done():
+                            # check for errors
+                            try:
+                                err = task.exception()
+                                if err:
+                                    logging.error(f"Error in subscription task: {err}")
+                            except asyncio.InvalidStateError:
+                                pass
+
+                            logging.info(f"Restarting subscription task for {key}")
+
+                            # replace the task in the dict with a new one
+                            if d == self._subscriptions_prices:
+                                d[key] = asyncio.create_task(
+                                    self._subscribe_bookmaker_updates(key)
+                                )
+                            elif d == self._subscriptions_updates:
+                                d[key] = asyncio.create_task(
+                                    self._subscribe_race_updates(*key)
+                                )
+                            elif d == self._subscriptions_betfair:
+                                d[key] = asyncio.create_task(
+                                    self._subscribe_betfair_updates(key)
+                                )
+
+                            # update last reconnect
+                            self._last_reconnect = monotonic()
+            except asyncio.CancelledError:
+                logging.debug("Subscription monitor cancelled")
+                return
+            except Exception as e:
+                logging.error(f"Error in subscription monitor: {e}")
+                raise e
 
     async def listen(self):
         """Subscribe to any updates from your subscriptions"""

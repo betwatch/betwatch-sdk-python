@@ -49,7 +49,7 @@ class RacesFilter:
         }
 
     def __str__(self) -> str:
-        return f"RacesFilter({('limit='+str(self.limit)+' ') if self.limit else ''}{'offset='+str(self.offset)+' ' if self.offset else ''}{'types=' + ','.join([t.value if isinstance(t, MeetingType) else t for t in self.types])}{'tracks='+str(self.tracks)}{'locations='+str(self.locations)}{'has_bookmakers='+str([b.value for b in self.has_bookmakers])+' ' if self.has_bookmakers else ''}{'has_runners='+str(self.has_runners)+' ' if self.has_runners else ''}{'has_trainers='+str(self.has_trainers)+' ' if self.has_trainers else ''}{'has_riders='+str(self.has_riders)+' ' if self.has_riders else ''}{'date_from='+self.date_from.strftime('%Y-%m-%d')+' ' if self.date_from else ''}{'date_to='+self.date_to.strftime('%Y-%m-%d') if self.date_to else ''})"
+        return f"RacesFilter({('limit='+str(self.limit)+' ') if self.limit else ''}{'offset='+str(self.offset)+' ' if self.offset else ''}{'types=' + ','.join([t.value if isinstance(t, MeetingType) else t for t in self.types])} {'tracks='+str(self.tracks)} {'locations='+str(self.locations)} {'has_bookmakers='+str([b.value for b in self.has_bookmakers])+' ' if self.has_bookmakers else ''}{'has_runners='+str(self.has_runners)+' ' if self.has_runners else ''}{'has_trainers='+str(self.has_trainers)+' ' if self.has_trainers else ''}{'has_riders='+str(self.has_riders)+' ' if self.has_riders else ''}{'date_from='+self.date_from.strftime('%Y-%m-%d')+' ' if self.date_from else ''}{'date_to='+self.date_to.strftime('%Y-%m-%d') if self.date_to else ''})"
 
 
 class RaceProjection:
@@ -70,4 +70,4 @@ class RaceProjection:
         self.bookmakers = bookmakers
 
     def __str__(self) -> str:
-        return f"RaceProjection({'markets ' if self.markets else ''}{'place_markets ' if self.place_markets else ''}{'links ' if self.links else ''}{'flucs ' if self.flucs else ''}{'betfair ' if self.betfair else ''}{'bookmakers' if self.bookmakers else ''})"
+        return f"RaceProjection({'markets ' if self.markets else ''}{' place_markets' if self.place_markets else ''}{' links' if self.links else ''}{' flucs' if self.flucs else ''}{' betfair' if self.betfair else ''}{' bookmakers' if self.bookmakers else ''})"
