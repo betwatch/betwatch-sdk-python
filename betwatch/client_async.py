@@ -13,7 +13,7 @@ from gql import Client
 from gql.client import AsyncClientSession, ReconnectingAsyncClientSession
 from gql.transport.aiohttp import AIOHTTPTransport
 from gql.transport.aiohttp import log as aiohttp_logger
-from gql.transport.exceptions import TransportQueryError
+from gql.transport.exceptions import TransportError, TransportQueryError
 from gql.transport.websockets import WebsocketsTransport
 from gql.transport.websockets import log as websockets_logger
 from graphql import DocumentNode
@@ -69,7 +69,7 @@ class BetwatchAsyncClient:
         self._subscriptions_prices: Dict[str, asyncio.Task] = {}
         self._subscriptions_updates: Dict[Tuple[str, str], asyncio.Task] = {}
 
-        self._monitor_task: asyncio.Task = asyncio.create_task(self._monitor())
+        self._monitor_task: asyncio.Task | None = None
         self._last_reconnect: float = monotonic()
 
     def connect(self):
@@ -354,6 +354,9 @@ class BetwatchAsyncClient:
         # dont spam the user with warnings of queue size
         last_warning = datetime.now()
 
+        # start monitor
+        self._monitor_task = asyncio.create_task(self._monitor())
+
         while True:
             try:
                 logging.debug("Waiting for subscription update")
@@ -454,10 +457,8 @@ class BetwatchAsyncClient:
                     )
 
                     self._subscription_queue.put_nowait(update)
-        except TransportQueryError as e:
-            logging.error(
-                f"Error subscribing to bookmaker updates: {e.errors[0].get('message') if e.errors and e.errors[0].get('message') else e}"
-            )
+        except TransportError as e:
+            logging.error(f"Error subscribing to bookmaker updates: {e}")
         except asyncio.CancelledError:
             await self.unsubscribe_bookmaker_updates(race_id)
             return
@@ -524,10 +525,8 @@ class BetwatchAsyncClient:
                     )
                     self._subscription_queue.put_nowait(update)
 
-        except TransportQueryError as e:
-            logging.error(
-                f"Error subscribing to betfair updates: {e.errors[0].get('message') if e.errors and e.errors[0].get('message') else e}"
-            )
+        except TransportError as e:
+            logging.error(f"Error subscribing to betfair updates: {e}")
         except asyncio.CancelledError:
             await self.unsubscribe_betfair_updates(race_id)
             return
@@ -570,10 +569,8 @@ class BetwatchAsyncClient:
                     )
                     self._subscription_queue.put_nowait(update)
 
-        except TransportQueryError as e:
-            logging.error(
-                f"Error subscribing to race updates: {e.errors[0].get('message') if e.errors and e.errors[0].get('message') else e}"
-            )
+        except TransportError as e:
+            logging.error(f"Error subscribing to race updates: {e}")
         except asyncio.CancelledError:
             await self.unsubscribe_race_updates(date_from, date_to)
             return
