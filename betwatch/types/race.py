@@ -81,7 +81,7 @@ class Runner:
     )
 
     betfair_markets: Optional[List[BetfairMarket]] = field(
-        metadata={"name": "betfairMarkets"}, default=None
+        metadata={"name": "betfairMarkets"}, default_factory=list
     )
 
     def __str__(self) -> str:
