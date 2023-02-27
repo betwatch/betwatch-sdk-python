@@ -3,7 +3,7 @@ import atexit
 import logging
 from datetime import datetime, timedelta
 from time import monotonic
-from typing import Dict, List, Tuple, Union, Optional
+from typing import Dict, List, Tuple, Union
 
 import backoff
 import typedload
@@ -44,6 +44,11 @@ class BetwatchAsyncClient:
     def __init__(self, api_key: str, transport_logging_level: int = logging.WARNING):
         self.api_key = api_key
 
+        self._gql_sub_transport: WebsocketsTransport
+        self._gql_transport: AIOHTTPTransport
+        self._gql_sub_client: Client
+        self._gql_client: Client
+
         self.connect()
 
         self._http_session: Union[
@@ -71,11 +76,6 @@ class BetwatchAsyncClient:
 
         self._monitor_task: Union[asyncio.Task, None] = None
         self._last_reconnect: float = monotonic()
-
-        self._gql_sub_transport: Optional[WebsocketsTransport] = None
-        self._gql_transport: Optional[AIOHTTPTransport] = None
-        self._gql_sub_client: Optional[Client] = None
-        self._gql_client: Optional[Client] = None
 
     def connect(self):
         logging.debug("connecting to client sessions")
