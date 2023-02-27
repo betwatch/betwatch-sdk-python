@@ -24,7 +24,7 @@ classifiers = [
 dependencies = [
     "gql[aiohttp,websockets,requests]==3.5.0b3",
     "typedload==2.21",
-    "aiohttp==3.8.3",
+    "aiohttp==3.8.4",
     "python-dateutil==2.8.2",
 ]
 dynamic = ["version"]
