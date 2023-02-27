@@ -3,7 +3,7 @@ import atexit
 import logging
 from datetime import datetime, timedelta
 from time import monotonic
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Optional
 
 import backoff
 import typedload
@@ -69,8 +69,13 @@ class BetwatchAsyncClient:
         self._subscriptions_prices: Dict[str, asyncio.Task] = {}
         self._subscriptions_updates: Dict[Tuple[str, str], asyncio.Task] = {}
 
-        self._monitor_task: asyncio.Task | None = None
+        self._monitor_task: Union[asyncio.Task, None] = None
         self._last_reconnect: float = monotonic()
+
+        self._gql_sub_transport: Optional[WebsocketsTransport] = None
+        self._gql_transport: Optional[AIOHTTPTransport] = None
+        self._gql_sub_client: Optional[Client] = None
+        self._gql_client: Optional[Client] = None
 
     def connect(self):
         logging.debug("connecting to client sessions")
@@ -421,7 +426,6 @@ class BetwatchAsyncClient:
             raise Exception(
                 "Cannot subscribe to more than 10 races at one time. Use an empty race_id to subscribe to all races in one subscription"
             )
-            return
 
         self._subscriptions_prices[race_id] = asyncio.create_task(
             self._subscribe_bookmaker_updates(race_id, projection)
