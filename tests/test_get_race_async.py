@@ -1,14 +1,12 @@
 import os
 
 import pytest
-from dotenv import load_dotenv
 
 import betwatch
 from betwatch.types import RaceStatus
 
 
 async def get_race(race_id: str):
-    load_dotenv()
     api_key = os.getenv("API_KEY")
     if not api_key:
         raise Exception("API_KEY not set in .env file")

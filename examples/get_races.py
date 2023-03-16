@@ -2,8 +2,6 @@ import logging
 import os
 from datetime import datetime, timedelta
 
-from dotenv import load_dotenv
-
 import betwatch
 from betwatch.types import MeetingType, RaceProjection, RacesFilter
 from betwatch.types.bookmakers import Bookmaker
@@ -41,10 +39,9 @@ def main():
 if __name__ == "__main__":
     # setup logging
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG if os.getenv("DEBUG") else logging.INFO,
         format="%(asctime)s [%(levelname)s]: %(message)s",
         handlers=[logging.StreamHandler()],
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    load_dotenv()
     main()
