@@ -1,4 +1,5 @@
 bump:
+	- hatch run cov
 	- hatch version patch
 	- hatch build
 	- hatch publish
