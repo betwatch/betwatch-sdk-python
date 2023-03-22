@@ -8,7 +8,7 @@ description = 'A Python package for interacting with the Betwatch.com API'
 readme = "README.md"
 requires-python = ">=3.7"
 license = "MIT"
-keywords = []
+keywords = ["betwatch", "betting", "sports", "api", "sdk"]
 authors = [{ name = "Jamie Watts", email = "jamie@betwatch.com" }]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -64,8 +64,9 @@ omit = ["betwatch/__about__.py"]
 exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
 
 [tool.ruff]
+
 # Enable Pyflakes and pycodestyle rules.
-select = ["E", "F"]
+select = ["E", "F", "B"]
 
 # Never enforce `E501` (line length violations).
 ignore = ["E501"]

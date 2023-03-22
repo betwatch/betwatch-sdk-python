@@ -24,7 +24,7 @@ class Fluc:
 
 @dataclass
 class Price:
-    price: float
+    price: Optional[float]
     _last_updated: str = field(metadata={"name": "lastUpdated"})
 
     flucs: Optional[List[Fluc]] = field(default_factory=list)
@@ -65,8 +65,8 @@ class BookmakerMarket:
             if isinstance(self._bookmaker, str):
                 return Bookmaker(self._bookmaker)
             return self._bookmaker
-        except ValueError:
-            raise ValueError(f"Invalid bookmaker: {self._bookmaker}")
+        except ValueError as e:
+            raise ValueError(f"Invalid bookmaker: {self._bookmaker}") from e
 
     def __repr__(self) -> str:
         return f"BookmakerMarket({self.bookmaker.value}, FW:{self.fixed_win}, FP:{self.fixed_place})"
