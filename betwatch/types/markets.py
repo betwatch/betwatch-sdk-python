@@ -55,9 +55,18 @@ class MarketPriceType(Enum):
 @dataclass
 class BookmakerMarket:
     id: str
-    bookmaker: Bookmaker
+    _bookmaker: Union[Bookmaker, str] = field(metadata={"name": "bookmaker"})
     fixed_win: Price = field(metadata={"name": "fixedWin"})
     fixed_place: Optional[Price] = field(metadata={"name": "fixedPlace"}, default=None)
+
+    @property
+    def bookmaker(self) -> Bookmaker:
+        try:
+            if isinstance(self._bookmaker, str):
+                return Bookmaker(self._bookmaker)
+            return self._bookmaker
+        except ValueError:
+            raise ValueError(f"Invalid bookmaker: {self._bookmaker}")
 
     def __repr__(self) -> str:
         return f"BookmakerMarket({self.bookmaker.value}, FW:{self.fixed_win}, FP:{self.fixed_place})"
