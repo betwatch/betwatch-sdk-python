@@ -24,7 +24,7 @@ class Fluc:
 
 @dataclass
 class Price:
-    price: Optional[float]
+    price: Optional[float]  # can be None if no price available
     _last_updated: str = field(metadata={"name": "lastUpdated"})
 
     flucs: Optional[List[Fluc]] = field(default_factory=list)
