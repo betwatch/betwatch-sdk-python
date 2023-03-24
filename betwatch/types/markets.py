@@ -66,7 +66,12 @@ class BookmakerMarket:
                 return Bookmaker(self._bookmaker)
             return self._bookmaker
         except ValueError as e:
-            raise ValueError(f"Invalid bookmaker: {self._bookmaker}") from e
+            if isinstance(self._bookmaker, str):
+                # try to find enum value by name (case insensitive)
+                for bm in Bookmaker:
+                    if bm.value.lower() == self._bookmaker.lower():
+                        return bm
+            raise e
 
     def __repr__(self) -> str:
         return f"BookmakerMarket({self.bookmaker.value}, FW:{self.fixed_win}, FP:{self.fixed_place})"
