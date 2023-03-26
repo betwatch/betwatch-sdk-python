@@ -56,7 +56,7 @@ class MarketPriceType(Enum):
 class BookmakerMarket:
     id: str
     _bookmaker: Union[Bookmaker, str] = field(metadata={"name": "bookmaker"})
-    fixed_win: Price = field(metadata={"name": "fixedWin"})
+    fixed_win: Optional[Price] = field(metadata={"name": "fixedWin"}, default=None)
     fixed_place: Optional[Price] = field(metadata={"name": "fixedPlace"}, default=None)
 
     @property
