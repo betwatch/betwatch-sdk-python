@@ -56,8 +56,28 @@ class MarketPriceType(Enum):
 class BookmakerMarket:
     id: str
     _bookmaker: Union[Bookmaker, str] = field(metadata={"name": "bookmaker"})
-    fixed_win: Optional[Price] = field(metadata={"name": "fixedWin"}, default=None)
-    fixed_place: Optional[Price] = field(metadata={"name": "fixedPlace"}, default=None)
+    _fixed_win: Union[None, Price, str] = field(
+        metadata={"name": "fixedWin"}, default=None
+    )
+    _fixed_place: Union[None, Price, str] = field(
+        metadata={"name": "fixedPlace"}, default=None
+    )
+
+    @property
+    def fixed_win(self) -> Union[None, Price]:
+        # BUG: sometimes we get a string here instead of a Price object
+        # and this crashes the subscription channel
+        if isinstance(self._fixed_win, str):
+            self._fixed_win = None
+        return self._fixed_win
+
+    @property
+    def fixed_place(self) -> Union[None, Price]:
+        # BUG: sometimes we get a string here instead of a Price object
+        # and this crashes the subscription channel
+        if isinstance(self._fixed_place, str):
+            self._fixed_place = None
+        return self._fixed_place
 
     @property
     def bookmaker(self) -> Bookmaker:
