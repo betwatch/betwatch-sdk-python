@@ -4,7 +4,7 @@ from graphql import DocumentNode
 from betwatch.types import RaceProjection
 
 
-def get_race_query(projection=RaceProjection()) -> str:
+def get_race_query(projection: RaceProjection) -> str:
     """Get a GQL query based on a projection."""
     bookmakers = (
         "["

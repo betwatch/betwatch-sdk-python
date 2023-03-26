@@ -126,11 +126,15 @@ class Runner:
 
     def get_bookmaker_markets_by_price(
         self,
-        bookmakers: List[Bookmaker] = [bookmaker for bookmaker in Bookmaker],
+        bookmakers: Optional[List[Bookmaker]] = None,
         price_type: MarketPriceType = MarketPriceType.FIXED_WIN,
         max_length: Optional[int] = None,
     ) -> List[BookmakerMarket]:
         """Sorts the bookmaker markets for a runner with the given price type by price"""
+        # handle defaults
+        if not bookmakers:
+            bookmakers = [bookmaker for bookmaker in Bookmaker]
+
         if not self.bookmaker_markets:
             return []
         best_markets: List[BookmakerMarket] = []
@@ -164,10 +168,14 @@ class Runner:
 
     def get_highest_bookmaker_market(
         self,
-        bookmakers: List[Bookmaker] = [bookmaker for bookmaker in Bookmaker],
+        bookmakers: Optional[List[Bookmaker]] = None,
         market_type: MarketPriceType = MarketPriceType.FIXED_WIN,
     ) -> Optional[BookmakerMarket]:
         """Returns the best bookmaker market for a runner with the given market type"""
+        # handle defaults
+        if not bookmakers:
+            bookmakers = [bookmaker for bookmaker in Bookmaker]
+
         best_markets = self.get_bookmaker_markets_by_price(
             bookmakers=bookmakers, price_type=market_type, max_length=1
         )
@@ -177,10 +185,13 @@ class Runner:
 
     def get_lowest_bookmaker_market(
         self,
-        bookmakers: List[Bookmaker] = [bookmaker for bookmaker in Bookmaker],
+        bookmakers: Optional[List[Bookmaker]] = None,
         market_type: MarketPriceType = MarketPriceType.FIXED_WIN,
     ) -> Optional[BookmakerMarket]:
         """Returns the worst bookmaker market for a runner with the given market type"""
+        # handle defaults
+        if not bookmakers:
+            bookmakers = [bookmaker for bookmaker in Bookmaker]
         best_markets = self.get_bookmaker_markets_by_price(
             bookmakers=bookmakers, price_type=market_type
         )
@@ -258,7 +269,6 @@ class Race:
         # )
 
     def __str__(self) -> str:
-
         # format start_time in local timezone
         st = (
             self.start_time.astimezone().strftime(" [%d/%m/%Y %H:%M]")
@@ -282,9 +292,12 @@ class Race:
     def get_runners_by_price(
         self,
         market_type: MarketPriceType,
-        bookmakers: List[Bookmaker] = [bookmaker for bookmaker in Bookmaker],
+        bookmakers: Optional[List[Bookmaker]] = None,
     ) -> List[Runner]:
         """Sorts the runners by the given market types best price"""
+        # handle defaults
+        if not bookmakers:
+            bookmakers = [bookmaker for bookmaker in Bookmaker]
         if not self.runners:
             return []
         best_runners: List[Runner] = []

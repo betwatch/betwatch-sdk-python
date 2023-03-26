@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 from betwatch.types.bookmakers import Bookmaker
 from betwatch.types.race import MeetingType
@@ -10,27 +10,27 @@ class RacesFilter:
         self,
         limit: int = 100,
         offset: int = 0,
-        types: List[Union[MeetingType, str]] = [],
-        tracks: List[str] = [],
-        locations: List[str] = [],
-        has_bookmakers: List[Bookmaker] = [],
-        has_runners: List[str] = [],
-        has_trainers: List[str] = [],
-        has_riders: List[str] = [],
-        date_from: datetime = datetime.now(),
-        date_to: datetime = datetime.now(),
+        types: Optional[List[Union[MeetingType, str]]] = None,
+        tracks: Optional[List[str]] = None,
+        locations: Optional[List[str]] = None,
+        has_bookmakers: Optional[List[Bookmaker]] = None,
+        has_runners: Optional[List[str]] = None,
+        has_trainers: Optional[List[str]] = None,
+        has_riders: Optional[List[str]] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
     ) -> None:
         self.limit = limit
         self.offset = offset
-        self.types = types
-        self.tracks = tracks
-        self.locations = locations
-        self.has_bookmakers = has_bookmakers
-        self.has_runners = has_runners
-        self.has_trainers = has_trainers
-        self.has_riders = has_riders
-        self.date_from = date_from
-        self.date_to = date_to
+        self.types = types if types else []
+        self.tracks = tracks if tracks else []
+        self.locations = locations if locations else []
+        self.has_bookmakers = has_bookmakers if has_bookmakers else []
+        self.has_runners = has_runners if has_runners else []
+        self.has_trainers = has_trainers if has_trainers else []
+        self.has_riders = has_riders if has_riders else []
+        self.date_from = date_from if date_from else datetime.now()
+        self.date_to = date_to if date_to else datetime.now()
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to a dict."""
@@ -60,14 +60,14 @@ class RaceProjection:
         flucs=False,
         links=False,
         betfair=False,
-        bookmakers: List[Bookmaker] = [],
+        bookmakers: Optional[List[Bookmaker]] = None,
     ) -> None:
         self.markets = markets
         self.place_markets = place_markets
         self.links = links
         self.flucs = flucs
         self.betfair = betfair
-        self.bookmakers = bookmakers
+        self.bookmakers = bookmakers if bookmakers else []
 
     def __str__(self) -> str:
         return f"RaceProjection({'markets ' if self.markets else ''}{' place_markets' if self.place_markets else ''}{' links' if self.links else ''}{' flucs' if self.flucs else ''}{' betfair' if self.betfair else ''}{' bookmakers' if self.bookmakers else ''})"

@@ -1,7 +1,7 @@
 import atexit
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import backoff
 import typedload
@@ -54,8 +54,8 @@ class BetwatchClient:
         self,
         date_from: Union[str, datetime],
         date_to: Union[str, datetime],
-        projection=RaceProjection(),
-        filter=RacesFilter(),
+        projection: Optional[RaceProjection] = None,
+        filter: Optional[RacesFilter] = None,
     ) -> List[Race]:
         """Get a list of races in between two dates.
 
@@ -68,6 +68,12 @@ class BetwatchClient:
         Returns:
             List[Race]: List of races that match the criteria
         """
+        # handle defaults
+        if not projection:
+            projection = RaceProjection()
+        if not filter:
+            filter = RacesFilter()
+
         if isinstance(date_from, datetime):
             date_from = date_from.strftime("%Y-%m-%d")
         if isinstance(date_to, datetime):
@@ -88,9 +94,15 @@ class BetwatchClient:
 
     def get_races(
         self,
-        projection=RaceProjection(),
-        filter=RacesFilter(),
+        projection: Optional[RaceProjection] = None,
+        filter: Optional[RacesFilter] = None,
     ) -> List[Race]:
+        # handle defaults
+        if not projection:
+            projection = RaceProjection()
+        if not filter:
+            filter = RacesFilter()
+
         try:
             logging.info(
                 f"Getting races with projection {projection} and filter {filter}"
@@ -100,7 +112,6 @@ class BetwatchClient:
             races: List[Race] = []
             # iterate until no more races are found
             while not done:
-
                 query = query_get_races(projection)
 
                 variables = filter.to_dict()
@@ -149,12 +160,15 @@ class BetwatchClient:
             return []
 
     def get_race(
-        self, race_id: str, projection=RaceProjection(markets=True)
+        self, race_id: str, projection: Optional[RaceProjection] = None
     ) -> Union[Race, None]:
+        # handle defaults
+        if not projection:
+            projection = RaceProjection(markets=True)
         query = query_get_race(projection)
         return self._get_race_by_id(race_id, query)
 
-    def get_races_today(self, projection=RaceProjection()) -> List[Race]:
+    def get_races_today(self, projection: Optional[RaceProjection]) -> List[Race]:
         """Get all races for today."""
         today = datetime.now().strftime("%Y-%m-%d")
         tomorrow = (datetime.now() + timedelta(days=0)).strftime("%Y-%m-%d")

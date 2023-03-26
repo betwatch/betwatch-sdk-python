@@ -3,7 +3,7 @@ import atexit
 import logging
 from datetime import datetime, timedelta
 from time import monotonic
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import backoff
 import typedload
@@ -173,19 +173,29 @@ class BetwatchAsyncClient:
         return self._http_session
 
     async def get_races_today(
-        self, projection=RaceProjection(), filter=RacesFilter()
+        self,
+        projection: Optional[RaceProjection] = None,
+        filter: Optional[RacesFilter] = None,
     ) -> List[Race]:
         """Get all races for today."""
+        # set defaults
+        if not projection:
+            projection = RaceProjection()
+        if not filter:
+            filter = RacesFilter()
+
         today = datetime.today().strftime("%Y-%m-%d")
         tomorrow = (datetime.today() + timedelta(days=0)).strftime("%Y-%m-%d")
-        return await self.get_races_between_dates(today, tomorrow, projection, filter)
+        return await self.get_races_between_dates(
+            today, tomorrow, projection=projection, filter=filter
+        )
 
     async def get_races_between_dates(
         self,
         date_from: Union[str, datetime],
         date_to: Union[str, datetime],
-        projection=RaceProjection(),
-        filter=RacesFilter(),
+        projection: Optional[RaceProjection] = None,
+        filter: Optional[RacesFilter] = None,
     ) -> List[Race]:
         """Get a list of races in between two dates.
 
@@ -198,6 +208,12 @@ class BetwatchAsyncClient:
         Returns:
             List[Race]: List of races that match the criteria
         """
+        # set defaults
+        if not projection:
+            projection = RaceProjection()
+        if not filter:
+            filter = RacesFilter()
+
         if isinstance(date_from, datetime):
             date_from = date_from.strftime("%Y-%m-%d")
         if isinstance(date_to, datetime):
@@ -216,15 +232,17 @@ class BetwatchAsyncClient:
             filter.date_to = datetime.strptime(date_to, "%Y-%m-%d")
         return await self.get_races(projection, filter)
 
-    async def query_races(self, projection=RaceProjection(), filter=RacesFilter()):
-        pass
-
     @backoff.on_exception(backoff.expo, (ClientError, HTTPClientError, HTTPServerError))
     async def get_races(
         self,
-        projection=RaceProjection(),
-        filter=RacesFilter(),
+        projection: Optional[RaceProjection] = None,
+        filter: Optional[RacesFilter] = None,
     ) -> List[Race]:
+        # set defaults
+        if not projection:
+            projection = RaceProjection()
+        if not filter:
+            filter = RacesFilter()
         try:
             logging.info(
                 f"Getting races with projection {projection} and filter {filter}"
@@ -287,7 +305,7 @@ class BetwatchAsyncClient:
             return []
 
     async def get_race(
-        self, race_id: str, projection=RaceProjection(markets=True)
+        self, race_id: str, projection: Optional[RaceProjection] = None
     ) -> Union[Race, None]:
         """Get all details of a specific race by id.
 
@@ -298,6 +316,9 @@ class BetwatchAsyncClient:
         Returns:
             Union[Race, None]: The race object or None if the race is not found.
         """
+        # set defaults
+        if not projection:
+            projection = RaceProjection(markets=True)
         query = query_get_race(projection)
         return await self._get_race_by_id(race_id, query)
 
@@ -413,8 +434,12 @@ class BetwatchAsyncClient:
     async def subscribe_bookmaker_updates(
         self,
         race_id: str,
-        projection=RaceProjection(markets=True),
+        projection: Optional[RaceProjection] = None,
     ):
+        # set defaults
+        if not projection:
+            projection = RaceProjection(markets=True)
+
         if race_id in self._subscriptions_prices:
             logging.info(
                 f"Already subscribed to {race_id if race_id else 'all races'} bookmaker updates"
@@ -434,7 +459,7 @@ class BetwatchAsyncClient:
     async def _subscribe_bookmaker_updates(
         self,
         race_id: str,
-        projection=RaceProjection(markets=True),
+        projection: Optional[RaceProjection] = None,
     ):
         """Subscribe to price updates for a specific race.
 
@@ -444,6 +469,10 @@ class BetwatchAsyncClient:
         Yields:
             List[BookmakerMarket]: A list of bookmaker markets with updated prices.
         """
+        # set defaults
+        if not projection:
+            projection = RaceProjection(markets=True)
+
         try:
             session = await self._setup_websocket_session()
 
@@ -469,6 +498,8 @@ class BetwatchAsyncClient:
         except asyncio.CancelledError:
             await self.unsubscribe_bookmaker_updates(race_id)
             return
+        except Exception as e:
+            logging.error(f"Error subscribing to bookmaker updates: {e}")
 
     async def unsubscribe_betfair_updates(self, race_id: str):
         if race_id not in self._subscriptions_betfair:
