@@ -339,14 +339,16 @@ class BetwatchAsyncClient:
                             try:
                                 err = task.exception()
                                 if err:
-                                    logging.error(f"Error in subscription task: {err}")
+                                    logging.warning(f"Subscription task closed: {err}")
                                     # reset the connection
                                     if self._websocket_session:
                                         await self.disconnect()
                             except asyncio.InvalidStateError:
                                 pass
 
-                            logging.info(f"Restarting subscription task for {key}")
+                            logging.info(
+                                f"Restarting subscription task for {key if key else 'all'}"
+                            )
 
                             # replace the task in the dict with a new one
                             if d == self._subscriptions_prices:
