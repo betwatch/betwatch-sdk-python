@@ -346,8 +346,8 @@ class BetwatchAsyncClient:
                             except asyncio.InvalidStateError:
                                 pass
 
-                            logging.info(
-                                f"Restarting subscription task for {key if key else 'all'}"
+                            logging.warning(
+                                f"Retrying subscription task for {key if key else 'all races'}"
                             )
 
                             # replace the task in the dict with a new one
@@ -370,7 +370,7 @@ class BetwatchAsyncClient:
                 logging.debug("Subscription monitor cancelled")
                 return
             except Exception as e:
-                logging.error(f"Error in subscription monitor: {e}")
+                logging.debug(f"Error in subscription monitor: {e}")
                 raise e
 
     async def listen(self):
@@ -496,7 +496,7 @@ class BetwatchAsyncClient:
 
                     self._subscription_queue.put_nowait(update)
         except TransportError as e:
-            logging.error(f"Error subscribing to bookmaker updates: {e}")
+            logging.debug(f"Error subscribing to bookmaker updates: {e}")
         except asyncio.CancelledError:
             await self.unsubscribe_bookmaker_updates(race_id)
             return
@@ -566,7 +566,7 @@ class BetwatchAsyncClient:
                     self._subscription_queue.put_nowait(update)
 
         except TransportError as e:
-            logging.error(f"Error subscribing to betfair updates: {e}")
+            logging.debug(f"Error subscribing to betfair updates: {e}")
         except asyncio.CancelledError:
             await self.unsubscribe_betfair_updates(race_id)
             return
