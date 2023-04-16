@@ -9,7 +9,7 @@ from .client import BetwatchClient
 from .client_async import BetwatchAsyncClient
 
 
-async def connect_async(api_key: Optional[str] = None) -> BetwatchAsyncClient:
+def connect_async(api_key: Optional[str] = None) -> BetwatchAsyncClient:
     """Connect to the Betwatch GraphQL API."""
 
     # check for env var if no api key is provided
