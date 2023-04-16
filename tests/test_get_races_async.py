@@ -10,7 +10,7 @@ async def get_races():
     if not api_key:
         raise Exception("API_KEY not set in .env file")
 
-    client = await betwatch.connect_async(api_key=api_key)
+    client = betwatch.connect_async(api_key=api_key)
 
     races_from = "2022-12-21"
     races_to = "2022-12-22"
