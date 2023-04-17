@@ -11,7 +11,7 @@ async def main():
     if not api_key:
         raise Exception("API_KEY not set in .env file")
 
-    client = await betwatch.connect_async(api_key)
+    client = betwatch.connect_async(api_key)
 
     # use a context handler to automatically close the connection gracefully
     async with client:

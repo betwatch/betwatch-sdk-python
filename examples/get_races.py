@@ -3,8 +3,12 @@ import os
 from datetime import datetime, timedelta
 
 import betwatch
-from betwatch.types import MeetingType, RaceProjection, RacesFilter
-from betwatch.types.bookmakers import Bookmaker
+from betwatch.types import (
+    Bookmaker,
+    MeetingType,
+    RaceProjection,
+    RacesFilter,
+)
 
 
 def main():
@@ -17,7 +21,12 @@ def main():
     # define the projection of the returned data
     # we can filter out for certain bookmakers as well as define whether we want market data or flucs
     projection = RaceProjection(
-        markets=True, flucs=True, bookmakers=[Bookmaker.SPORTSBET, Bookmaker.BLUEBET]
+        markets=True,
+        place_markets=False,
+        flucs=True,
+        links=False,
+        betfair=False,
+        bookmakers=[Bookmaker.SPORTSBET, Bookmaker.BLUEBET],
     )
 
     # define the filter for the query
@@ -34,6 +43,19 @@ def main():
     logging.info(f"Found {len(races)} races matching the query")
     for race in races:
         logging.info(race)
+        if race.runners:
+            for runner in race.runners:
+                print(runner)
+                if not runner.bookmaker_markets:
+                    print("No bookmaker markets for this runner")
+                    continue
+                for market in runner.bookmaker_markets:
+                    print(market)
+                    if market.fixed_win:
+                        print(f"Fixed Win Price: {market.fixed_win.price}")
+                        if market.fixed_win.flucs:
+                            for fluc in market.fixed_win.flucs:
+                                print(fluc)
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ async def main():
     if not api_key:
         raise Exception("API_KEY not set in .env file")
 
-    client = await betwatch.connect_async(api_key=api_key)
+    client = betwatch.connect_async(api_key=api_key)
 
     # define the projection of the returned data
     # we can filter out for certain bookmakers as well as define whether we want market data or flucs
