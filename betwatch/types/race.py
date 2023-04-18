@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import dateutil.parser
 
@@ -202,7 +202,7 @@ class Runner:
 
 @dataclass
 class RaceLink:
-    bookmaker: Optional[Bookmaker] = None
+    _bookmaker: Union[Bookmaker, str] = field(metadata={"name": "bookmaker"})
     nav_link: Optional[str] = field(metadata={"name": "navLink"}, default=None)
     _last_successful_price_update: Optional[str] = field(
         metadata={"name": "lastSuccessfulPriceUpdate"}, default=None
@@ -214,6 +214,20 @@ class RaceLink:
             if self._last_successful_price_update
             else None
         )
+
+    @property
+    def bookmaker(self) -> Bookmaker:
+        try:
+            if isinstance(self._bookmaker, str):
+                return Bookmaker(self._bookmaker)
+            return self._bookmaker
+        except ValueError as e:
+            if isinstance(self._bookmaker, str):
+                # try to find enum value by name (case insensitive)
+                for bm in Bookmaker:
+                    if bm.value.lower() == self._bookmaker.lower():
+                        return bm
+            raise e
 
 
 @dataclass
