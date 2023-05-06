@@ -1,8 +1,22 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from betwatch.types.bookmakers import Bookmaker
 from betwatch.types.race import MeetingType
+
+
+def get_australian_states() -> List[str]:
+    """Return a list of Australian states."""
+    return [
+        "ACT",
+        "NSW",
+        "NT",
+        "QLD",
+        "SA",
+        "TAS",
+        "VIC",
+        "WA",
+    ]
 
 
 class RacesFilter:
@@ -12,25 +26,43 @@ class RacesFilter:
         offset: int = 0,
         types: Optional[List[Union[MeetingType, str]]] = None,
         tracks: Optional[List[str]] = None,
-        locations: Optional[List[str]] = None,
+        locations: Optional[Union[List[str], Literal["Australia"]]] = None,
         has_bookmakers: Optional[List[Bookmaker]] = None,
         has_runners: Optional[List[str]] = None,
         has_trainers: Optional[List[str]] = None,
         has_riders: Optional[List[str]] = None,
-        date_from: Optional[datetime] = None,
-        date_to: Optional[datetime] = None,
+        date_from: Optional[Union[datetime, str]] = None,
+        date_to: Optional[Union[datetime, str]] = None,
     ) -> None:
         self.limit = limit
         self.offset = offset
         self.types = types if types else []
         self.tracks = tracks if tracks else []
+
+        # if locations is a string, convert to a list
+        # this is to simplify filtering for Australian races
+        if isinstance(locations, str):
+            if locations == "Australia":
+                locations = get_australian_states()
+
         self.locations = locations if locations else []
         self.has_bookmakers = has_bookmakers if has_bookmakers else []
         self.has_runners = has_runners if has_runners else []
         self.has_trainers = has_trainers if has_trainers else []
         self.has_riders = has_riders if has_riders else []
-        self.date_from = date_from if date_from else datetime.now()
-        self.date_to = date_to if date_to else datetime.now()
+
+        # parse the dates to strings
+        if not date_from:
+            date_from = datetime.now()
+        if not date_to:
+            date_to = datetime.now()
+        if isinstance(date_from, datetime):
+            date_from = date_from.strftime("%Y-%m-%d")
+        if isinstance(date_to, datetime):
+            date_to = date_to.strftime("%Y-%m-%d")
+
+        self.date_from = date_from
+        self.date_to = date_to
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to a dict."""
@@ -44,12 +76,16 @@ class RacesFilter:
             "hasRunners": self.has_runners,
             "hasTrainers": self.has_trainers,
             "hasRiders": self.has_riders,
-            "dateFrom": self.date_from.strftime("%Y-%m-%d"),
-            "dateTo": self.date_to.strftime("%Y-%m-%d"),
+            "dateFrom": self.date_from.strftime("%Y-%m-%d")
+            if isinstance(self.date_from, datetime)
+            else self.date_from,
+            "dateTo": self.date_to.strftime("%Y-%m-%d")
+            if isinstance(self.date_to, datetime)
+            else self.date_to,
         }
 
     def __str__(self) -> str:
-        return f"RacesFilter({('limit='+str(self.limit)+' ') if self.limit else ''}{'offset='+str(self.offset)+' ' if self.offset else ''}{'types=' + ','.join([t.value if isinstance(t, MeetingType) else t for t in self.types])} {'tracks='+str(self.tracks)} {'locations='+str(self.locations)} {'has_bookmakers='+str([b.value for b in self.has_bookmakers])+' ' if self.has_bookmakers else ''}{'has_runners='+str(self.has_runners)+' ' if self.has_runners else ''}{'has_trainers='+str(self.has_trainers)+' ' if self.has_trainers else ''}{'has_riders='+str(self.has_riders)+' ' if self.has_riders else ''}{'date_from='+self.date_from.strftime('%Y-%m-%d')+' ' if self.date_from else ''}{'date_to='+self.date_to.strftime('%Y-%m-%d') if self.date_to else ''})"
+        return f"RacesFilter({('limit='+str(self.limit)+' ') if self.limit else ''}{'offset='+str(self.offset)+' ' if self.offset else ''}{'types=' + ','.join([t.value if isinstance(t, MeetingType) else t for t in self.types])} {'tracks='+str(self.tracks)} {'locations='+str(self.locations)} {'has_bookmakers='+str([b.value for b in self.has_bookmakers])+' ' if self.has_bookmakers else ''}{'has_runners='+str(self.has_runners)+' ' if self.has_runners else ''}{'has_trainers='+str(self.has_trainers)+' ' if self.has_trainers else ''}{'has_riders='+str(self.has_riders)+' ' if self.has_riders else ''}{'date_from='+self.date_from+' ' if self.date_from else ''}{'date_to='+self.date_to if self.date_to else ''})"
 
 
 class RaceProjection:
@@ -60,7 +96,7 @@ class RaceProjection:
         flucs=False,
         links=False,
         betfair=False,
-        bookmakers: Optional[List[Bookmaker]] = None,
+        bookmakers: Optional[List[Union[Bookmaker, str]]] = None,
     ) -> None:
         self.markets = markets
         self.place_markets = place_markets

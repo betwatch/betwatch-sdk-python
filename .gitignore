@@ -1,3 +1,5 @@
+.rtx.toml
+.envrc
 frames.json
 playground/
 .vscode

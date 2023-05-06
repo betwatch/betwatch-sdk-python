@@ -21,6 +21,7 @@ from typedload.exceptions import TypedloadException
 
 from betwatch.__about__ import __version__
 from betwatch.queries import (
+    MUTATION_UPDATE_USER_EVENT_DATA,
     QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
     SUBSCRIPTION_BETFAIR_UPDATES,
     SUBSCRIPTION_RACES_UPDATES,
@@ -38,16 +39,24 @@ from betwatch.types import (
     SubscriptionUpdate,
 )
 from betwatch.types.filters import RacesFilter
+from betwatch.types.updates import SelectionData
 
 
 class BetwatchAsyncClient:
-    def __init__(self, api_key: str, transport_logging_level: int = logging.WARNING):
+    def __init__(
+        self,
+        api_key: str,
+        transport_logging_level: int = logging.WARNING,
+        host="api.betwatch.com",
+    ):
         self.api_key = api_key
 
         self._gql_sub_transport: WebsocketsTransport
         self._gql_transport: AIOHTTPTransport
         self._gql_sub_client: Client
         self._gql_client: Client
+
+        self._host = host
 
         self.connect()
 
@@ -80,7 +89,7 @@ class BetwatchAsyncClient:
     def connect(self):
         logging.debug("connecting to client sessions")
         self._gql_sub_transport = WebsocketsTransport(
-            url="wss://api.betwatch.com/sub",
+            url=f"wss://{self._host}/sub",
             headers={
                 "X-API-KEY": self.api_key,
                 "User-Agent": f"betwatch-sdk-python-{__version__}",
@@ -90,7 +99,7 @@ class BetwatchAsyncClient:
             ping_interval=5,
         )
         self._gql_transport = AIOHTTPTransport(
-            url="https://api.betwatch.com/query",
+            url=f"https://{self._host}/query",
             headers={
                 "X-API-KEY": self.api_key,
                 "User-Agent": f"betwatch-sdk-python-{__version__}",
@@ -221,15 +230,15 @@ class BetwatchAsyncClient:
 
         # prefer the date_from and date_to passed into the function
         if filter.date_from and filter.date_from != date_from:
-            logging.warning(
+            logging.debug(
                 f"Overriding date_from in filter ({filter.date_from} with {date_from})"
             )
-            filter.date_from = datetime.strptime(date_from, "%Y-%m-%d")
+            filter.date_from = date_from
         if filter.date_to and filter.date_to != date_to:
-            logging.warning(
+            logging.debug(
                 f"Overriding date_to in filter ({filter.date_to} with {date_to})"
             )
-            filter.date_to = datetime.strptime(date_to, "%Y-%m-%d")
+            filter.date_to = date_to
         return await self.get_races(projection, filter)
 
     @backoff.on_exception(backoff.expo, (ClientError, HTTPClientError, HTTPServerError))
@@ -261,8 +270,8 @@ class BetwatchAsyncClient:
                 result = await session.execute(query, variable_values=variables)
 
                 if result.get("races"):
-                    logging.debug(
-                        f"Received {len(result['races'])} races - attempting to get more"
+                    logging.info(
+                        f"Received {len(result['races'])} races - attempting to get more..."
                     )
                     races.extend(typedload.load(result["races"], List[Race]))
 
@@ -617,18 +626,54 @@ class BetwatchAsyncClient:
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     async def _get_race_by_id(
-        self, race_id: str, query: DocumentNode
+        self,
+        race_id: str,
+        query: DocumentNode,
     ) -> Union[Race, None]:
         logging.info(f"Getting race (id={race_id})")
         session = await self._setup_http_session()
-
-        variables = {"id": race_id}
+        variables = {
+            "id": race_id,
+        }
 
         result = await session.execute(query, variable_values=variables)
 
         if result.get("race"):
             return typedload.load(result["race"], Race)
         return None
+
+    async def update_event_data(
+        self, race_id: str, column_name: str, data: List[SelectionData]
+    ):
+        """
+        Updates event data for a given race ID.
+
+        Args:
+            race_id (str): race id to be checked
+            column_name (str): name of the column to be updated
+            data (List[SelectionData]): list of selection data to be updated
+        """
+
+        logging.info(f"Updating event data (id={race_id})")
+        selection_data = [
+            {"selectionId": d["selection_id"], "value": str(d["value"])} for d in data
+        ]
+
+        if not selection_data:
+            raise ValueError("Cannot update event data with empty selection data")
+
+        res = await self._gql_client.execute_async(
+            MUTATION_UPDATE_USER_EVENT_DATA,
+            variable_values={
+                "input": {
+                    "eventId": race_id,
+                    "customData": [
+                        {"columnName": column_name, "selectionData": selection_data}
+                    ],
+                }
+            },
+        )
+        logging.debug(res)
 
     async def get_race_last_updated_times(
         self, race_id: str

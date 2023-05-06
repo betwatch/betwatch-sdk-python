@@ -13,19 +13,26 @@ from graphql import DocumentNode
 
 from betwatch.__about__ import __version__
 from betwatch.queries import (
+    MUTATION_UPDATE_USER_EVENT_DATA,
     QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
     query_get_race,
     query_get_races,
 )
 from betwatch.types import Bookmaker, Race, RaceProjection
 from betwatch.types.filters import RacesFilter
+from betwatch.types.updates import SelectionData
 
 
 class BetwatchClient:
-    def __init__(self, api_key: str, transport_logging_level: int = logging.WARNING):
+    def __init__(
+        self,
+        api_key: str,
+        transport_logging_level: int = logging.WARNING,
+        host="api.betwatch.com",
+    ):
         self.api_key = api_key
         self._gql_transport = RequestsHTTPTransport(
-            url="https://api.betwatch.com/query",
+            url=f"https://{host}/query",
             headers={
                 "X-API-KEY": self.api_key,
                 "User-Agent": f"betwatch-python-{__version__}",
@@ -81,15 +88,15 @@ class BetwatchClient:
 
         # prefer the date_from and date_to passed into the function
         if filter.date_from and filter.date_from != date_from:
-            logging.warning(
+            logging.debug(
                 f"Overriding date_from in filter ({filter.date_from} with {date_from})"
             )
-            filter.date_from = datetime.strptime(date_from, "%Y-%m-%d")
+            filter.date_from = date_from
         if filter.date_to and filter.date_to != date_to:
-            logging.warning(
+            logging.debug(
                 f"Overriding date_to in filter ({filter.date_to} with {date_to})"
             )
-            filter.date_to = datetime.strptime(date_to, "%Y-%m-%d")
+            filter.date_to = date_to
         return self.get_races(projection, filter)
 
     def get_races(
@@ -119,8 +126,8 @@ class BetwatchClient:
                 result = self._gql_client.execute(query, variable_values=variables)
 
                 if result.get("races"):
-                    logging.debug(
-                        f"Received {len(result['races'])} races - attempting to get more"
+                    logging.info(
+                        f"Received {len(result['races'])} races - attempting to get more..."
                     )
                     races.extend(typedload.load(result["races"], List[Race]))
 
@@ -132,9 +139,7 @@ class BetwatchClient:
                     done = True
 
             return races
-        # except (ClientError, HTTPClientError, HTTPServerError) as e:
-        #     logging.warning(f"Error reaching Betwatch API: {e}")
-        #     raise e
+
         except TransportQueryError as e:
             if e.errors:
                 for error in e.errors:
@@ -166,23 +171,69 @@ class BetwatchClient:
         if not projection:
             projection = RaceProjection(markets=True)
         query = query_get_race(projection)
-        return self._get_race_by_id(race_id, query)
 
-    def get_races_today(self, projection: Optional[RaceProjection]) -> List[Race]:
+        return self._get_race_by_id(
+            race_id,
+            query,
+        )
+
+    def get_races_today(
+        self, projection: Optional[RaceProjection] = None
+    ) -> List[Race]:
         """Get all races for today."""
-        today = datetime.now().strftime("%Y-%m-%d")
-        tomorrow = (datetime.now() + timedelta(days=0)).strftime("%Y-%m-%d")
+        today = datetime.now()
+        tomorrow = datetime.now() + timedelta(days=0)
         return self.get_races_between_dates(today, tomorrow, projection)
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
-    def _get_race_by_id(self, race_id: str, query: DocumentNode) -> Union[Race, None]:
+    def _get_race_by_id(
+        self,
+        race_id: str,
+        query: DocumentNode,
+    ) -> Union[Race, None]:
         logging.info(f"Getting race (id={race_id})")
-        variables = {"id": race_id}
+
+        variables = {
+            "id": race_id,
+        }
         result = self._gql_client.execute(query, variable_values=variables)
 
         if result.get("race"):
             return typedload.load(result["race"], Race)
         return None
+
+    def update_event_data(
+        self, race_id: str, column_name: str, data: List[SelectionData]
+    ):
+        """
+        Updates event data for a given race ID.
+
+        Args:
+            race_id (str): race id to be checked
+            column_name (str): name of the column to be updated
+            data (List[SelectionData]): list of selection data to be updated
+        """
+
+        logging.info(f"Updating event data (id={race_id})")
+        selection_data = [
+            {"selectionId": d["selection_id"], "value": str(d["value"])} for d in data
+        ]
+
+        if not selection_data:
+            raise ValueError("Cannot update event data with empty selection data")
+
+        res = self._gql_client.execute(
+            MUTATION_UPDATE_USER_EVENT_DATA,
+            variable_values={
+                "input": {
+                    "eventId": race_id,
+                    "customData": [
+                        {"columnName": column_name, "selectionData": selection_data}
+                    ],
+                }
+            },
+        )
+        logging.debug(res)
 
     def get_race_last_updated_times(self, race_id: str) -> Dict[Bookmaker, datetime]:
         """Get the last time each bookmaker was checked for a price update.

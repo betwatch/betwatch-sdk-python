@@ -6,11 +6,18 @@ from betwatch.types import RaceProjection
 
 def get_race_query(projection: RaceProjection) -> str:
     """Get a GQL query based on a projection."""
+
     bookmakers = (
         "["
-        + ",".join(['"' + bookmaker.value + '"' for bookmaker in projection.bookmakers])
+        + ",".join(['"' + str(bookmaker) + '"' for bookmaker in projection.bookmakers])
         + "]"
     )
+
+    if projection.flucs and projection.bookmakers:
+        bookmakers_with_flucs = bookmakers
+        bookmakers = '[""]'
+    else:
+        bookmakers_with_flucs = "[]"
 
     runners_gql = (
         "runners { id betfairId name number scratchedTime barrier trainerName riderName "
@@ -23,6 +30,8 @@ def get_race_query(projection: RaceProjection) -> str:
             (
                 "bookmakerMarkets(bookmakers: "
                 + bookmakers
+                + ", bookmakersWithFlucs: "
+                + bookmakers_with_flucs
                 + ") { id bookmaker "
                 + "fixedWin { price lastUpdated "
                 + ("flucs { price lastUpdated } " if projection.flucs else "")
@@ -174,6 +183,23 @@ QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE = gql(
             links {
                 bookmaker
                 lastSuccessfulPriceUpdate
+            }
+        }
+    }
+    """
+)
+
+MUTATION_UPDATE_USER_EVENT_DATA = gql(
+    """
+    mutation UpdateUserEventData($input: UpdateUserEventDataInput!) {
+        updateUserEventData(input: $input) {
+            eventId
+            data {
+                columnName
+                selectionData {
+                    selectionId
+                    value
+                }
             }
         }
     }

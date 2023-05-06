@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from typing import List, Optional, Union
 
@@ -39,6 +40,16 @@ class Price:
             return f"Price({self.price}, {self.last_updated}, {len(self.flucs)} flucs, {fluc_change_pct})"
 
         return f"Price({self.price}, {self.last_updated}, {len(self.flucs) if self.flucs else 0} flucs)"
+
+    def get_price_at_time(self, at: datetime) -> Optional[Fluc]:
+        """Get the price/fluc at a certain time"""
+        if not self.flucs:
+            return None
+        # iterate through flucs in reverse order
+        for fluc in reversed(self.flucs):
+            if fluc.last_updated <= at:
+                return fluc
+        return None
 
     def __str__(self) -> str:
         return self.__repr__()

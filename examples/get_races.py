@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 
 import betwatch
 from betwatch.types import (
-    Bookmaker,
     MeetingType,
     RaceProjection,
     RacesFilter,
@@ -26,16 +25,17 @@ def main():
         flucs=True,
         links=False,
         betfair=False,
-        bookmakers=[Bookmaker.SPORTSBET, Bookmaker.BLUEBET],
+        # bookmakers=[Bookmaker.SPORTSBET, Bookmaker.BLUEBET],
     )
 
     # define the filter for the query
     # here we can filter by date, type of meeting, and various other parameters
     races_filter = RacesFilter(
-        date_from=datetime.now() - timedelta(days=7),
+        limit=10,
+        date_from=datetime.now() - timedelta(days=2),
         date_to=datetime.now() + timedelta(days=2),
         types=[MeetingType.THOROUGHBRED],  # filter on a race type
-        has_riders=["bowman", "mccoy"],  # filter on any race containing these riders
+        locations="Australia",  # filter on a location (this could be a list of states or countries too)
     )
 
     races = client.get_races(projection, races_filter)

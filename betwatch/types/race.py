@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Union
+from typing import List, Literal, Optional, Union
 
 import dateutil.parser
 
@@ -100,7 +100,13 @@ class Runner:
             else None
         )
 
-    def get_bookmaker_market(self, bookmaker: Bookmaker) -> Optional[BookmakerMarket]:
+    def get_bookmaker_market(
+        self, bookmaker: Union[Bookmaker, str]
+    ) -> Optional[BookmakerMarket]:
+        # try to get bookmaker if passed as string
+        if isinstance(bookmaker, str):
+            bookmaker = Bookmaker(bookmaker)
+
         if not self.bookmaker_markets:
             return None
         for market in self.bookmaker_markets:
@@ -186,12 +192,19 @@ class Runner:
     def get_lowest_bookmaker_market(
         self,
         bookmakers: Optional[List[Bookmaker]] = None,
-        market_type: MarketPriceType = MarketPriceType.FIXED_WIN,
+        market_type: Union[
+            Literal["FIXED_WIN", "FIXED_PLACE"], MarketPriceType
+        ] = MarketPriceType.FIXED_WIN,
     ) -> Optional[BookmakerMarket]:
         """Returns the worst bookmaker market for a runner with the given market type"""
         # handle defaults
         if not bookmakers:
             bookmakers = [bookmaker for bookmaker in Bookmaker]
+
+        # parse market type
+        if isinstance(market_type, str):
+            market_type = MarketPriceType(market_type)
+
         best_markets = self.get_bookmaker_markets_by_price(
             bookmakers=bookmakers, price_type=market_type
         )
@@ -294,8 +307,14 @@ class Race:
             return f"R{self.number} [{st}]"
         return f"({self.meeting.type}) {self.meeting.track} R{self.number}{st}"
 
-    def get_bookmaker_link(self, bookmaker: Bookmaker) -> Optional[RaceLink]:
+    def get_bookmaker_link(
+        self, bookmaker: Union[Bookmaker, str]
+    ) -> Optional[RaceLink]:
         """Returns the link for the given bookmaker"""
+        # parse bookmaker if string
+        if isinstance(bookmaker, str):
+            bookmaker = Bookmaker(bookmaker)
+
         if not self.links:
             return None
         for link in self.links:
