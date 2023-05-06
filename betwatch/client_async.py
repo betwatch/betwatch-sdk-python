@@ -655,6 +655,7 @@ class BetwatchAsyncClient:
         """
 
         logging.info(f"Updating event data (id={race_id})")
+        session = await self._setup_http_session()
         selection_data = [
             {"selectionId": d["selection_id"], "value": str(d["value"])} for d in data
         ]
@@ -662,7 +663,7 @@ class BetwatchAsyncClient:
         if not selection_data:
             raise ValueError("Cannot update event data with empty selection data")
 
-        res = await self._gql_client.execute_async(
+        res = await session.execute(
             MUTATION_UPDATE_USER_EVENT_DATA,
             variable_values={
                 "input": {
