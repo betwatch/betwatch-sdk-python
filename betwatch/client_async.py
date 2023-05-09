@@ -510,7 +510,7 @@ class BetwatchAsyncClient:
             await self.unsubscribe_bookmaker_updates(race_id)
             return
         except Exception as e:
-            logging.error(f"Error subscribing to bookmaker updates: {e}")
+            logging.debug(f"Error subscribing to bookmaker updates: {e}")
 
     async def unsubscribe_betfair_updates(self, race_id: str):
         if race_id not in self._subscriptions_betfair:
@@ -619,7 +619,7 @@ class BetwatchAsyncClient:
                     self._subscription_queue.put_nowait(update)
 
         except TransportError as e:
-            logging.error(f"Error subscribing to race updates: {e}")
+            logging.debug(f"Error subscribing to race updates: {e}")
         except asyncio.CancelledError:
             await self.unsubscribe_race_updates(date_from, date_to)
             return
