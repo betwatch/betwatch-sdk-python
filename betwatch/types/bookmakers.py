@@ -84,6 +84,7 @@ class Bookmaker(Enum):
     THUNDERBET = "Thunderbet"
     ESKANDERBET = "EskanderBet"
     SPORTCHAMPS = "SportChamps"
+    SURGE = "Surge"
 
     def __str__(self):
         return self.value
