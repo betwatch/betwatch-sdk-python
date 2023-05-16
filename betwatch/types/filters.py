@@ -41,9 +41,8 @@ class RacesFilter:
 
         # if locations is a string, convert to a list
         # this is to simplify filtering for Australian races
-        if isinstance(locations, str):
-            if locations == "Australia":
-                locations = get_australian_states()
+        if locations == ["Australia"]:
+            locations = get_australian_states()
 
         self.locations = locations if locations else []
         self.has_bookmakers = has_bookmakers if has_bookmakers else []

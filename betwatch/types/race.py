@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+import dataclasses
+from datetime import date, datetime, time, timedelta
 from enum import Enum
+import json
 from typing import List, Literal, Optional, Union
 
 import dateutil.parser
@@ -255,6 +257,20 @@ class RaceUpdate:
         self.start_time = dateutil.parser.isoparse(self._start_time)
 
 
+class EnhancedJSONEncoder(json.JSONEncoder):
+    # Create a custom encoder to handle nested dataclasses
+    # and convert them to dicts. Also handles datetime objects
+    def default(self, o):
+        if dataclasses.is_dataclass(o):
+            return dataclasses.asdict(o)
+        if isinstance(o, (datetime, date, time)):
+            return o.isoformat()
+        elif isinstance(o, timedelta):
+            return (datetime.min + o).time().isoformat()
+        elif isinstance(o, Enum):
+            return o.value
+        return super().default(o)
+
 @dataclass
 class Race:
     id: str
@@ -306,6 +322,9 @@ class Race:
         if self.meeting is None:
             return f"R{self.number} [{st}]"
         return f"({self.meeting.type}) {self.meeting.track} R{self.number}{st}"
+    
+    def __repr__(self) -> str:
+        return str(self)
 
     def get_bookmaker_link(
         self, bookmaker: Union[Bookmaker, str]
@@ -321,6 +340,9 @@ class Race:
             if link.bookmaker == bookmaker:
                 return link
         return None
+    
+    def to_dict(self) -> dict:
+        return json.loads(json.dumps(self, cls=EnhancedJSONEncoder))
 
     def get_runners_by_price(
         self,
