@@ -1,3 +1,7 @@
+### 
+# Websocket subscriptions are not available on the standard API plan. Please contact us if you would like to upgrade.
+###
+
 import asyncio
 import logging
 import os
