@@ -271,6 +271,7 @@ class EnhancedJSONEncoder(json.JSONEncoder):
             return o.value
         return super().default(o)
 
+
 @dataclass
 class Race:
     id: str
@@ -322,7 +323,7 @@ class Race:
         if self.meeting is None:
             return f"R{self.number} [{st}]"
         return f"({self.meeting.type}) {self.meeting.track} R{self.number}{st}"
-    
+
     def __repr__(self) -> str:
         return str(self)
 
@@ -340,7 +341,7 @@ class Race:
             if link.bookmaker == bookmaker:
                 return link
         return None
-    
+
     def to_dict(self) -> dict:
         return json.loads(json.dumps(self, cls=EnhancedJSONEncoder))
 

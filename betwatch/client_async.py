@@ -38,6 +38,7 @@ from betwatch.types import (
     RaceUpdate,
     SubscriptionUpdate,
 )
+from betwatch.types.exceptions import NotEntitledError
 from betwatch.types.filters import RacesFilter
 from betwatch.types.updates import SelectionData
 
@@ -352,6 +353,16 @@ class BetwatchAsyncClient:
                                     # reset the connection
                                     if self._websocket_session:
                                         await self.disconnect()
+
+                                    # if the user is not entitled to the data, don't retry
+                                    # check if err is of type NotEntitledError
+                                    if isinstance(err, NotEntitledError):
+                                        logging.warning(
+                                            "You are not entitled to subscriptions. Please contact api@betwatch.com to upgrade your API key."
+                                        )
+                                        del d[key]
+                                        continue
+
                             except asyncio.InvalidStateError:
                                 pass
 
@@ -506,6 +517,12 @@ class BetwatchAsyncClient:
                     self._subscription_queue.put_nowait(update)
         except TransportError as e:
             logging.debug(f"Error subscribing to bookmaker updates: {e}")
+
+            # check if the user is entitled to this data
+            if "does not have access" in e.args[0]:
+                raise NotEntitledError(
+                    "API key is not entitled to websocket subscriptions"
+                ) from e
         except asyncio.CancelledError:
             await self.unsubscribe_bookmaker_updates(race_id)
             return
@@ -576,6 +593,12 @@ class BetwatchAsyncClient:
 
         except TransportError as e:
             logging.debug(f"Error subscribing to betfair updates: {e}")
+
+            # check if the user is entitled to this data
+            if "does not have access" in e.args[0]:
+                raise NotEntitledError(
+                    "API key is not entitled to websocket subscriptions"
+                ) from e
         except asyncio.CancelledError:
             await self.unsubscribe_betfair_updates(race_id)
             return

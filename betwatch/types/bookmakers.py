@@ -88,10 +88,10 @@ class Bookmaker(Enum):
 
     def __str__(self):
         return self.value
-    
+
     def __repr__(self):
         return self.value
-    
+
     def __eq__(self, other):
         if isinstance(other, Bookmaker):
             return self.value == other.value
@@ -99,6 +99,6 @@ class Bookmaker(Enum):
             return self.value == other
         else:
             return False
-        
+
     def __hash__(self):
         return hash(self.value)
