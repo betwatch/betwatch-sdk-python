@@ -1,4 +1,4 @@
-### 
+###
 # Websocket subscriptions are not available on the standard API plan. Please contact us if you would like to upgrade.
 ###
 

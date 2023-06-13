@@ -41,7 +41,7 @@ class RacesFilter:
 
         # if locations is a string, convert to a list
         # this is to simplify filtering for Australian races
-        if locations == ["Australia"]:
+        if locations == "Australia":
             locations = get_australian_states()
 
         self.locations = locations if locations else []
