@@ -71,6 +71,7 @@ class Bookmaker(Enum):
     GALLOPBET = "Gallopbet"
     RIVERBET = "Riverbet"
     BARRINGTONBOOKMAKING = "Barringtonbookmaking"
+    BUSHBET = "Bushbet"
     TOPODDS = "Topodds"
     BEAZABET = "Beazabet"
     PUNTONDOGS = "PuntOnDogs"
