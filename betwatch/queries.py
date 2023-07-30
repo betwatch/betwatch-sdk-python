@@ -56,7 +56,7 @@ def get_race_query(projection: RaceProjection) -> str:
         + "classConditions name number status startTime results distance "
         + runners_gql
         + (
-            " links { bookmaker lastSuccessfulPriceUpdate navLink } "
+            " links { bookmaker lastSuccessfulPriceUpdate navLink fixedWin } "
             if projection.links
             else ""
         )

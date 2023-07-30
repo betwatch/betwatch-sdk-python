@@ -219,6 +219,7 @@ class Runner:
 class RaceLink:
     _bookmaker: Union[Bookmaker, str] = field(metadata={"name": "bookmaker"})
     nav_link: Optional[str] = field(metadata={"name": "navLink"}, default=None)
+    fixed_win_link: Optional[str] = field(metadata={"name": "fixedWin"}, default=None)
     _last_successful_price_update: Optional[str] = field(
         metadata={"name": "lastSuccessfulPriceUpdate"}, default=None
     )
