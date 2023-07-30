@@ -18,6 +18,7 @@ from gql.transport.websockets import WebsocketsTransport
 from gql.transport.websockets import log as websockets_logger
 from graphql import DocumentNode
 from typedload.exceptions import TypedloadException
+from websockets.exceptions import ConnectionClosedError
 
 from betwatch.__about__ import __version__
 from betwatch.queries import (
@@ -526,6 +527,8 @@ class BetwatchAsyncClient:
         except asyncio.CancelledError:
             await self.unsubscribe_bookmaker_updates(race_id)
             return
+        except ConnectionClosedError as e:
+            logging.debug(f"Error on bookmaker prices subscription: {e}")
         except Exception as e:
             logging.debug(f"Error subscribing to bookmaker updates: {e}")
 
@@ -602,6 +605,8 @@ class BetwatchAsyncClient:
         except asyncio.CancelledError:
             await self.unsubscribe_betfair_updates(race_id)
             return
+        except ConnectionClosedError as e:
+            logging.debug(f"Error on betfair subscription: {e}")
 
     async def unsubscribe_race_updates(self, date_from: str, date_to: str):
         if (date_from, date_to) not in self._subscriptions_updates:
@@ -646,6 +651,8 @@ class BetwatchAsyncClient:
         except asyncio.CancelledError:
             await self.unsubscribe_race_updates(date_from, date_to)
             return
+        except ConnectionClosedError as e:
+            logging.debug(f"Error on race updates subscription: {e}")
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     async def _get_race_by_id(
