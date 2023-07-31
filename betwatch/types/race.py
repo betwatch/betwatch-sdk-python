@@ -366,7 +366,10 @@ class Race:
             if not market:
                 continue
             price = market.get_price(market_type)
-            if not price or not price.price:
+            if not price or not price.price or price.price <= 1.01:
+                continue
+
+            if runner.scratched_time:
                 continue
 
             if not best_runners or not best_prices:
