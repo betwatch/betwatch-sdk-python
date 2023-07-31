@@ -380,7 +380,7 @@ class Race:
                 # put price at back if zero
                 if (
                     price.price < best_price.price or not best_price.price
-                ) and price.price:
+                ) and price.price > 1.01:
                     best_runners.insert(i, runner)
                     best_prices.insert(i, price)
                     break
