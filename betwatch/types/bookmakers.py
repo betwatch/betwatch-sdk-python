@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class Bookmaker(Enum):
+class Bookmaker(str, Enum):
     TAB = "Tab"
     SPORTSBET = "Sportsbet"
     POINTSBET = "Pointsbet"

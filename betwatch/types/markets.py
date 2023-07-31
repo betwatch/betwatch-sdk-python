@@ -58,7 +58,7 @@ class Price:
         self.last_updated = dateutil.parser.isoparse(self._last_updated)
 
 
-class MarketPriceType(Enum):
+class MarketPriceType(str, Enum):
     FIXED_WIN = "FIXED_WIN"
     FIXED_PLACE = "FIXED_PLACE"
 
@@ -130,7 +130,7 @@ class BetfairTick:
         )
 
 
-class BetfairSide(Enum):
+class BetfairSide(str, Enum):
     BACK = "BACK"
     LAY = "LAY"
 

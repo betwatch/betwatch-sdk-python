@@ -24,7 +24,7 @@ class SubscriptionUpdate:
     race_update: Optional["RaceUpdate"] = None
 
 
-class MeetingType(Enum):
+class MeetingType(str, Enum):
     THOROUGHBRED = "Thoroughbred"
     GREYHOUND = "Greyhound"
     HARNESS = "Harness"
@@ -39,7 +39,7 @@ class MeetingType(Enum):
         return "Unknown"
 
 
-class RaceStatus(Enum):
+class RaceStatus(str, Enum):
     OPEN = "Open"
     CLOSED = "Closed"
     ABANDONED = "Abandoned"
