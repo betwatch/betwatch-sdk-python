@@ -19,10 +19,11 @@ def main():
     projection = RaceProjection(
         markets=True,
         flucs=True,
-        bookmakers=[Bookmaker.SPORTSBET, Bookmaker.TAB],
+        # bookmakers=[Bookmaker.SPORTSBET, Bookmaker.TAB],
     )
 
-    race = client.get_race("64520016eb855d417a13b33b", projection)
+    races = client.get_races_today(projection)
+    race = next(r for r in races if r.is_open())
 
     if not race or not race.runners:
         logging.info("No runners found")

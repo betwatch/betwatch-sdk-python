@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import logging
 from typing import List, Optional, Union
 
 import dateutil.parser
@@ -91,21 +92,22 @@ class BookmakerMarket:
         return self._fixed_place
 
     @property
-    def bookmaker(self) -> Bookmaker:
+    def bookmaker(self) -> Union[Bookmaker, str]:
         try:
             if isinstance(self._bookmaker, str):
                 return Bookmaker(self._bookmaker)
             return self._bookmaker
-        except ValueError as e:
+        except ValueError:
             if isinstance(self._bookmaker, str):
                 # try to find enum value by name (case insensitive)
                 for bm in Bookmaker:
                     if bm.value.lower() == self._bookmaker.lower():
                         return bm
-            raise e
+            logging.debug(f"Bookmaker has no type: {self._bookmaker}")
+            return self._bookmaker
 
     def __repr__(self) -> str:
-        return f"BookmakerMarket({self.bookmaker.value}, FW:{self.fixed_win}, FP:{self.fixed_place})"
+        return f"BookmakerMarket({str(self.bookmaker)}, FW:{self.fixed_win}, FP:{self.fixed_place})"
 
     def __str__(self) -> str:
         return self.__repr__()
