@@ -22,7 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "gql[aiohttp,websockets,requests]==3.5.0b5",
-    "typedload==2.24",
+    "typedload==2.25",
     "aiohttp>=3.8.3",
     "python-dateutil==2.8.2",
     "urllib3>=1.26,<3",
