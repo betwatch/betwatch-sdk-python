@@ -11,11 +11,11 @@ from betwatch.types import (
 
 
 def main():
-    api_key = os.getenv("API_KEY")
+    api_key = os.getenv("BETWATCH_API_KEY")
     if not api_key:
-        raise Exception("API_KEY not set in .env file")
+        raise Exception("BETWATCH_API_KEY not set in .env file")
 
-    client = betwatch.connect(api_key=api_key)
+    client = betwatch.connect(api_key)
 
     # define the projection of the returned data
     # we can filter out for certain bookmakers as well as define whether we want market data or flucs

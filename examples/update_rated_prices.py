@@ -6,7 +6,11 @@ from betwatch.types.updates import SelectionData
 
 
 def main():
-    client = betwatch.connect()
+    api_key = os.getenv("BETWATCH_API_KEY")
+    if not api_key:
+        raise Exception("BETWATCH_API_KEY not set in .env file")
+    
+    client = betwatch.connect(api_key)
 
     # get a specific race (by id or by filtering a get_races call)
     race = client.get_race("64541df2ef4a7b36403781a5")
