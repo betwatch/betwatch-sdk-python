@@ -8,11 +8,11 @@ class Bookmaker(str, Enum):
     UNIBET = "Unibet"
     NEDS = "Neds"
     LADBROKES = "Ladbrokes"
-    # BOOKMAKER = "Bookmaker" defunct
+    BOOKMAKER = "Bookmaker"
     TABTOUCH = "Tabtouch"
     PALMERBET = "Palmerbet"
     DABBLE = "Dabble"
-    # MONEYBALL = "Moneyball" defunct
+    MONEYBALL = "Moneyball"
     BLUEBET = "Bluebet"
     BETRIGHT = "Betright"
     BETFLUX = "Betflux"
@@ -41,7 +41,7 @@ class Bookmaker(str, Enum):
     BETR = "Betr"
     FOXCATCHER = "Foxcatcher"
     PLAYUP = "Playup"
-    # BOOKI = "Booki" defunct
+    BOOKI = "Booki"
     COLOSSALBET = "Colossalbet"
     BOOMBET = "Boombet"
     TOPSPORT = "Topsport"
