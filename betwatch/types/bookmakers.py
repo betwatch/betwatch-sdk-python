@@ -8,11 +8,11 @@ class Bookmaker(str, Enum):
     UNIBET = "Unibet"
     NEDS = "Neds"
     LADBROKES = "Ladbrokes"
-    BOOKMAKER = "Bookmaker"
+    # BOOKMAKER = "Bookmaker" defunct
     TABTOUCH = "Tabtouch"
     PALMERBET = "Palmerbet"
     DABBLE = "Dabble"
-    MONEYBALL = "Moneyball"
+    # MONEYBALL = "Moneyball" defunct
     BLUEBET = "Bluebet"
     BETRIGHT = "Betright"
     BETFLUX = "Betflux"
@@ -41,7 +41,7 @@ class Bookmaker(str, Enum):
     BETR = "Betr"
     FOXCATCHER = "Foxcatcher"
     PLAYUP = "Playup"
-    BOOKI = "Booki"
+    # BOOKI = "Booki" defunct
     COLOSSALBET = "Colossalbet"
     BOOMBET = "Boombet"
     TOPSPORT = "Topsport"
@@ -87,6 +87,7 @@ class Bookmaker(str, Enum):
     SPORTCHAMPS = "SportChamps"
     SURGE = "Surge"
     BETESTATE = "Betestate"
+    CHASEBET = "Chasebet"
 
     def __str__(self):
         return self.value
