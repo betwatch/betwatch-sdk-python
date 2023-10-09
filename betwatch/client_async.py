@@ -248,7 +248,8 @@ class BetwatchAsyncClient:
         self,
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
-    ) -> List[Race]:
+        json: bool = False,
+    ) -> List[Race] or List[Dict]:
         # set defaults
         if not projection:
             projection = RaceProjection()
@@ -261,6 +262,7 @@ class BetwatchAsyncClient:
 
             done = False
             races: List[Race] = []
+
             # iterate until no more races are found
             while not done:
                 session = await self._setup_http_session()
@@ -275,10 +277,15 @@ class BetwatchAsyncClient:
                     logging.info(
                         f"Received {len(result['races'])} races - attempting to get more..."
                     )
-                    races.extend(typedload.load(result["races"], List[Race]))
+
+                    if not json:
+                        races.extend(typedload.load(result["races"], List[Race]))
+                    else:
+                        races.extend(result["races"])
 
                     # change the offset to the next page
                     filter.offset += filter.limit
+
                 else:
                     filter.offset = 0
                     logging.debug("No more races found")
@@ -316,8 +323,11 @@ class BetwatchAsyncClient:
             return []
 
     async def get_race(
-        self, race_id: str, projection: Optional[RaceProjection] = None
-    ) -> Union[Race, None]:
+        self,
+        race_id: str,
+        projection: Optional[RaceProjection] = None,
+        json: bool = False,
+    ) -> Union[Race, None] or Union[Dict, None]:
         """Get all details of a specific race by id.
 
         Args:
@@ -659,7 +669,8 @@ class BetwatchAsyncClient:
         self,
         race_id: str,
         query: DocumentNode,
-    ) -> Union[Race, None]:
+        json: bool = False,
+    ) -> Union[Race, None] or Union[Dict, None]:
         logging.info(f"Getting race (id={race_id})")
         session = await self._setup_http_session()
         variables = {
@@ -668,8 +679,10 @@ class BetwatchAsyncClient:
 
         result = await session.execute(query, variable_values=variables)
 
-        if result.get("race"):
+        if result.get("race") and not json:
             return typedload.load(result["race"], Race)
+        elif json:
+            return result["race"]
         return None
 
     async def update_event_data(
@@ -721,11 +734,18 @@ class BetwatchAsyncClient:
         race = await self._get_race_by_id(
             race_id, QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE
         )
-        if not race or not race.links:
-            return {}
 
-        return {
-            link.bookmaker: link.last_successful_price_update
-            for link in race.links
-            if link.bookmaker and link.last_successful_price_update
-        }
+        if isinstance(race, Race) and race.links:
+            return {
+                link.bookmaker: link.last_successful_price_update
+                for link in race.links
+                if link.bookmaker and link.last_successful_price_update
+            }
+        elif isinstance(race, Dict) and "links" in race:
+            return {
+                link["bookmaker"]: link["last_successful_price_update"]
+                for link in race["links"]
+                if link["bookmaker"] and link["last_successful_price_update"]
+            }
+
+        return {}
