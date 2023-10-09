@@ -4,9 +4,9 @@ import betwatch
 
 
 def get_race_last_updated(race_id: str):
-    api_key = os.getenv("API_KEY")
+    api_key = os.getenv("BETWATCH_API_KEY")
     if not api_key:
-        raise Exception("API_KEY not set in .env file")
+        raise Exception("BETWATCH_API_KEY not set in .env file")
 
     client = betwatch.connect(api_key=api_key)
 
