@@ -31,6 +31,7 @@ class BetwatchClient:
         api_key: Optional[str] = None,
         transport_logging_level: int = logging.WARNING,
         host="api.betwatch.com",
+        request_timeout=60,
     ):
         if not api_key:
             api_key = os.environ.get("BETWATCH_API_KEY")
@@ -44,7 +45,7 @@ class BetwatchClient:
                 "X-Api-Key": self.api_key,
                 "User-Agent": f"betwatch-python-{__version__}",
             },
-            timeout=30,
+            timeout=request_timeout,
         )
         # Create a GraphQL client using the defined transport
         self._gql_client = Client(
