@@ -4,11 +4,7 @@ import betwatch
 
 
 def get_races():
-    api_key = os.getenv("BETWATCH_API_KEY")
-    if not api_key:
-        raise Exception("BETWATCH_API_KEY not set in .env file")
-
-    client = betwatch.connect(api_key=api_key)
+    client = betwatch.connect()
 
     races_from = "2022-12-21"
     races_to = "2022-12-22"

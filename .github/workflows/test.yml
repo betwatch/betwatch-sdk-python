@@ -6,7 +6,7 @@ env:
   API_KEY: ${{ secrets.BETWATCH_API_KEY }}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  group: ${{ github.workflow }}-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -31,3 +31,5 @@ jobs:
       - name: Run tests
         run: |
           pytest
+        env:
+          BETWATCH_API_KEY: ${{ secrets.BETWATCH_API_KEY }}

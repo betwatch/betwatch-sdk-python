@@ -5,11 +5,7 @@ from betwatch.types import RaceProjection, RaceStatus
 
 
 def get_race(race_id: str):
-    api_key = os.getenv("BETWATCH_API_KEY")
-    if not api_key:
-        raise Exception("BETWATCH_API_KEY not set in .env file")
-
-    client = betwatch.connect(api_key=api_key)
+    client = betwatch.connect()
 
     projection = RaceProjection(markets=True, flucs=True, links=True, betfair=True)
 
