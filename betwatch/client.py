@@ -12,9 +12,12 @@ from gql.transport.requests import log as http_logger
 from graphql import DocumentNode
 
 from betwatch.__about__ import __version__
-from betwatch.queries import (MUTATION_UPDATE_USER_EVENT_DATA,
-                              QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
-                              query_get_race, query_get_races)
+from betwatch.queries import (
+    MUTATION_UPDATE_USER_EVENT_DATA,
+    QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
+    query_get_race,
+    query_get_races,
+)
 from betwatch.types import Bookmaker, Race, RaceProjection
 from betwatch.types.filters import RacesFilter
 from betwatch.types.updates import SelectionData
@@ -31,7 +34,7 @@ class BetwatchClient:
         self._gql_transport = RequestsHTTPTransport(
             url=f"https://{host}/query",
             headers={
-                "X-API-KEY": self.api_key,
+                "X-Api-Key": self.api_key,
                 "User-Agent": f"betwatch-python-{__version__}",
             },
             timeout=30,
@@ -54,18 +57,41 @@ class BetwatchClient:
         self._gql_client.close_sync()
         self._gql_transport.close()
 
+    @overload
     def get_races_between_dates(
         self,
         date_from: Union[str, datetime],
         date_to: Union[str, datetime],
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
+        parse_result: Literal[True] = True,
     ) -> List[Race]:
+        ...
+
+    @overload
+    def get_races_between_dates(
+        self,
+        date_from: Union[str, datetime],
+        date_to: Union[str, datetime],
+        projection: Optional[RaceProjection] = None,
+        filter: Optional[RacesFilter] = None,
+        parse_result: Literal[False] = False,
+    ) -> List[Dict]:
+        ...
+
+    def get_races_between_dates(
+        self,
+        date_from: Union[str, datetime],
+        date_to: Union[str, datetime],
+        projection: Optional[RaceProjection] = None,
+        filter: Optional[RacesFilter] = None,
+        parse_result: bool = True,
+    ) -> Union[List[Race], List[Dict]]:
         """Get a list of races in between two dates.
 
         Args:
             date_from (Union[str, datetime]): Date to start from (inclusive)
-            date_to (Union[str, datetime]): Date to end at (inclusive   )
+            date_to (Union[str, datetime]): Date to end at (inclusive)
             projection (_type_, optional): The fields to return. Defaults to RaceProjection().
             filter (_type_, optional): Filter the results. Defaults to RacesFilter().
 
@@ -183,18 +209,39 @@ class BetwatchClient:
                 logging.error(f"Error querying Betwatch API: {e}")
             return []
 
+    @overload
     def get_race(
-        self, race_id: str, projection: Optional[RaceProjection] = None
+        self,
+        race_id: str,
+        projection: Optional[RaceProjection] = None,
+        parse_result: Literal[True] = True,
     ) -> Union[Race, None]:
+        ...
+
+    @overload
+    def get_race(
+        self,
+        race_id: str,
+        projection: Optional[RaceProjection] = None,
+        parse_result: Literal[True] = True,
+    ) -> Union[Dict, None]:
+        ...
+
+    def get_race(
+        self,
+        race_id: str,
+        projection: Optional[RaceProjection] = None,
+        parse_result: bool = True,
+    ) -> Union[Race, Dict, None]:
         # handle defaults
         if not projection:
             projection = RaceProjection(markets=True)
         query = query_get_race(projection)
 
-        return self._get_race_by_id(
-            race_id,
-            query,
-        )
+        if parse_result:
+            return self._get_race_by_id(race_id, query, parse_result=True)
+        else:
+            return self._get_race_by_id(race_id, query, parse_result=False)
 
     def get_races_today(
         self, projection: Optional[RaceProjection] = None
@@ -204,12 +251,31 @@ class BetwatchClient:
         tomorrow = datetime.now() + timedelta(days=0)
         return self.get_races_between_dates(today, tomorrow, projection)
 
+    @overload
+    def _get_race_by_id(
+        self,
+        race_id: str,
+        query: DocumentNode,
+        parse_result: Literal[True] = True,
+    ) -> Union[Race, None]:
+        ...
+
+    @overload
+    def _get_race_by_id(
+        self,
+        race_id: str,
+        query: DocumentNode,
+        parse_result: Literal[False] = False,
+    ) -> Union[Dict, None]:
+        ...
+
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     def _get_race_by_id(
         self,
         race_id: str,
         query: DocumentNode,
-    ) -> Union[Race, None]:
+        parse_result: bool = True,
+    ) -> Union[Race, Dict, None]:
         logging.info(f"Getting race (id={race_id})")
 
         variables = {
@@ -218,7 +284,10 @@ class BetwatchClient:
         result = self._gql_client.execute(query, variable_values=variables)
 
         if result.get("race"):
-            return typedload.load(result["race"], Race)
+            if parse_result:
+                return typedload.load(result["race"], Race)
+            else:
+                return result["race"]
         return None
 
     def update_event_data(

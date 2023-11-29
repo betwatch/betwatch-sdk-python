@@ -10,11 +10,8 @@ import typedload
 from gql import Client
 from gql.client import AsyncClientSession, ReconnectingAsyncClientSession
 from gql.transport.exceptions import TransportError, TransportQueryError
-# from gql.transport.aiohttp import AIOHTTPTransport
-# from gql.transport.aiohttp import log as aiohttp_logger
-# from aiohttp.client_exceptions import ClientError
-# from aiohttp.web_exceptions import HTTPClientError, HTTPServerError
 from gql.transport.httpx import HTTPXAsyncTransport
+from httpx._exceptions import HTTPError
 from gql.transport.httpx import log as httpx_logger
 from gql.transport.websockets import WebsocketsTransport
 from gql.transport.websockets import log as websockets_logger
@@ -23,13 +20,24 @@ from typedload.exceptions import TypedloadException
 from websockets.exceptions import ConnectionClosedError
 
 from betwatch.__about__ import __version__
-from betwatch.queries import (MUTATION_UPDATE_USER_EVENT_DATA,
-                              QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
-                              SUBSCRIPTION_BETFAIR_UPDATES,
-                              SUBSCRIPTION_RACES_UPDATES, query_get_race,
-                              query_get_races, subscription_race_price_updates)
-from betwatch.types import (BetfairMarket, Bookmaker, BookmakerMarket, Race,
-                            RaceProjection, RaceUpdate, SubscriptionUpdate)
+from betwatch.queries import (
+    MUTATION_UPDATE_USER_EVENT_DATA,
+    QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
+    SUBSCRIPTION_BETFAIR_UPDATES,
+    SUBSCRIPTION_RACES_UPDATES,
+    query_get_race,
+    query_get_races,
+    subscription_race_price_updates,
+)
+from betwatch.types import (
+    BetfairMarket,
+    Bookmaker,
+    BookmakerMarket,
+    Race,
+    RaceProjection,
+    RaceUpdate,
+    SubscriptionUpdate,
+)
 from betwatch.types.exceptions import NotEntitledError
 from betwatch.types.filters import RacesFilter
 from betwatch.types.updates import SelectionData
@@ -174,11 +182,30 @@ class BetwatchAsyncClient:
                 self._http_session = await self._gql_client.connect_async()
         return self._http_session
 
+    @overload
     async def get_races_today(
         self,
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
+        parse_result: Literal[True] = True,
     ) -> List[Race]:
+        ...
+
+    @overload
+    async def get_races_today(
+        self,
+        projection: Optional[RaceProjection] = None,
+        filter: Optional[RacesFilter] = None,
+        parse_result: Literal[False] = False,
+    ) -> List[Race]:
+        ...
+
+    async def get_races_today(
+        self,
+        projection: Optional[RaceProjection] = None,
+        filter: Optional[RacesFilter] = None,
+        parse_result: bool = True,
+    ) -> Union[List[Race], List[Dict]]:
         """Get all races for today."""
         # set defaults
         if not projection:
@@ -188,9 +215,45 @@ class BetwatchAsyncClient:
 
         today = datetime.today().strftime("%Y-%m-%d")
         tomorrow = (datetime.today() + timedelta(days=0)).strftime("%Y-%m-%d")
-        return await self.get_races_between_dates(
-            today, tomorrow, projection=projection, filter=filter
-        )
+
+        if parse_result:
+            return await self.get_races_between_dates(
+                today,
+                tomorrow,
+                projection=projection,
+                filter=filter,
+                parse_result=True,
+            )
+        else:
+            return await self.get_races_between_dates(
+                today,
+                tomorrow,
+                projection=projection,
+                filter=filter,
+                parse_result=False,
+            )
+
+    @overload
+    async def get_races_between_dates(
+        self,
+        date_from: Union[str, datetime],
+        date_to: Union[str, datetime],
+        projection: Optional[RaceProjection] = None,
+        filter: Optional[RacesFilter] = None,
+        parse_result: Literal[True] = True,
+    ) -> List[Race]:
+        ...
+
+    @overload
+    async def get_races_between_dates(
+        self,
+        date_from: Union[str, datetime],
+        date_to: Union[str, datetime],
+        projection: Optional[RaceProjection] = None,
+        filter: Optional[RacesFilter] = None,
+        parse_result: Literal[False] = False,
+    ) -> List[Race]:
+        ...
 
     async def get_races_between_dates(
         self,
@@ -198,7 +261,8 @@ class BetwatchAsyncClient:
         date_to: Union[str, datetime],
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
-    ) -> List[Race]:
+        parse_result: bool = True,
+    ) -> Union[List[Race], List[Dict]]:
         """Get a list of races in between two dates.
 
         Args:
@@ -232,15 +296,36 @@ class BetwatchAsyncClient:
                 f"Overriding date_to in filter ({filter.date_to} with {date_to})"
             )
             filter.date_to = date_to
-        return await self.get_races(projection, filter)
+        if parse_result:
+            return await self.get_races(projection, filter, parse_result=True)
+        else:
+            return await self.get_races(projection, filter, parse_result=False)
 
-    # @backoff.on_exception(backoff.expo, (ClientError, HTTPClientError, HTTPServerError))
+    @overload
     async def get_races(
         self,
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
-        json: bool = False,
-    ) -> List[Race] or List[Dict]:
+        parse_result: Literal[True] = True,
+    ) -> List[Race]:
+        ...
+
+    @overload
+    async def get_races(
+        self,
+        projection: Optional[RaceProjection] = None,
+        filter: Optional[RacesFilter] = None,
+        parse_result: Literal[False] = False,
+    ) -> List[Dict]:
+        ...
+
+    @backoff.on_exception(backoff.expo, (HTTPError))
+    async def get_races(
+        self,
+        projection: Optional[RaceProjection] = None,
+        filter: Optional[RacesFilter] = None,
+        parse_result: bool = True,
+    ) -> Union[List[Race], List[Dict]]:
         # set defaults
         if not projection:
             projection = RaceProjection()
@@ -269,7 +354,7 @@ class BetwatchAsyncClient:
                         f"Received {len(result['races'])} races - attempting to get more..."
                     )
 
-                    if not json:
+                    if parse_result:
                         races.extend(typedload.load(result["races"], List[Race]))
                     else:
                         races.extend(result["races"])
@@ -286,9 +371,9 @@ class BetwatchAsyncClient:
         except TypedloadException as e:
             logging.error(f"Error parsing Betwatch API response: {e}")
             raise e
-        # except (ClientError, HTTPClientError, HTTPServerError, TimeoutError) as e:
-        #     logging.warning(f"Error reaching Betwatch API: {e}")
-        #     raise e
+        except (HTTPError, TimeoutError) as e:
+            logging.warning(f"Error reaching Betwatch API: {e}")
+            raise e
         except TransportQueryError as e:
             if e.errors:
                 for error in e.errors:
