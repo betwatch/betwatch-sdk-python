@@ -111,6 +111,7 @@ class BetwatchAsyncClient:
                 "X-API-KEY": self.api_key,
                 "User-Agent": f"betwatch-sdk-python-{__version__}",
             },
+            timeout=60,
         )
         # Create a GraphQL client using the defined transport
         self._gql_sub_client = Client(
