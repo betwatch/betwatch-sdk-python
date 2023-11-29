@@ -51,6 +51,7 @@ class BetwatchAsyncClient:
         api_key: Optional[str] = None,
         transport_logging_level: int = logging.WARNING,
         host="api.betwatch.com",
+        request_timeout: int = 60,
     ):
         if not api_key:
             api_key = os.environ.get("BETWATCH_API_KEY")
@@ -65,7 +66,7 @@ class BetwatchAsyncClient:
 
         self._host = host
 
-        self.connect()
+        self.connect(request_timeout)
 
         self._http_session: Union[
             None, ReconnectingAsyncClientSession, AsyncClientSession
@@ -93,7 +94,7 @@ class BetwatchAsyncClient:
         self._monitor_task: Union[asyncio.Task, None] = None
         self._last_reconnect: float = monotonic()
 
-    def connect(self):
+    def connect(self, request_timeout: int):
         logging.debug("connecting to client sessions")
         self._gql_sub_transport = WebsocketsTransport(
             url=f"wss://{self._host}/sub",
@@ -111,16 +112,16 @@ class BetwatchAsyncClient:
                 "X-API-KEY": self.api_key,
                 "User-Agent": f"betwatch-sdk-python-{__version__}",
             },
-            timeout=60,
+            timeout=request_timeout,
         )
         # Create a GraphQL client using the defined transport
         self._gql_sub_client = Client(
             transport=self._gql_sub_transport,
-            execute_timeout=60,
+            execute_timeout=request_timeout,
         )
         self._gql_client = Client(
             transport=self._gql_transport,
-            execute_timeout=60,
+            execute_timeout=request_timeout,
         )
         logging.debug("connected to client sessions")
 
