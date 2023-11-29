@@ -2,6 +2,7 @@ import asyncio
 import atexit
 import logging
 from datetime import datetime, timedelta
+import os
 from time import monotonic
 from typing import Dict, List, Literal, Optional, Tuple, Union, overload
 
@@ -20,6 +21,7 @@ from typedload.exceptions import TypedloadException
 from websockets.exceptions import ConnectionClosedError
 
 from betwatch.__about__ import __version__
+from betwatch.exceptions import APIKeyNotSetError
 from betwatch.queries import (
     MUTATION_UPDATE_USER_EVENT_DATA,
     QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
@@ -46,10 +48,14 @@ from betwatch.types.updates import SelectionData
 class BetwatchAsyncClient:
     def __init__(
         self,
-        api_key: str,
+        api_key: Optional[str] = None,
         transport_logging_level: int = logging.WARNING,
         host="api.betwatch.com",
     ):
+        if not api_key:
+            api_key = os.environ.get("BETWATCH_API_KEY")
+        if not api_key:
+            raise APIKeyNotSetError()
         self.api_key = api_key
 
         self._gql_sub_transport: WebsocketsTransport
