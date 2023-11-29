@@ -7,8 +7,13 @@ from typing import List, Literal, Optional, Union
 
 import ciso8601
 
-from betwatch.types.markets import (BetfairMarket, Bookmaker, BookmakerMarket,
-                                    MarketPriceType, Price)
+from betwatch.types.markets import (
+    BetfairMarket,
+    Bookmaker,
+    BookmakerMarket,
+    MarketPriceType,
+    Price,
+)
 
 
 @dataclass

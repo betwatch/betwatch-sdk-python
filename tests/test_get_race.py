@@ -1,5 +1,3 @@
-import os
-
 import betwatch
 from betwatch.types import RaceProjection, RaceStatus
 
