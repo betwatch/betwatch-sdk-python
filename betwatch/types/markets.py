@@ -1,10 +1,10 @@
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import logging
 from typing import List, Optional, Union
 
-import dateutil.parser
+import ciso8601
 
 from betwatch.types import Bookmaker
 
@@ -21,7 +21,7 @@ class Fluc:
         return self.__repr__()
 
     def __post_init__(self):
-        self.last_updated = dateutil.parser.isoparse(self._last_updated)
+        self.last_updated = ciso8601.parse_datetime(self._last_updated)
 
 
 @dataclass
@@ -56,7 +56,7 @@ class Price:
         return self.__repr__()
 
     def __post_init__(self):
-        self.last_updated = dateutil.parser.isoparse(self._last_updated)
+        self.last_updated = ciso8601.parse_datetime(self._last_updated)
 
 
 class MarketPriceType(str, Enum):
@@ -128,7 +128,7 @@ class BetfairTick:
 
     def __post_init__(self):
         self.last_updated = (
-            dateutil.parser.isoparse(self._last_updated) if self._last_updated else None
+            ciso8601.parse_datetime(self._last_updated) if self._last_updated else None
         )
 
 

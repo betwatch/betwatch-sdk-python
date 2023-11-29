@@ -1,19 +1,14 @@
-from dataclasses import dataclass, field
 import dataclasses
+import json
+from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from enum import Enum
-import json
 from typing import List, Literal, Optional, Union
 
-import dateutil.parser
+import ciso8601
 
-from betwatch.types.markets import (
-    BetfairMarket,
-    Bookmaker,
-    BookmakerMarket,
-    MarketPriceType,
-    Price,
-)
+from betwatch.types.markets import (BetfairMarket, Bookmaker, BookmakerMarket,
+                                    MarketPriceType, Price)
 
 
 @dataclass
@@ -97,7 +92,7 @@ class Runner:
 
     def __post_init__(self):
         self.scratched_time = (
-            dateutil.parser.isoparse(self._scratched_time)
+            ciso8601.parse_datetime(self._scratched_time)
             if self._scratched_time
             else None
         )
@@ -226,7 +221,7 @@ class RaceLink:
 
     def __post_init__(self):
         self.last_successful_price_update = (
-            dateutil.parser.isoparse(self._last_successful_price_update)
+            ciso8601.parse_datetime(self._last_successful_price_update)
             if self._last_successful_price_update
             else None
         )
@@ -255,7 +250,7 @@ class RaceUpdate:
     _start_time: str = field(metadata={"name": "startTime"})
 
     def __post_init__(self):
-        self.start_time = dateutil.parser.isoparse(self._start_time)
+        self.start_time = ciso8601.parse_datetime(self._start_time)
 
 
 class EnhancedJSONEncoder(json.JSONEncoder):
@@ -304,14 +299,8 @@ class Race:
 
     def __post_init__(self):
         self.start_time: Optional[datetime] = (
-            dateutil.parser.isoparse(self._start_time) if self._start_time else None
+            ciso8601.parse_datetime(self._start_time) if self._start_time else None
         )
-        # self.updated_at = (
-        #     dateutil.parser.isoparse(self._updated_at) if self._updated_at else None
-        # )
-        # self.created_at = (
-        #     dateutil.parser.isoparse(self._created_at) if self._created_at else None
-        # )
 
     def __str__(self) -> str:
         # format start_time in local timezone

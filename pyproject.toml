@@ -21,11 +21,9 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-    "gql[aiohttp,websockets,requests]==3.5.0b5",
-    "typedload==2.24",
-    "aiohttp>=3.8.3",
-    "python-dateutil==2.8.2",
-    "urllib3>=1.26,<3",
+    "gql[httpx,websockets,requests]==3.5.0b8",
+    "typedload==2.26",
+    "ciso8601>=2.3.1",
 ]
 dynamic = ["version"]
 
@@ -34,6 +32,13 @@ Documentation = "https://github.com/betwatch/betwatch-sdk-python#readme"
 Issues = "https://github.com/betwatch/betwatch-sdk-python/issues"
 Source = "https://github.com/betwatch/betwatch-sdk-python"
 "Betwatch.com" = "https://betwatch.com"
+
+[tool]
+rye = { dev-dependencies = [
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.21.1",
+    "isort>=5.12.0",
+] }
 
 [tool.hatch.version]
 path = "betwatch/__about__.py"

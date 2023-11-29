@@ -1,7 +1,7 @@
 import atexit
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union, overload
 
 import backoff
 import typedload
@@ -12,12 +12,9 @@ from gql.transport.requests import log as http_logger
 from graphql import DocumentNode
 
 from betwatch.__about__ import __version__
-from betwatch.queries import (
-    MUTATION_UPDATE_USER_EVENT_DATA,
-    QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
-    query_get_race,
-    query_get_races,
-)
+from betwatch.queries import (MUTATION_UPDATE_USER_EVENT_DATA,
+                              QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
+                              query_get_race, query_get_races)
 from betwatch.types import Bookmaker, Race, RaceProjection
 from betwatch.types.filters import RacesFilter
 from betwatch.types.updates import SelectionData
@@ -99,11 +96,30 @@ class BetwatchClient:
             filter.date_to = date_to
         return self.get_races(projection, filter)
 
+    @overload
     def get_races(
         self,
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
+        parse_result: Literal[True] = True,
     ) -> List[Race]:
+        ...
+
+    @overload
+    def get_races(
+        self,
+        projection: Optional[RaceProjection] = None,
+        filter: Optional[RacesFilter] = None,
+        parse_result: Literal[False] = False,
+    ) -> List[Dict]:
+        ...
+
+    def get_races(
+        self,
+        projection: Optional[RaceProjection] = None,
+        filter: Optional[RacesFilter] = None,
+        parse_result: bool = True,
+    ) -> Union[List[Race], List[Dict]]:
         # handle defaults
         if not projection:
             projection = RaceProjection()
@@ -129,7 +145,10 @@ class BetwatchClient:
                     logging.info(
                         f"Received {len(result['races'])} races - attempting to get more..."
                     )
-                    races.extend(typedload.load(result["races"], List[Race]))
+                    if parse_result:
+                        races.extend(typedload.load(result["races"], List[Race]))
+                    else:
+                        races.extend(result["races"])
 
                     # change the offset to the next page
                     filter.offset += filter.limit

@@ -3,11 +3,7 @@ import os
 from datetime import datetime, timedelta
 
 import betwatch
-from betwatch.types import (
-    MeetingType,
-    RaceProjection,
-    RacesFilter,
-)
+from betwatch.types import MeetingType, RaceProjection, RacesFilter
 
 
 def main():
@@ -31,16 +27,18 @@ def main():
     # define the filter for the query
     # here we can filter by date, type of meeting, and various other parameters
     races_filter = RacesFilter(
-        limit=10,
+        limit=100,
         date_from=datetime.now() - timedelta(days=2),
         date_to=datetime.now() + timedelta(days=2),
         types=[MeetingType.THOROUGHBRED],  # filter on a race type
         locations="Australia",  # filter on a location (this could be a list of states or countries too)
     )
 
-    races = client.get_races(projection, races_filter)
+    races = client.get_races(projection, races_filter, parse_result=False)
 
     logging.info(f"Found {len(races)} races matching the query")
+
+    return
     for race in races:
         logging.info(race)
         if race.runners:

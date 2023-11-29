@@ -9,7 +9,7 @@ def main():
     api_key = os.getenv("BETWATCH_API_KEY")
     if not api_key:
         raise Exception("BETWATCH_API_KEY not set in .env file")
-    
+
     client = betwatch.connect(api_key)
 
     # get a specific race (by id or by filtering a get_races call)

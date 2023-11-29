@@ -3,17 +3,19 @@ import atexit
 import logging
 from datetime import datetime, timedelta
 from time import monotonic
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Literal, Optional, Tuple, Union, overload
 
 import backoff
 import typedload
-from aiohttp.client_exceptions import ClientError
-from aiohttp.web_exceptions import HTTPClientError, HTTPServerError
 from gql import Client
 from gql.client import AsyncClientSession, ReconnectingAsyncClientSession
-from gql.transport.aiohttp import AIOHTTPTransport
-from gql.transport.aiohttp import log as aiohttp_logger
 from gql.transport.exceptions import TransportError, TransportQueryError
+# from gql.transport.aiohttp import AIOHTTPTransport
+# from gql.transport.aiohttp import log as aiohttp_logger
+# from aiohttp.client_exceptions import ClientError
+# from aiohttp.web_exceptions import HTTPClientError, HTTPServerError
+from gql.transport.httpx import HTTPXAsyncTransport
+from gql.transport.httpx import log as httpx_logger
 from gql.transport.websockets import WebsocketsTransport
 from gql.transport.websockets import log as websockets_logger
 from graphql import DocumentNode
@@ -21,24 +23,13 @@ from typedload.exceptions import TypedloadException
 from websockets.exceptions import ConnectionClosedError
 
 from betwatch.__about__ import __version__
-from betwatch.queries import (
-    MUTATION_UPDATE_USER_EVENT_DATA,
-    QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
-    SUBSCRIPTION_BETFAIR_UPDATES,
-    SUBSCRIPTION_RACES_UPDATES,
-    query_get_race,
-    query_get_races,
-    subscription_race_price_updates,
-)
-from betwatch.types import (
-    BetfairMarket,
-    Bookmaker,
-    BookmakerMarket,
-    Race,
-    RaceProjection,
-    RaceUpdate,
-    SubscriptionUpdate,
-)
+from betwatch.queries import (MUTATION_UPDATE_USER_EVENT_DATA,
+                              QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
+                              SUBSCRIPTION_BETFAIR_UPDATES,
+                              SUBSCRIPTION_RACES_UPDATES, query_get_race,
+                              query_get_races, subscription_race_price_updates)
+from betwatch.types import (BetfairMarket, Bookmaker, BookmakerMarket, Race,
+                            RaceProjection, RaceUpdate, SubscriptionUpdate)
 from betwatch.types.exceptions import NotEntitledError
 from betwatch.types.filters import RacesFilter
 from betwatch.types.updates import SelectionData
@@ -54,7 +45,7 @@ class BetwatchAsyncClient:
         self.api_key = api_key
 
         self._gql_sub_transport: WebsocketsTransport
-        self._gql_transport: AIOHTTPTransport
+        self._gql_transport: HTTPXAsyncTransport
         self._gql_sub_client: Client
         self._gql_client: Client
 
@@ -72,7 +63,7 @@ class BetwatchAsyncClient:
         ] = None
 
         websockets_logger.setLevel(transport_logging_level)
-        aiohttp_logger.setLevel(transport_logging_level)
+        httpx_logger.setLevel(transport_logging_level)
 
         # register the cleanup function to be called on exit
         atexit.register(self.__exit)
@@ -100,7 +91,7 @@ class BetwatchAsyncClient:
             pong_timeout=60,
             ping_interval=5,
         )
-        self._gql_transport = AIOHTTPTransport(
+        self._gql_transport = HTTPXAsyncTransport(
             url=f"https://{self._host}/query",
             headers={
                 "X-API-KEY": self.api_key,
@@ -243,7 +234,7 @@ class BetwatchAsyncClient:
             filter.date_to = date_to
         return await self.get_races(projection, filter)
 
-    @backoff.on_exception(backoff.expo, (ClientError, HTTPClientError, HTTPServerError))
+    # @backoff.on_exception(backoff.expo, (ClientError, HTTPClientError, HTTPServerError))
     async def get_races(
         self,
         projection: Optional[RaceProjection] = None,
@@ -295,9 +286,9 @@ class BetwatchAsyncClient:
         except TypedloadException as e:
             logging.error(f"Error parsing Betwatch API response: {e}")
             raise e
-        except (ClientError, HTTPClientError, HTTPServerError, TimeoutError) as e:
-            logging.warning(f"Error reaching Betwatch API: {e}")
-            raise e
+        # except (ClientError, HTTPClientError, HTTPServerError, TimeoutError) as e:
+        #     logging.warning(f"Error reaching Betwatch API: {e}")
+        #     raise e
         except TransportQueryError as e:
             if e.errors:
                 for error in e.errors:
@@ -322,12 +313,30 @@ class BetwatchAsyncClient:
                 logging.error(f"Error querying Betwatch API: {e}")
             return []
 
+    @overload
     async def get_race(
         self,
         race_id: str,
         projection: Optional[RaceProjection] = None,
-        json: bool = False,
-    ) -> Union[Race, None] or Union[Dict, None]:
+        parse_result: Literal[True] = True,
+    ) -> Union[Race, None]:
+        ...
+
+    @overload
+    async def get_race(
+        self,
+        race_id: str,
+        projection: Optional[RaceProjection] = None,
+        parse_result: Literal[False] = False,
+    ) -> Union[Race, None]:
+        ...
+
+    async def get_race(
+        self,
+        race_id: str,
+        projection: Optional[RaceProjection] = None,
+        parse_result: bool = True,
+    ) -> Union[Race, Dict, None]:
         """Get all details of a specific race by id.
 
         Args:
@@ -341,7 +350,10 @@ class BetwatchAsyncClient:
         if not projection:
             projection = RaceProjection(markets=True)
         query = query_get_race(projection)
-        return await self._get_race_by_id(race_id, query)
+        if parse_result:
+            return await self._get_race_by_id(race_id, query, parse_result=True)
+        else:
+            return await self._get_race_by_id(race_id, query, parse_result=False)
 
     async def _monitor(self):
         """Monitor the subscription tasks and restart them if they fail"""
@@ -664,13 +676,31 @@ class BetwatchAsyncClient:
         except ConnectionClosedError as e:
             logging.debug(f"Error on race updates subscription: {e}")
 
+    @overload
+    async def _get_race_by_id(
+        self,
+        race_id: str,
+        query: DocumentNode,
+        parse_result: Literal[True] = True,
+    ) -> Union[Race, None]:
+        ...
+
+    @overload
+    async def _get_race_by_id(
+        self,
+        race_id: str,
+        query: DocumentNode,
+        parse_result: Literal[False] = False,
+    ) -> Union[Dict, None]:
+        ...
+
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     async def _get_race_by_id(
         self,
         race_id: str,
         query: DocumentNode,
-        json: bool = False,
-    ) -> Union[Race, None] or Union[Dict, None]:
+        parse_result: bool = False,
+    ) -> Union[Race, Dict, None]:
         logging.info(f"Getting race (id={race_id})")
         session = await self._setup_http_session()
         variables = {
@@ -679,10 +709,11 @@ class BetwatchAsyncClient:
 
         result = await session.execute(query, variable_values=variables)
 
-        if result.get("race") and not json:
-            return typedload.load(result["race"], Race)
-        elif json:
-            return result["race"]
+        if result.get("race"):
+            if parse_result:
+                return typedload.load(result["race"], Race)
+            else:
+                return result["race"]
         return None
 
     async def update_event_data(
