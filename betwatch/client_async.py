@@ -1,8 +1,8 @@
 import asyncio
 import atexit
 import logging
-from datetime import datetime, timedelta
 import os
+from datetime import datetime, timedelta
 from time import monotonic
 from typing import Dict, List, Literal, Optional, Tuple, Union, overload
 
@@ -12,11 +12,11 @@ from gql import Client
 from gql.client import AsyncClientSession, ReconnectingAsyncClientSession
 from gql.transport.exceptions import TransportError, TransportQueryError
 from gql.transport.httpx import HTTPXAsyncTransport
-from httpx._exceptions import HTTPError
 from gql.transport.httpx import log as httpx_logger
 from gql.transport.websockets import WebsocketsTransport
 from gql.transport.websockets import log as websockets_logger
 from graphql import DocumentNode
+from httpx._exceptions import HTTPError
 from typedload.exceptions import TypedloadException
 from websockets.exceptions import ConnectionClosedError
 
