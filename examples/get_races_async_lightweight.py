@@ -28,7 +28,7 @@ async def main():
     # define the filter for the query
     # here we can filter by date, type of meeting, and various other parameters
     races_filter = RacesFilter(
-        date_from=datetime.now() - timedelta(days=1),
+        date_from=datetime.now() - timedelta(days=3),
         date_to=datetime.now() + timedelta(days=0),
         types=[MeetingType.THOROUGHBRED],  # filter on a race type
     )
@@ -36,13 +36,11 @@ async def main():
     start = time()
     races = await client.get_races(projection, races_filter)
     duration = time() - start
-    # print duration in ms
     print(f"Took {round(duration, 2)}s to load {len(races)} races into Python models")
 
     start_raw = time()
     races_raw = await client.get_races(projection, races_filter, parse_result=False)
     duration_raw = time() - start_raw
-    # print duration in ms
     print(
         f"Took {round(duration_raw, 2)}s to load {len(races_raw)} races into raw python dictionaries"
     )
