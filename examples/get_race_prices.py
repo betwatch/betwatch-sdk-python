@@ -2,14 +2,14 @@ import logging
 import os
 from datetime import timedelta
 
-from betwatch.client import BetwatchClient
+from betwatch import BetwatchClient
 from betwatch.types import Bookmaker, RaceProjection
 
 
 def main():
-    api_key = os.getenv("BETWATCH_API_KEY")
-    if not api_key:
-        raise Exception("BETWATCH_API_KEY not set in .env file")
+    # You can set your API here if you like to live dangerously
+    # Otherwise you can set the BETWATCH_API_KEY environment variable
+    api_key = None
 
     # client = betwatch.connect(api_key=api_key)
     client = BetwatchClient(api_key=api_key)
@@ -19,7 +19,8 @@ def main():
     projection = RaceProjection(
         markets=True,
         flucs=True,
-        # bookmakers=[Bookmaker.SPORTSBET, Bookmaker.TAB],
+        # bookmaker can be a string or a Bookmaker enum
+        bookmakers=[Bookmaker.SPORTSBET, "Tab"],
     )
 
     races = client.get_races_today(projection)

@@ -7,9 +7,9 @@ from betwatch.types import MeetingType, RaceProjection, RacesFilter
 
 
 def main():
-    api_key = os.getenv("BETWATCH_API_KEY")
-    if not api_key:
-        raise Exception("BETWATCH_API_KEY not set in .env file")
+    # You can set your API here if you like to live dangerously
+    # Otherwise you can set the BETWATCH_API_KEY environment variable
+    api_key = None
 
     client = betwatch.connect(api_key)
 

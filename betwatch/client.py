@@ -24,6 +24,8 @@ from betwatch.types import Bookmaker, Race, RaceProjection
 from betwatch.types.filters import RacesFilter
 from betwatch.types.updates import SelectionData
 
+log = logging.getLogger(__name__)
+
 
 class BetwatchClient:
     def __init__(
@@ -58,7 +60,7 @@ class BetwatchClient:
         atexit.register(self.__exit)
 
     def __exit(self):
-        logging.debug("closing connection to Betwatch API")
+        log.debug("closing connection to Betwatch API")
         self.disconnect()
 
     def disconnect(self):
@@ -104,7 +106,7 @@ class BetwatchClient:
             filter (_type_, optional): Filter the results. Defaults to RacesFilter().
 
         Returns:
-            List[Race]: List of races that match the criteria
+            Union[List[Race], List[Dict]]: List of races that match the criteria
         """
         # handle defaults
         if not projection:
@@ -119,14 +121,12 @@ class BetwatchClient:
 
         # prefer the date_from and date_to passed into the function
         if filter.date_from and filter.date_from != date_from:
-            logging.debug(
+            log.debug(
                 f"Overriding date_from in filter ({filter.date_from} with {date_from})"
             )
             filter.date_from = date_from
         if filter.date_to and filter.date_to != date_to:
-            logging.debug(
-                f"Overriding date_to in filter ({filter.date_to} with {date_to})"
-            )
+            log.debug(f"Overriding date_to in filter ({filter.date_to} with {date_to})")
             filter.date_to = date_to
         return self.get_races(projection, filter)
 
@@ -161,9 +161,7 @@ class BetwatchClient:
             filter = RacesFilter()
 
         try:
-            logging.info(
-                f"Getting races with projection {projection} and filter {filter}"
-            )
+            log.info(f"Getting races with projection {projection} and filter {filter}")
 
             done = False
             races: List[Race] = []
@@ -176,7 +174,7 @@ class BetwatchClient:
                 result = self._gql_client.execute(query, variable_values=variables)
 
                 if result.get("races"):
-                    logging.info(
+                    log.info(
                         f"Received {len(result['races'])} races - attempting to get more..."
                     )
                     if parse_result:
@@ -188,7 +186,7 @@ class BetwatchClient:
                     filter.offset += filter.limit
                 else:
                     filter.offset = 0
-                    logging.debug("No more races found")
+                    log.debug("No more races found")
                     done = True
 
             return races
@@ -205,16 +203,16 @@ class BetwatchClient:
                             filter.limit = int(
                                 msg.split("limit argument less than")[1].strip()
                             )
-                            logging.info(
+                            log.info(
                                 f"Cannot query more than {filter.limit} - adjusting limit to {filter.limit} and trying again"
                             )
                             return self.get_races(projection, filter)
                         else:
-                            logging.error(f"{error}")
+                            log.error(f"{error}")
                     else:
-                        logging.error(f"{error}")
+                        log.error(f"{error}")
             else:
-                logging.error(f"Error querying Betwatch API: {e}")
+                log.error(f"Error querying Betwatch API: {e}")
             return []
 
     @overload
@@ -284,7 +282,7 @@ class BetwatchClient:
         query: DocumentNode,
         parse_result: bool = True,
     ) -> Union[Race, Dict, None]:
-        logging.info(f"Getting race (id={race_id})")
+        log.info(f"Getting race (id={race_id})")
 
         variables = {
             "id": race_id,
@@ -310,7 +308,7 @@ class BetwatchClient:
             data (List[SelectionData]): list of selection data to be updated
         """
 
-        logging.info(f"Updating event data (id={race_id})")
+        log.info(f"Updating event data (id={race_id})")
         selection_data = [
             {"selectionId": d["selection_id"], "value": str(d["value"])} for d in data
         ]
@@ -329,7 +327,7 @@ class BetwatchClient:
                 }
             },
         )
-        logging.debug(res)
+        log.debug(res)
 
     def get_race_last_updated_times(self, race_id: str) -> Dict[Bookmaker, datetime]:
         """Get the last time each bookmaker was checked for a price update.

@@ -8,6 +8,8 @@ import ciso8601
 
 from betwatch.types import Bookmaker
 
+log = logging.getLogger(__name__)
+
 
 @dataclass
 class Fluc:
@@ -107,7 +109,7 @@ class BookmakerMarket:
                 for bm in Bookmaker:
                     if bm.value.lower() == self._bookmaker.lower():
                         return bm
-            logging.debug(f"Bookmaker has no type: {self._bookmaker}")
+            log.debug(f"Bookmaker has no type: {self._bookmaker}")
             return self._bookmaker
 
     def __repr__(self) -> str:

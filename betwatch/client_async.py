@@ -44,6 +44,8 @@ from betwatch.types.exceptions import NotEntitledError
 from betwatch.types.filters import RacesFilter
 from betwatch.types.updates import SelectionData
 
+log = logging.getLogger(__name__)
+
 
 class BetwatchAsyncClient:
     def __init__(
@@ -97,7 +99,6 @@ class BetwatchAsyncClient:
         self._last_reconnect: float = monotonic()
 
     def connect(self, request_timeout: int):
-        logging.debug("connecting to client sessions")
         self._gql_sub_transport = WebsocketsTransport(
             url=f"wss://{self._host}/sub",
             headers={
@@ -123,13 +124,13 @@ class BetwatchAsyncClient:
             transport=self._gql_transport,
             execute_timeout=request_timeout,
         )
-        logging.debug("connected to client sessions")
+        log.debug("connected to client sessions")
 
     async def disconnect(self):
         """Disconnect from the websocket connection."""
-        logging.debug("disconnecting from client sessions")
+        log.debug("disconnecting from client sessions")
         await self.__cleanup()
-        logging.debug("disconnected from client sessions")
+        log.debug("disconnected from client sessions")
 
     async def __cleanup(self):
         """Gracefully close clients."""
@@ -147,41 +148,41 @@ class BetwatchAsyncClient:
 
     def __exit(self):
         """Close the client."""
-        logging.info("closing connection to Betwatch API (may take a few seconds)")
+        log.info("closing connection to Betwatch API (may take a few seconds)")
         asyncio.run(self.__cleanup())
 
     async def __aenter__(self):
         """Pass through to the underlying client's __aenter__ method."""
-        logging.debug("entering context manager")
+        log.debug("entering context manager")
         async with self._session_lock:
             if not self._websocket_session:
                 self._websocket_session = await self._gql_sub_client.connect_async(
                     reconnecting=True
                 )
-        logging.debug("entered context manager")
+        log.debug("entered context manager")
         return self._websocket_session
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Pass through to the underlying client's __aexit__ method."""
-        logging.debug("exiting context manager")
+        log.debug("exiting context manager")
         async with self._session_lock:
             if self._websocket_session:
                 self._websocket_session = (
                     await self._websocket_session.client.close_async()
                 )
 
-        logging.debug("exited context manager")
+        log.debug("exited context manager")
         return self._websocket_session
 
     async def _setup_websocket_session(self):
         """Connect to websocket connection"""
-        logging.debug("setting up websocket session")
+        log.debug("setting up websocket session")
         async with self._session_lock:
             if not self._websocket_session:
                 self._websocket_session = await self._gql_sub_client.connect_async(
                     reconnecting=True
                 )
-        logging.debug("websocket session setup")
+        log.debug("websocket session setup")
         return self._websocket_session
 
     async def _setup_http_session(self):
@@ -296,14 +297,12 @@ class BetwatchAsyncClient:
 
         # prefer the date_from and date_to passed into the function
         if filter.date_from and filter.date_from != date_from:
-            logging.debug(
+            log.debug(
                 f"Overriding date_from in filter ({filter.date_from} with {date_from})"
             )
             filter.date_from = date_from
         if filter.date_to and filter.date_to != date_to:
-            logging.debug(
-                f"Overriding date_to in filter ({filter.date_to} with {date_to})"
-            )
+            log.debug(f"Overriding date_to in filter ({filter.date_to} with {date_to})")
             filter.date_to = date_to
         if parse_result:
             return await self.get_races(projection, filter, parse_result=True)
@@ -341,9 +340,7 @@ class BetwatchAsyncClient:
         if not filter:
             filter = RacesFilter()
         try:
-            logging.info(
-                f"Getting races with projection {projection} and filter {filter}"
-            )
+            log.info(f"Getting races with projection {projection} and filter {filter}")
 
             done = False
             races: List[Race] = []
@@ -359,7 +356,7 @@ class BetwatchAsyncClient:
                 result = await session.execute(query, variable_values=variables)
 
                 if result.get("races"):
-                    logging.info(
+                    log.info(
                         f"Received {len(result['races'])} races - attempting to get more..."
                     )
 
@@ -373,15 +370,15 @@ class BetwatchAsyncClient:
 
                 else:
                     filter.offset = 0
-                    logging.debug("No more races found")
+                    log.debug("No more races found")
                     done = True
 
             return races
         except TypedloadException as e:
-            logging.error(f"Error parsing Betwatch API response: {e}")
+            log.error(f"Error parsing Betwatch API response: {e}")
             raise e
         except (HTTPError, TimeoutError) as e:
-            logging.warning(f"Error reaching Betwatch API: {e}")
+            log.warning(f"Error reaching Betwatch API: {e}")
             raise e
         except TransportQueryError as e:
             if e.errors:
@@ -395,16 +392,16 @@ class BetwatchAsyncClient:
                             filter.limit = int(
                                 msg.split("limit argument less than")[1].strip()
                             )
-                            logging.info(
+                            log.info(
                                 f"Cannot query more than {filter.limit} - adjusting limit to {filter.limit} and trying again"
                             )
                             return await self.get_races(projection, filter)
                         else:
-                            logging.error(f"{error}")
+                            log.error(f"{error}")
                     else:
-                        logging.error(f"{error}")
+                        log.error(f"{error}")
             else:
-                logging.error(f"Error querying Betwatch API: {e}")
+                log.error(f"Error querying Betwatch API: {e}")
             return []
 
     @overload
@@ -451,7 +448,7 @@ class BetwatchAsyncClient:
 
     async def _monitor(self):
         """Monitor the subscription tasks and restart them if they fail"""
-        logging.debug("Starting subscription monitor")
+        log.debug("Starting subscription monitor")
         while True:
             try:
                 await asyncio.sleep(1)
@@ -466,7 +463,7 @@ class BetwatchAsyncClient:
                             try:
                                 err = task.exception()
                                 if err:
-                                    logging.warning(f"Subscription task closed: {err}")
+                                    log.warning(f"Subscription task closed: {err}")
                                     # reset the connection
                                     if self._websocket_session:
                                         await self.disconnect()
@@ -474,7 +471,7 @@ class BetwatchAsyncClient:
                                     # if the user is not entitled to the data, don't retry
                                     # check if err is of type NotEntitledError
                                     if isinstance(err, NotEntitledError):
-                                        logging.warning(
+                                        log.warning(
                                             "You are not entitled to subscriptions. Please contact api@betwatch.com to upgrade your API key."
                                         )
                                         del d[key]
@@ -483,7 +480,7 @@ class BetwatchAsyncClient:
                             except asyncio.InvalidStateError:
                                 pass
 
-                            logging.warning(
+                            log.warning(
                                 f"Retrying subscription task for {key if key else 'all races'}"
                             )
 
@@ -504,10 +501,10 @@ class BetwatchAsyncClient:
                             # update last reconnect
                             self._last_reconnect = monotonic()
             except asyncio.CancelledError:
-                logging.debug("Subscription monitor cancelled")
+                log.debug("Subscription monitor cancelled")
                 return
             except Exception as e:
-                logging.debug(f"Error in subscription monitor: {e}")
+                log.debug(f"Error in subscription monitor: {e}")
                 raise e
 
     async def listen(self):
@@ -527,23 +524,23 @@ class BetwatchAsyncClient:
 
         while True:
             try:
-                logging.debug("Waiting for subscription update")
+                log.debug("Waiting for subscription update")
                 update = await self._subscription_queue.get()
                 self._subscription_queue.task_done()
                 yield update
-                logging.debug("Subscription update received")
+                log.debug("Subscription update received")
 
                 # check if we are falling behind
                 if (
                     self._subscription_queue.qsize() > 25
                     and (datetime.now() - last_warning).seconds > 10
                 ):
-                    logging.warning(
+                    log.warning(
                         f"Subscription queue is {self._subscription_queue.qsize()} items behind"
                     )
                     last_warning = datetime.now()
             except asyncio.CancelledError:
-                logging.info("Shutting down subscription websocket...")
+                log.info("Shutting down subscription websocket...")
                 return
 
     def get_subscribed_race_ids(self) -> List[str]:
@@ -559,14 +556,14 @@ class BetwatchAsyncClient:
 
     async def unsubscribe_bookmaker_updates(self, race_id: str):
         if race_id not in self._subscriptions_prices:
-            logging.info(
+            log.info(
                 f"Not subscribed to {race_id if race_id else 'all races'} bookmaker updates"
             )
             return
 
         self._subscriptions_prices[race_id].cancel()
         del self._subscriptions_prices[race_id]
-        logging.info(
+        log.info(
             f"Unsubscribed from {race_id if race_id else 'all races'} bookmaker updates"
         )
 
@@ -580,7 +577,7 @@ class BetwatchAsyncClient:
             projection = RaceProjection(markets=True)
 
         if race_id in self._subscriptions_prices:
-            logging.info(
+            log.info(
                 f"Already subscribed to {race_id if race_id else 'all races'} bookmaker updates"
             )
             return
@@ -618,7 +615,7 @@ class BetwatchAsyncClient:
             query = subscription_race_price_updates(projection)
             variables = {"id": race_id}
 
-            logging.info(
+            log.info(
                 f"Subscribing to bookmaker updates for {race_id if race_id else 'all races'}"
             )
 
@@ -633,7 +630,7 @@ class BetwatchAsyncClient:
 
                     self._subscription_queue.put_nowait(update)
         except TransportError as e:
-            logging.debug(f"Error subscribing to bookmaker updates: {e}")
+            log.debug(f"Error subscribing to bookmaker updates: {e}")
 
             # check if the user is entitled to this data
             if "does not have access" in e.args[0]:
@@ -644,26 +641,26 @@ class BetwatchAsyncClient:
             await self.unsubscribe_bookmaker_updates(race_id)
             return
         except ConnectionClosedError as e:
-            logging.debug(f"Error on bookmaker prices subscription: {e}")
+            log.debug(f"Error on bookmaker prices subscription: {e}")
         except Exception as e:
-            logging.debug(f"Error subscribing to bookmaker updates: {e}")
+            log.debug(f"Error subscribing to bookmaker updates: {e}")
 
     async def unsubscribe_betfair_updates(self, race_id: str):
         if race_id not in self._subscriptions_betfair:
-            logging.info(
+            log.info(
                 f"Not subscribed to {race_id if race_id else 'all races'} betfair updates"
             )
             return
 
         self._subscriptions_betfair[race_id].cancel()
         del self._subscriptions_betfair[race_id]
-        logging.info(
+        log.info(
             f"Unsubscribed from {race_id if race_id else 'all races'} betfair updates"
         )
 
     async def subscribe_betfair_updates(self, race_id: str):
         if race_id in self._subscriptions_betfair:
-            logging.info(
+            log.info(
                 f"Already subscribed to {race_id if race_id else 'all races'} betfair updates"
             )
             return
@@ -696,7 +693,7 @@ class BetwatchAsyncClient:
             query = SUBSCRIPTION_BETFAIR_UPDATES
             variables = {"id": race_id}
 
-            logging.info(
+            log.info(
                 f"Subscribing to betfair updates for {race_id if race_id else 'all races'}"
             )
 
@@ -711,7 +708,7 @@ class BetwatchAsyncClient:
                     self._subscription_queue.put_nowait(update)
 
         except TransportError as e:
-            logging.debug(f"Error subscribing to betfair updates: {e}")
+            log.debug(f"Error subscribing to betfair updates: {e}")
 
             # check if the user is entitled to this data
             if "does not have access" in e.args[0]:
@@ -722,22 +719,20 @@ class BetwatchAsyncClient:
             await self.unsubscribe_betfair_updates(race_id)
             return
         except ConnectionClosedError as e:
-            logging.debug(f"Error on betfair subscription: {e}")
+            log.debug(f"Error on betfair subscription: {e}")
 
     async def unsubscribe_race_updates(self, date_from: str, date_to: str):
         if (date_from, date_to) not in self._subscriptions_updates:
-            logging.info(f"Not subscribed to races updates for {date_from} - {date_to}")
+            log.info(f"Not subscribed to races updates for {date_from} - {date_to}")
             return
 
         self._subscriptions_updates[(date_from, date_to)].cancel()
         del self._subscriptions_updates[(date_from, date_to)]
-        logging.info(f"Unsubscribed from races updates for {date_from} - {date_to}")
+        log.info(f"Unsubscribed from races updates for {date_from} - {date_to}")
 
     async def subscribe_race_updates(self, date_from: str, date_to: str):
         if (date_from, date_to) in self._subscriptions_updates:
-            logging.info(
-                f"Already subscribed to races updates for {date_from} - {date_to}"
-            )
+            log.info(f"Already subscribed to races updates for {date_from} - {date_to}")
             return
 
         self._subscriptions_updates[(date_from, date_to)] = asyncio.create_task(
@@ -751,7 +746,7 @@ class BetwatchAsyncClient:
             query = SUBSCRIPTION_RACES_UPDATES
             variables = {"dateFrom": date_from, "dateTo": date_to}
 
-            logging.debug(f"Subscribing to race updates for {date_from} - {date_to}")
+            log.debug(f"Subscribing to race updates for {date_from} - {date_to}")
 
             async for result in session.subscribe(query, variable_values=variables):
                 if result.get("racesUpdates"):
@@ -763,12 +758,12 @@ class BetwatchAsyncClient:
                     self._subscription_queue.put_nowait(update)
 
         except TransportError as e:
-            logging.debug(f"Error subscribing to race updates: {e}")
+            log.debug(f"Error subscribing to race updates: {e}")
         except asyncio.CancelledError:
             await self.unsubscribe_race_updates(date_from, date_to)
             return
         except ConnectionClosedError as e:
-            logging.debug(f"Error on race updates subscription: {e}")
+            log.debug(f"Error on race updates subscription: {e}")
 
     @overload
     async def _get_race_by_id(
@@ -795,7 +790,7 @@ class BetwatchAsyncClient:
         query: DocumentNode,
         parse_result: bool = False,
     ) -> Union[Race, Dict, None]:
-        logging.info(f"Getting race (id={race_id})")
+        log.info(f"Getting race (id={race_id})")
         session = await self._setup_http_session()
         variables = {
             "id": race_id,
@@ -822,7 +817,7 @@ class BetwatchAsyncClient:
             data (List[SelectionData]): list of selection data to be updated
         """
 
-        logging.info(f"Updating event data (id={race_id})")
+        log.info(f"Updating event data (id={race_id})")
         session = await self._setup_http_session()
         selection_data = [
             {"selectionId": d["selection_id"], "value": str(d["value"])} for d in data
@@ -842,7 +837,7 @@ class BetwatchAsyncClient:
                 }
             },
         )
-        logging.debug(res)
+        log.debug(res)
 
     async def get_race_last_updated_times(
         self, race_id: str
