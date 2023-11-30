@@ -34,11 +34,15 @@ class Price:
     def __repr__(self) -> str:
         # calculate fluc drop %
         if self.flucs:
-            fluc_change = self.flucs[0].price - self.flucs[-1].price
-            fluc_change_pct = fluc_change / self.flucs[0].price * 100
-            # include ascii art arrow
-            fluc_change_pct = f"{'▼' if fluc_change_pct < 0 else '▲' if fluc_change_pct != 0 else '~'} {fluc_change_pct:.2f}%"
-            return f"Price({self.price}, {self.last_updated}, {len(self.flucs)} flucs, {fluc_change_pct})"
+            try:
+                fluc_change = self.flucs[0].price - self.flucs[-1].price
+                fluc_change_pct = fluc_change / self.flucs[0].price * 100
+                # include ascii art arrow
+                fluc_change_pct = f"{'▼' if fluc_change_pct < 0 else '▲' if fluc_change_pct != 0 else '~'} {fluc_change_pct:.2f}%"
+                return f"Price({self.price}, {self.last_updated}, {len(self.flucs)} flucs, {fluc_change_pct})"
+            except ZeroDivisionError:
+                # handle divide by zero on empty fluc price
+                pass
 
         return f"Price({self.price}, {self.last_updated}, {len(self.flucs) if self.flucs else 0} flucs)"
 
