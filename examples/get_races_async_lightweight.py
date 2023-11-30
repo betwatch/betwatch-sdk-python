@@ -47,7 +47,7 @@ async def main():
 
     diff = duration - duration_raw
     print(
-        f"Loading into Python models took {round(diff, 2)}s longer than loading into raw dictionaries ({round(diff / duration * 100, 2)}% slower)"
+        f"Loading into Python dicts is {round(diff, 2)}s faster than loading into Python models ({round(diff/duration*100, 2)}% faster)"
     )
 
 
