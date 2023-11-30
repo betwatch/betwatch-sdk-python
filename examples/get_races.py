@@ -34,11 +34,10 @@ def main():
         locations="Australia",  # filter on a location (this could be a list of states or countries too)
     )
 
-    races = client.get_races(projection, races_filter, parse_result=False)
+    races = client.get_races(projection, races_filter)
 
     logging.info(f"Found {len(races)} races matching the query")
 
-    return
     for race in races:
         logging.info(race)
         if race.runners:
@@ -52,8 +51,7 @@ def main():
                     if market.fixed_win:
                         print(f"Fixed Win Price: {market.fixed_win.price}")
                         if market.fixed_win.flucs:
-                            for fluc in market.fixed_win.flucs:
-                                print(fluc)
+                            print(f"Total Flucs: {len(market.fixed_win.flucs)}")
 
 
 if __name__ == "__main__":

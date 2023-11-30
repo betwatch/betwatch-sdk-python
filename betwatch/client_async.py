@@ -79,6 +79,8 @@ class BetwatchAsyncClient:
 
         websockets_logger.setLevel(transport_logging_level)
         httpx_logger.setLevel(transport_logging_level)
+        logging.getLogger("httpx").setLevel(transport_logging_level)
+        logging.getLogger("httpcore").setLevel(transport_logging_level)
 
         # register the cleanup function to be called on exit
         atexit.register(self.__exit)
@@ -103,8 +105,6 @@ class BetwatchAsyncClient:
                 "User-Agent": f"betwatch-sdk-python-{__version__}",
             },
             init_payload={"apiKey": self.api_key},
-            pong_timeout=60,
-            ping_interval=5,
         )
         self._gql_transport = HTTPXAsyncTransport(
             url=f"https://{self._host}/query",
@@ -169,6 +169,7 @@ class BetwatchAsyncClient:
                 self._websocket_session = (
                     await self._websocket_session.client.close_async()
                 )
+
         logging.debug("exited context manager")
         return self._websocket_session
 
@@ -542,7 +543,7 @@ class BetwatchAsyncClient:
                     )
                     last_warning = datetime.now()
             except asyncio.CancelledError:
-                logging.info("Subscription queue cancelled")
+                logging.info("Shutting down subscription websocket...")
                 return
 
     def get_subscribed_race_ids(self) -> List[str]:
