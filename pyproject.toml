@@ -24,7 +24,7 @@ classifiers = [
 ]
 dependencies = [
     "gql[httpx,websockets,requests]==3.5.0b8",
-    "typedload==2.26",
+    "typedload==2.27",
     "ciso8601>=2.3.1",
 ]
 
