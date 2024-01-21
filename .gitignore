@@ -136,3 +136,4 @@ dmypy.json
 demos/
 scripts/
 .rtx.toml
+playground/
