@@ -46,12 +46,11 @@ test = "pytest"
 path = "betwatch/__about__.py"
 
 [tool.ruff]
+exclude = [".rye"]
 # Enable Pyflakes and pycodestyle rules.
 select = ["E", "F", "B"]
-
 # Never enforce `E501` (line length violations).
 ignore = ["E501"]
-
 fix = true
 
 # Ignore `E402` (import violations) in all `__init__.py` files
