@@ -90,6 +90,7 @@ class Bookmaker(str, Enum):
     CHASEBET = "Chasebet"
     BET66 = "Bet66"
     BOOKIEPRICE = "BookiePrice"
+    PREMIUMBET = "PremiumBet"
 
     def __str__(self):
         return self.value
