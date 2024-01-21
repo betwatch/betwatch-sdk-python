@@ -23,8 +23,8 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-    "gql[httpx,websockets,requests]==3.5.0b8",
-    "typedload==2.26",
+    "gql[httpx,websockets,requests]==3.5.0",
+    "typedload==2.27",
     "ciso8601>=2.3.1",
 ]
 
