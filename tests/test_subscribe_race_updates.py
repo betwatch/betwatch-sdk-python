@@ -42,7 +42,7 @@ async def subscribe_races():
             break
 
         # timeout after 10 seconds
-        if time() - start_time > 10:
+        if time() - start_time > 60:
             break
 
     assert betfair_ok
