@@ -130,6 +130,8 @@ class BetwatchAsyncClient:
         """Disconnect from the websocket connection."""
         log.debug("disconnecting from client sessions")
         await self.__cleanup()
+        if self._monitor_task:
+            self._monitor_task.cancel()
         log.debug("disconnected from client sessions")
 
     async def __cleanup(self):
@@ -165,12 +167,7 @@ class BetwatchAsyncClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Pass through to the underlying client's __aexit__ method."""
         log.debug("exiting context manager")
-        async with self._session_lock:
-            if self._websocket_session:
-                self._websocket_session = (
-                    await self._websocket_session.client.close_async()
-                )
-
+        await self.disconnect()
         log.debug("exited context manager")
         return self._websocket_session
 
