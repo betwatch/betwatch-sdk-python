@@ -176,6 +176,20 @@ def query_get_race(projection: RaceProjection) -> DocumentNode:
     )
 
 
+def query_get_race_from_bookmaker_market(projection: RaceProjection) -> DocumentNode:
+    return gql(
+        """
+    query GetRaceFromBookmakerMarket($id: ID!) {
+        raceFromBookmakerMarket(id: $id) {
+         """
+        + get_race_query(projection)
+        + """
+        }
+    }
+    """
+    )
+
+
 QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE = gql(
     """
     query GetRace($id: ID!) {

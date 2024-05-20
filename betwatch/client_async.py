@@ -28,6 +28,7 @@ from betwatch.queries import (
     SUBSCRIPTION_BETFAIR_UPDATES,
     SUBSCRIPTION_RACES_UPDATES,
     query_get_race,
+    query_get_race_from_bookmaker_market,
     query_get_races,
     subscription_race_price_updates,
 )
@@ -454,6 +455,52 @@ class BetwatchAsyncClient:
         else:
             return await self._get_race_by_id(race_id, query, parse_result=False)
 
+    @overload
+    async def get_race_from_bookmaker_market(
+        self,
+        market_id: str,
+        projection: Optional[RaceProjection] = None,
+        parse_result: Literal[True] = True,
+    ) -> Union[Race, None]:
+        ...
+
+    @overload
+    async def get_race_from_bookmaker_market(
+        self,
+        market_id: str,
+        projection: Optional[RaceProjection] = None,
+        parse_result: Literal[False] = False,
+    ) -> Union[Race, None]:
+        ...
+
+    async def get_race_from_bookmaker_market(
+        self,
+        market_id: str,
+        projection: Optional[RaceProjection] = None,
+        parse_result: bool = True,
+    ) -> Union[Race, Dict, None]:
+        """Get all details of a specific race by id.
+
+        Args:
+            race_id (str): The id of a race. This can be obtained from the `get_races` method.
+            projection (RaceProjection, optional): The fields to return. Defaults to RaceProjection(markets=True).
+
+        Returns:
+            Union[Race, None]: The race object or None if the race is not found.
+        """
+        # set defaults
+        if not projection:
+            projection = RaceProjection(markets=True)
+        query = query_get_race_from_bookmaker_market(projection)
+        if parse_result:
+            return await self._get_race_from_bookmaker_market(
+                market_id, query, parse_result=True
+            )
+        else:
+            return await self._get_race_from_bookmaker_market(
+                market_id, query, parse_result=False
+            )
+
     async def _monitor(self):
         """Monitor the subscription tasks and restart them if they fail"""
         log.debug("Starting subscription monitor")
@@ -811,6 +858,46 @@ class BetwatchAsyncClient:
                 return typedload.load(result["race"], Race)
             else:
                 return result["race"]
+        return None
+
+    @overload
+    async def _get_race_from_bookmaker_market(
+        self,
+        market_id: str,
+        query: DocumentNode,
+        parse_result: Literal[True] = True,
+    ) -> Union[Race, None]:
+        ...
+
+    @overload
+    async def _get_race_from_bookmaker_market(
+        self,
+        market_id: str,
+        query: DocumentNode,
+        parse_result: Literal[False] = False,
+    ) -> Union[Dict, None]:
+        ...
+
+    @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
+    async def _get_race_from_bookmaker_market(
+        self,
+        market_id: str,
+        query: DocumentNode,
+        parse_result: bool = False,
+    ) -> Union[Race, Dict, None]:
+        log.info(f"Getting race from bookmaker market (id={market_id})")
+        session = await self._setup_http_session()
+        variables = {
+            "id": market_id,
+        }
+
+        result = await session.execute(query, variable_values=variables)
+
+        if result.get("raceFromBookmakerMarket"):
+            if parse_result:
+                return typedload.load(result["raceFromBookmakerMarket"], Race)
+            else:
+                return result["raceFromBookmakerMarket"]
         return None
 
     async def update_event_data(

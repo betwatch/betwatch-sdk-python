@@ -18,6 +18,7 @@ from betwatch.queries import (
     MUTATION_UPDATE_USER_EVENT_DATA,
     QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE,
     query_get_race,
+    query_get_race_from_bookmaker_market,
     query_get_races,
 )
 from betwatch.types import Bookmaker, Race, RaceProjection
@@ -249,6 +250,44 @@ class BetwatchClient:
         else:
             return self._get_race_by_id(race_id, query, parse_result=False)
 
+    @overload
+    def get_race_from_bookmaker_market(
+        self,
+        market_id: str,
+        projection: Optional[RaceProjection] = None,
+        parse_result: Literal[True] = True,
+    ) -> Union[Race, None]:
+        ...
+
+    @overload
+    def get_race_from_bookmaker_market(
+        self,
+        market_id: str,
+        projection: Optional[RaceProjection] = None,
+        parse_result: Literal[True] = True,
+    ) -> Union[Dict, None]:
+        ...
+
+    def get_race_from_bookmaker_market(
+        self,
+        market_id: str,
+        projection: Optional[RaceProjection] = None,
+        parse_result: bool = True,
+    ) -> Union[Race, Dict, None]:
+        # handle defaults
+        if not projection:
+            projection = RaceProjection(markets=True)
+        query = query_get_race_from_bookmaker_market(projection)
+
+        if parse_result:
+            return self._get_race_from_bookmaker_market(
+                market_id, query, parse_result=True
+            )
+        else:
+            return self._get_race_from_bookmaker_market(
+                market_id, query, parse_result=False
+            )
+
     def get_races_today(
         self, projection: Optional[RaceProjection] = None
     ) -> List[Race]:
@@ -294,6 +333,45 @@ class BetwatchClient:
                 return typedload.load(result["race"], Race)
             else:
                 return result["race"]
+        return None
+
+    @overload
+    def _get_race_from_bookmaker_market(
+        self,
+        market_id: str,
+        query: DocumentNode,
+        parse_result: Literal[True] = True,
+    ) -> Union[Race, None]:
+        ...
+
+    @overload
+    def _get_race_from_bookmaker_market(
+        self,
+        market_id: str,
+        query: DocumentNode,
+        parse_result: Literal[False] = False,
+    ) -> Union[Dict, None]:
+        ...
+
+    @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
+    def _get_race_from_bookmaker_market(
+        self,
+        market_id: str,
+        query: DocumentNode,
+        parse_result: bool = True,
+    ) -> Union[Race, Dict, None]:
+        log.info(f"Getting race from bookmaker market (market_id={market_id})")
+
+        variables = {
+            "id": market_id,
+        }
+        result = self._gql_client.execute(query, variable_values=variables)
+
+        if result.get("raceFromBookmakerMarket"):
+            if parse_result:
+                return typedload.load(result["raceFromBookmakerMarket"], Race)
+            else:
+                return result["raceFromBookmakerMarket"]
         return None
 
     def update_event_data(
