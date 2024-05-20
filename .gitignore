@@ -139,5 +139,3 @@ scripts/
 playground/
 .DS_Store
 .mise.toml
-requirements.lock
-requirements-dev.lock
