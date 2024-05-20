@@ -52,7 +52,6 @@ class BetwatchAsyncClient:
         self,
         api_key: Optional[str] = None,
         transport_logging_level: int = logging.WARNING,
-        host="api.betwatch.com",
         request_timeout: int = 60,
     ):
         if not api_key:
@@ -65,8 +64,6 @@ class BetwatchAsyncClient:
         self._gql_transport: HTTPXAsyncTransport
         self._gql_sub_client: Client
         self._gql_client: Client
-
-        self._host = host
 
         self.connect(request_timeout)
 
@@ -99,16 +96,30 @@ class BetwatchAsyncClient:
         self._last_reconnect: float = monotonic()
 
     def connect(self, request_timeout: int):
+        sub_url = "wss://api.betwatch.com/sub"
+        url = "https://api.betwatch.com/query"
+
+        # Check for url environment override
+        env_api_url = os.getenv("BETWATCH_API_URL")
+        env_sub_url = os.getenv("BETWATCH_API_SUB_URL")
+        if env_api_url:
+            logging.info(f"Using API URL override: {env_api_url}")
+            url = env_api_url
+        if env_sub_url:
+            logging.info(f"Using API SUB URL override: {env_sub_url}")
+            sub_url = env_sub_url
+
         self._gql_sub_transport = WebsocketsTransport(
-            url=f"wss://{self._host}/sub",
+            url=sub_url,
             headers={
                 "X-API-KEY": self.api_key,
                 "User-Agent": f"betwatch-sdk-python-{__version__}",
             },
             init_payload={"apiKey": self.api_key},
+            ssl=sub_url.startswith("wss"),
         )
         self._gql_transport = HTTPXAsyncTransport(
-            url=f"https://{self._host}/query",
+            url=url,
             headers={
                 "X-API-KEY": self.api_key,
                 "User-Agent": f"betwatch-sdk-python-{__version__}",

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "betwatch"
-version = "1.2.3"
+version = "1.3.0"
 description = 'A Python package for interacting with the Betwatch.com API'
 readme = "README.md"
 requires-python = ">=3.8"
@@ -48,11 +48,11 @@ path = "betwatch/__about__.py"
 [tool.ruff]
 exclude = [".rye"]
 # Enable Pyflakes and pycodestyle rules.
-select = ["E", "F", "B"]
+lint.select = ["E", "F", "B"]
 # Never enforce `E501` (line length violations).
-ignore = ["E501"]
+lint.ignore = ["E501"]
 fix = true
 
 # Ignore `E402` (import violations) in all `__init__.py` files
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "E402"]

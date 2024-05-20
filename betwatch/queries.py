@@ -93,6 +93,8 @@ def subscription_race_price_updates(projection: RaceProjection) -> DocumentNode:
     subscription PriceUpdates($id: ID!) {
       priceUpdates(id: $id) {
         id
+        selectionId
+        raceId
         bookmaker
         fixedWin {
           price
