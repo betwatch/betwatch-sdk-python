@@ -151,6 +151,7 @@ class BetfairMarket:
     total_matched: float = field(metadata={"name": "totalMatched"})
     market_total_matched: float = field(metadata={"name": "marketTotalMatched"})
     starting_price: float = field(metadata={"name": "sp"})
+    selection_id: Optional[str] = field(metadata={"name": "selectionId"}, default=None)
 
     back: Optional[List[BetfairTick]] = field(default_factory=list)
     lay: Optional[List[BetfairTick]] = field(default_factory=list)

@@ -94,7 +94,6 @@ def subscription_race_price_updates(projection: RaceProjection) -> DocumentNode:
       priceUpdates(id: $id) {
         id
         selectionId
-        raceId
         bookmaker
         fixedWin {
           price
@@ -129,6 +128,7 @@ SUBSCRIPTION_BETFAIR_UPDATES = gql(
     subscription BetfairUpdates($id: ID!) {
       betfairUpdates(id: $id) {
         id
+        selectionId
         sp
         totalMatched
         marketTotalMatched
