@@ -75,7 +75,7 @@ class BookmakerMarket:
     id: str
     _bookmaker: Union[Bookmaker, str] = field(metadata={"name": "bookmaker"})
     selection_id: Optional[str] = field(metadata={"name": "selectionId"}, default=None)
-    # race_id: Optional[str] = field(metadata={"name": "raceId"}, default=None)
+    race_id: Optional[str] = field(metadata={"name": "raceId"}, default=None)
     _fixed_win: Union[None, Price, str] = field(
         metadata={"name": "fixedWin"}, default=None
     )
@@ -152,6 +152,7 @@ class BetfairMarket:
     market_total_matched: float = field(metadata={"name": "marketTotalMatched"})
     starting_price: float = field(metadata={"name": "sp"})
     selection_id: Optional[str] = field(metadata={"name": "selectionId"}, default=None)
+    race_id: Optional[str] = field(metadata={"name": "raceId"}, default=None)
 
     back: Optional[List[BetfairTick]] = field(default_factory=list)
     lay: Optional[List[BetfairTick]] = field(default_factory=list)

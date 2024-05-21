@@ -40,13 +40,13 @@ async def main():
             # could contain a variety of information
             if update.betfair_markets:
                 # has updated betfair market / prices
-                pass
+                print(update.betfair_markets)
             if update.bookmaker_markets:
                 # has updated bookmaker market / prices
-                pass
+                print(update.bookmaker_markets)
             if update.race_update:
                 # has updated race info (e.g. status, updated start tiem)
-                pass
+                print(update.race_update)
 
 
 if __name__ == "__main__":

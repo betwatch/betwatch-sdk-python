@@ -72,6 +72,7 @@ class Runner:
     name: str
     rider_name: str = field(metadata={"name": "riderName"})
     trainer_name: str = field(metadata={"name": "trainerName"})
+    emergency: bool
     # age: Optional[int] = None
 
     _scratched_time: Optional[str] = field(

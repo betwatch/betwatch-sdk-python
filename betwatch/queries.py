@@ -20,7 +20,7 @@ def get_race_query(projection: RaceProjection) -> str:
         bookmakers_with_flucs = "[]"
 
     runners_gql = (
-        "runners { id betfairId name number scratchedTime barrier trainerName riderName "
+        "runners { id betfairId name number scratchedTime barrier trainerName riderName emergency "
         + (
             "betfairMarkets { id sp marketName marketId totalMatched marketTotalMatched lastPriceTraded back { price size lastUpdated } lay { price size lastUpdated } } "
             if projection.betfair
@@ -93,6 +93,7 @@ def subscription_race_price_updates(projection: RaceProjection) -> DocumentNode:
     subscription PriceUpdates($id: ID!) {
       priceUpdates(id: $id) {
         id
+        raceId
         selectionId
         bookmaker
         fixedWin {
@@ -129,6 +130,7 @@ SUBSCRIPTION_BETFAIR_UPDATES = gql(
       betfairUpdates(id: $id) {
         id
         selectionId
+        raceId
         sp
         totalMatched
         marketTotalMatched
