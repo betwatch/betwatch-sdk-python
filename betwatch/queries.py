@@ -90,8 +90,8 @@ SUBSCRIPTION_RUNNER_UPDATES = gql(
 def subscription_race_price_updates(projection: RaceProjection) -> DocumentNode:
     return gql(
         """
-    subscription PriceUpdates($id: ID!) {
-      priceUpdates(id: $id) {
+    subscription PriceUpdates($id: ID!, $types: [RaceType!]) {
+      priceUpdates(id: $id, types: $types) {
         id
         raceId
         selectionId

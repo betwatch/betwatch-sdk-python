@@ -4,7 +4,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 from time import monotonic
-from typing import Dict, List, Literal, Optional, Tuple, Union, overload
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union, overload
 
 import backoff
 import typedload
@@ -36,6 +36,7 @@ from betwatch.types import (
     BetfairMarket,
     Bookmaker,
     BookmakerMarket,
+    MeetingType,
     Race,
     RaceProjection,
     RaceUpdate,
@@ -91,6 +92,9 @@ class BetwatchAsyncClient:
         self._subscription_queue: asyncio.Queue[SubscriptionUpdate] = asyncio.Queue()
         self._subscriptions_betfair: Dict[str, asyncio.Task] = {}
         self._subscriptions_prices: Dict[str, asyncio.Task] = {}
+        self._subscriptions_prices_type_args: Dict[
+            str, Optional[List[Union[MeetingType, str]]]
+        ] = {}
         self._subscriptions_updates: Dict[Tuple[str, str], asyncio.Task] = {}
 
         self._monitor_task: Union[asyncio.Task, None] = None
@@ -541,8 +545,9 @@ class BetwatchAsyncClient:
 
                             # replace the task in the dict with a new one
                             if d == self._subscriptions_prices:
+                                race_types = self._subscriptions_prices_type_args[key]
                                 d[key] = asyncio.create_task(
-                                    self._subscribe_bookmaker_updates(key)
+                                    self._subscribe_bookmaker_updates(key, race_types)
                                 )
                             elif d == self._subscriptions_updates:
                                 d[key] = asyncio.create_task(
@@ -618,6 +623,7 @@ class BetwatchAsyncClient:
 
         self._subscriptions_prices[race_id].cancel()
         del self._subscriptions_prices[race_id]
+        del self._subscriptions_prices_type_args[race_id]
         log.info(
             f"Unsubscribed from {race_id if race_id else 'all races'} bookmaker updates"
         )
@@ -625,6 +631,7 @@ class BetwatchAsyncClient:
     async def subscribe_bookmaker_updates(
         self,
         race_id: str,
+        race_types: Optional[List[Union[MeetingType, str]]] = None,
         projection: Optional[RaceProjection] = None,
     ):
         # set defaults
@@ -644,18 +651,22 @@ class BetwatchAsyncClient:
             )
 
         self._subscriptions_prices[race_id] = asyncio.create_task(
-            self._subscribe_bookmaker_updates(race_id, projection)
+            self._subscribe_bookmaker_updates(race_id, race_types, projection)
         )
+        self._subscriptions_prices_type_args[race_id] = race_types
 
     async def _subscribe_bookmaker_updates(
         self,
         race_id: str,
+        race_types: Optional[List[Union[MeetingType, str]]] = None,
         projection: Optional[RaceProjection] = None,
     ):
         """Subscribe to price updates for a specific race.
 
         Args:
             race_id (str): The id of a specific race. This can be obtained from the `get_races` method.
+            race_types (List[Union[MeetingType, str]], optional): The types of races to subscribe to. Defaults to None.
+            projection (RaceProjection, optional): The fields to return. Defaults to RaceProjection(markets=True).
 
         Yields:
             List[BookmakerMarket]: A list of bookmaker markets with updated prices.
@@ -668,10 +679,15 @@ class BetwatchAsyncClient:
             session = await self._setup_websocket_session()
 
             query = subscription_race_price_updates(projection)
-            variables = {"id": race_id}
+            variables: dict[str, Any] = {"id": race_id}
+            if race_types:
+                variables["types"] = [str(t) for t in race_types]
+            else:
+                variables["types"] = []
 
             log.info(
-                f"Subscribing to bookmaker updates for {race_id if race_id else 'all races'}"
+                f"Subscribing to bookmaker updates for {race_id if race_id else 'all races'} "
+                f"with race types: {race_types if race_types else 'all races'}"
             )
 
             async for result in session.subscribe(query, variable_values=variables):
