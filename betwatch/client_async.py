@@ -631,7 +631,15 @@ class BetwatchAsyncClient:
     async def subscribe_bookmaker_updates(
         self,
         race_id: str,
-        race_types: Optional[List[Union[MeetingType, str]]] = None,
+        race_types: Optional[
+            List[
+                Union[
+                    Literal["Thoroughbred"],
+                    Literal["Harness"],
+                    Literal["Greyhound"],
+                ]
+            ]
+        ] = None,
         projection: Optional[RaceProjection] = None,
     ):
         # set defaults
@@ -650,10 +658,12 @@ class BetwatchAsyncClient:
                 "Cannot subscribe to more than 10 races at one time. Use an empty race_id to subscribe to all races in one subscription"
             )
 
+        _race_types = [str(t) for t in race_types] if race_types else []
+
         self._subscriptions_prices[race_id] = asyncio.create_task(
-            self._subscribe_bookmaker_updates(race_id, race_types, projection)
+            self._subscribe_bookmaker_updates(race_id, _race_types, projection)
         )
-        self._subscriptions_prices_type_args[race_id] = race_types
+        self._subscriptions_prices_type_args[race_id] = _race_types
 
     async def _subscribe_bookmaker_updates(
         self,
