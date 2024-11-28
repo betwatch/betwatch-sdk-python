@@ -149,72 +149,72 @@ class BetwatchClient:
     ) -> List[Dict]:
         ...
 
-    def get_races(
-        self,
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
-        parse_result: bool = True,
-    ) -> Union[List[Race], List[Dict]]:
-        # handle defaults
-        if not projection:
-            projection = RaceProjection()
-        if not filter:
-            filter = RacesFilter()
+        def get_races(
+            self,
+            projection: Optional[RaceProjection] = None,
+            filter: Optional[RacesFilter] = None,
+            parse_result: bool = True,
+        ) -> Union[List[Race], List[Dict]]:
+            # handle defaults
+            if not projection:
+                projection = RaceProjection()
+            if not filter:
+                filter = RacesFilter()
 
-        try:
-            log.info(f"Getting races with projection {projection} and filter {filter}")
+            try:
+                log.info(f"Getting races with projection {projection} and filter {filter}")
 
-            done = False
-            races: List[Race] = []
-            # iterate until no more races are found
-            while not done:
-                query = query_get_races(projection)
+                done = False
+                races: List[Race] = []
+                # iterate until no more races are found
+                while not done:
+                    query = query_get_races(projection)
 
-                variables = filter.to_dict()
+                    variables = filter.to_dict()
 
-                result = self._gql_client.execute(query, variable_values=variables)
+                    result = self._gql_client.execute(query, variable_values=variables)
 
-                if result.get("races"):
-                    log.info(
-                        f"Received {len(result['races'])} races - attempting to get more..."
-                    )
-                    if parse_result:
-                        races.extend(typedload.load(result["races"], List[Race]))
+                    if result.get("races"):
+                        log.info(
+                            f"Received {len(result['races'])} races - attempting to get more..."
+                        )
+                        if parse_result:
+                            races.extend(typedload.load(result["races"], List[Race]))
+                        else:
+                            races.extend(result["races"])
+
+                        # change the offset to the next page
+                        filter.offset += filter.limit
                     else:
-                        races.extend(result["races"])
+                        filter.offset = 0
+                        log.debug("No more races found")
+                        done = True
 
-                    # change the offset to the next page
-                    filter.offset += filter.limit
-                else:
-                    filter.offset = 0
-                    log.debug("No more races found")
-                    done = True
+                return races
 
-            return races
+            except TransportQueryError as e:
+                if e.errors:
+                    for error in e.errors:
+                        msg = error.get("message")
+                        if msg:
+                            # sometimes we can provide better feedback
+                            if "limit argument" in msg:
+                                # adjust the limit and try again
 
-        except TransportQueryError as e:
-            if e.errors:
-                for error in e.errors:
-                    msg = error.get("message")
-                    if msg:
-                        # sometimes we can provide better feedback
-                        if "limit argument" in msg:
-                            # adjust the limit and try again
-
-                            filter.limit = int(
-                                msg.split("limit argument less than")[1].strip()
-                            )
-                            log.info(
-                                f"Cannot query more than {filter.limit} - adjusting limit to {filter.limit} and trying again"
-                            )
-                            return self.get_races(projection, filter)
+                                filter.limit = int(
+                                    msg.split("limit argument less than")[1].strip()
+                                )
+                                log.info(
+                                    f"Cannot query more than {filter.limit} - adjusting limit to {filter.limit} and trying again"
+                                )
+                                return self.get_races(projection, filter)
+                            else:
+                                log.error(f"{error}")
                         else:
                             log.error(f"{error}")
-                    else:
-                        log.error(f"{error}")
-            else:
-                log.error(f"Error querying Betwatch API: {e}")
-            return []
+                else:
+                    log.error(f"Error querying Betwatch API: {e}")
+                return []
 
     @overload
     def get_race(

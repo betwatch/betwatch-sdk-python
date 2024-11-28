@@ -112,6 +112,7 @@ class RaceProjection:
         flucs=False,
         links=False,
         betfair=False,
+        track_condition=False,
         bookmakers: Optional[List[Union[Bookmaker, str]]] = None,
     ) -> None:
         self.markets = markets
@@ -119,7 +120,20 @@ class RaceProjection:
         self.links = links
         self.flucs = flucs
         self.betfair = betfair
+        self.track_condition = track_condition  # Initialize new field
         self.bookmakers = bookmakers if bookmakers else []
 
     def __str__(self) -> str:
-        return f"RaceProjection({'markets ' if self.markets else ''}{' place_markets' if self.place_markets else ''}{' links' if self.links else ''}{' flucs' if self.flucs else ''}{' betfair' if self.betfair else ''}{' bookmakers' if self.bookmakers else ''})"
+        return (
+            f"RaceProjection("
+            f"{'markets ' if self.markets else ''}"
+            f"{'place_markets ' if self.place_markets else ''}"
+            f"{'links ' if self.links else ''}"
+            f"{'flucs ' if self.flucs else ''}"
+            f"{'betfair ' if self.betfair else ''}"
+            f"{'track_condition ' if self.track_condition else ''}"
+            f"{'bookmakers' if self.bookmakers else ''}"
+            f")"
+        )
+
+

@@ -291,6 +291,7 @@ class Race:
         metadata={"name": "classConditions"}, default=None
     )
     results: Optional[List[List[int]]] = None
+    track_condition: Optional[str] = None
 
     links: Optional[List[RaceLink]] = None
 
