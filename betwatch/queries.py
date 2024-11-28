@@ -151,15 +151,23 @@ SUBSCRIPTION_BETFAIR_UPDATES = gql(
 
 
 def query_get_races(projection: RaceProjection) -> DocumentNode:
+    """
+    Constructs a GraphQL query for fetching races with optional fields based on the projection.
+    """
+    race_query = get_race_query(projection)
+
+    if projection.track_condition:
+        race_query += "\ntrackCondition"
+
     return gql(
         """
-            query GetRaces($limit: Int, $offset: Int, $types: [RaceType!], $tracks: [String!], $locations: [String!], $hasBookmakers: [String!], $hasRunners: [String!], $hasTrainers: [String!], $hasRiders: [String!], $dateFrom: String!, $dateTo: String!) {
-                races(limit: $limit, offset: $offset, types: $types, tracks: $tracks, locations: $locations, hasBookmakers: $hasBookmakers, hasRunners: $hasRunners, hasTrainers: $hasTrainers, hasRiders: $hasRiders, dateFrom: $dateFrom, dateTo: $dateTo) {
+        query GetRaces($limit: Int, $offset: Int, $types: [RaceType!], $tracks: [String!], $locations: [String!], $hasBookmakers: [String!], $hasRunners: [String!], $hasTrainers: [String!], $hasRiders: [String!], $dateFrom: String!, $dateTo: String!) {
+            races(limit: $limit, offset: $offset, types: $types, tracks: $tracks, locations: $locations, hasBookmakers: $hasBookmakers, hasRunners: $hasRunners, hasTrainers: $hasTrainers, hasRiders: $hasRiders, dateFrom: $dateFrom, dateTo: $dateTo) {
         """
-        + get_race_query(projection)
+        + race_query
         + """
-                }
             }
+        }
         """
     )
 
