@@ -53,7 +53,7 @@ def get_race_query(projection: RaceProjection) -> str:
 
     return (
         " id betfairMapping { win place } meeting { id location track type date } "
-        + "classConditions name number status startTime results distance "
+        + "classConditions name number status startTime actualStartTime results distance "
         + runners_gql
         + (
             " links { bookmaker lastSuccessfulPriceUpdate navLink fixedWin } "

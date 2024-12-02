@@ -295,6 +295,9 @@ class Race:
     links: Optional[List[RaceLink]] = None
 
     _start_time: Optional[str] = field(metadata={"name": "startTime"}, default=None)
+    _actual_start_time: Optional[str] = field(
+        metadata={"name": "actualStartTime"}, default=None
+    )
 
     # _updated_at: Optional[str] = field(metadata={"name": "updatedAt"}, default=None)
     # _created_at: Optional[str] = field(metadata={"name": "createdAt"}, default=None)
@@ -306,6 +309,11 @@ class Race:
     def __post_init__(self):
         self.start_time: Optional[datetime] = (
             ciso8601.parse_datetime(self._start_time) if self._start_time else None
+        )
+        self.actual_start_time: Optional[datetime] = (
+            ciso8601.parse_datetime(self._actual_start_time)
+            if self._actual_start_time
+            else None
         )
 
     def __str__(self) -> str:
