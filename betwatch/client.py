@@ -76,8 +76,7 @@ class BetwatchClient:
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
         parse_result: Literal[True] = True,
-    ) -> List[Race]:
-        ...
+    ) -> List[Race]: ...
 
     @overload
     def get_races_between_dates(
@@ -87,8 +86,7 @@ class BetwatchClient:
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
         parse_result: Literal[False] = False,
-    ) -> List[Dict]:
-        ...
+    ) -> List[Dict]: ...
 
     def get_races_between_dates(
         self,
@@ -137,8 +135,7 @@ class BetwatchClient:
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
         parse_result: Literal[True] = True,
-    ) -> List[Race]:
-        ...
+    ) -> List[Race]: ...
 
     @overload
     def get_races(
@@ -146,8 +143,7 @@ class BetwatchClient:
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
         parse_result: Literal[False] = False,
-    ) -> List[Dict]:
-        ...
+    ) -> List[Dict]: ...
 
     def get_races(
         self,
@@ -222,8 +218,7 @@ class BetwatchClient:
         race_id: str,
         projection: Optional[RaceProjection] = None,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]:
-        ...
+    ) -> Union[Race, None]: ...
 
     @overload
     def get_race(
@@ -231,8 +226,7 @@ class BetwatchClient:
         race_id: str,
         projection: Optional[RaceProjection] = None,
         parse_result: Literal[True] = True,
-    ) -> Union[Dict, None]:
-        ...
+    ) -> Union[Dict, None]: ...
 
     def get_race(
         self,
@@ -256,8 +250,7 @@ class BetwatchClient:
         market_id: str,
         projection: Optional[RaceProjection] = None,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]:
-        ...
+    ) -> Union[Race, None]: ...
 
     @overload
     def get_race_from_bookmaker_market(
@@ -265,8 +258,7 @@ class BetwatchClient:
         market_id: str,
         projection: Optional[RaceProjection] = None,
         parse_result: Literal[True] = True,
-    ) -> Union[Dict, None]:
-        ...
+    ) -> Union[Dict, None]: ...
 
     def get_race_from_bookmaker_market(
         self,
@@ -302,8 +294,7 @@ class BetwatchClient:
         race_id: str,
         query: DocumentNode,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]:
-        ...
+    ) -> Union[Race, None]: ...
 
     @overload
     def _get_race_by_id(
@@ -311,8 +302,7 @@ class BetwatchClient:
         race_id: str,
         query: DocumentNode,
         parse_result: Literal[False] = False,
-    ) -> Union[Dict, None]:
-        ...
+    ) -> Union[Dict, None]: ...
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     def _get_race_by_id(
@@ -341,8 +331,7 @@ class BetwatchClient:
         market_id: str,
         query: DocumentNode,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]:
-        ...
+    ) -> Union[Race, None]: ...
 
     @overload
     def _get_race_from_bookmaker_market(
@@ -350,8 +339,7 @@ class BetwatchClient:
         market_id: str,
         query: DocumentNode,
         parse_result: Literal[False] = False,
-    ) -> Union[Dict, None]:
-        ...
+    ) -> Union[Dict, None]: ...
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     def _get_race_from_bookmaker_market(

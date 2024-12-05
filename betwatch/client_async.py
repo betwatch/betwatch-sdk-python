@@ -166,7 +166,7 @@ class BetwatchAsyncClient:
 
     def __exit(self):
         """Close the client."""
-        log.info("closing connection to Betwatch API (may take a few seconds)")
+        log.debug("closing connection to Betwatch API (may take a few seconds)")
         asyncio.run(self.__cleanup())
 
     async def __aenter__(self):
@@ -211,8 +211,7 @@ class BetwatchAsyncClient:
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
         parse_result: Literal[True] = True,
-    ) -> List[Race]:
-        ...
+    ) -> List[Race]: ...
 
     @overload
     async def get_races_today(
@@ -220,8 +219,7 @@ class BetwatchAsyncClient:
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
         parse_result: Literal[False] = False,
-    ) -> List[Race]:
-        ...
+    ) -> List[Race]: ...
 
     async def get_races_today(
         self,
@@ -264,8 +262,7 @@ class BetwatchAsyncClient:
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
         parse_result: Literal[True] = True,
-    ) -> List[Race]:
-        ...
+    ) -> List[Race]: ...
 
     @overload
     async def get_races_between_dates(
@@ -275,8 +272,7 @@ class BetwatchAsyncClient:
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
         parse_result: Literal[False] = False,
-    ) -> List[Race]:
-        ...
+    ) -> List[Race]: ...
 
     async def get_races_between_dates(
         self,
@@ -328,8 +324,7 @@ class BetwatchAsyncClient:
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
         parse_result: Literal[True] = True,
-    ) -> List[Race]:
-        ...
+    ) -> List[Race]: ...
 
     @overload
     async def get_races(
@@ -337,8 +332,7 @@ class BetwatchAsyncClient:
         projection: Optional[RaceProjection] = None,
         filter: Optional[RacesFilter] = None,
         parse_result: Literal[False] = False,
-    ) -> List[Dict]:
-        ...
+    ) -> List[Dict]: ...
 
     @backoff.on_exception(backoff.expo, (HTTPError))
     async def get_races(
@@ -423,8 +417,7 @@ class BetwatchAsyncClient:
         race_id: str,
         projection: Optional[RaceProjection] = None,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]:
-        ...
+    ) -> Union[Race, None]: ...
 
     @overload
     async def get_race(
@@ -432,8 +425,7 @@ class BetwatchAsyncClient:
         race_id: str,
         projection: Optional[RaceProjection] = None,
         parse_result: Literal[False] = False,
-    ) -> Union[Race, None]:
-        ...
+    ) -> Union[Race, None]: ...
 
     async def get_race(
         self,
@@ -465,8 +457,7 @@ class BetwatchAsyncClient:
         market_id: str,
         projection: Optional[RaceProjection] = None,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]:
-        ...
+    ) -> Union[Race, None]: ...
 
     @overload
     async def get_race_from_bookmaker_market(
@@ -474,8 +465,7 @@ class BetwatchAsyncClient:
         market_id: str,
         projection: Optional[RaceProjection] = None,
         parse_result: Literal[False] = False,
-    ) -> Union[Race, None]:
-        ...
+    ) -> Union[Race, None]: ...
 
     async def get_race_from_bookmaker_market(
         self,
@@ -568,7 +558,7 @@ class BetwatchAsyncClient:
                 raise e
 
     async def listen(self):
-        """Subscribe to any updates from your subscriptions"""
+        """Subscribe to any updates from your subscriptions with enhanced queue monitoring."""
         if (
             len(self._subscriptions_prices) < 1
             and len(self._subscriptions_betfair) < 1
@@ -576,32 +566,64 @@ class BetwatchAsyncClient:
         ):
             raise Exception("You must subscribe to a race before listening for updates")
 
-        # dont spam the user with warnings of queue size
-        last_warning = datetime.now()
+        # Configuration for queue monitoring
+        QUEUE_SIZE_THRESHOLD = 100  # Threshold for queue size to trigger monitoring
+        SUSTAINED_PERIOD = 10  # Seconds the queue must remain above threshold
+        WARNING_INTERVAL = timedelta(seconds=30)  # Minimum interval between warnings
 
-        # start monitor
+        last_warning_time = datetime.now()
+        high_queue_start = None  # Timestamp when queue first exceeded threshold
+
+        # Start the monitor task
         self._monitor_task = asyncio.create_task(self._monitor())
 
-        while True:
-            try:
-                log.debug("Waiting for subscription update")
-                update = await self._subscription_queue.get()
-                self._subscription_queue.task_done()
-                yield update
-                log.debug("Subscription update received")
+        try:
+            while True:
+                try:
+                    log.debug("Waiting for subscription update")
+                    update = await self._subscription_queue.get()
+                    current_time = monotonic()
+                    queue_size = self._subscription_queue.qsize()
 
-                # check if we are falling behind
-                if (
-                    self._subscription_queue.qsize() > 25
-                    and (datetime.now() - last_warning).seconds > 10
-                ):
-                    log.warning(
-                        f"Subscription queue is {self._subscription_queue.qsize()} items behind"
-                    )
-                    last_warning = datetime.now()
-            except asyncio.CancelledError:
-                log.info("Shutting down subscription websocket...")
-                return
+                    # Check if queue size exceeds threshold
+                    if queue_size > QUEUE_SIZE_THRESHOLD:
+                        if high_queue_start is None:
+                            high_queue_start = current_time  # Mark the start time
+                            log.debug(f"Queue size exceeded threshold: {queue_size}")
+                        elif (current_time - high_queue_start) > SUSTAINED_PERIOD:
+                            # Check if enough time has passed since last warning
+                            if datetime.now() - last_warning_time > WARNING_INTERVAL:
+                                log.warning(
+                                    f"Processing falling behind: Queue size has been "
+                                    f">{QUEUE_SIZE_THRESHOLD} for over {SUSTAINED_PERIOD} seconds "
+                                    f"(current size: {queue_size})"
+                                )
+                                last_warning_time = datetime.now()
+                                # Reset the start time to avoid repeated warnings for the same sustained period
+                                high_queue_start = current_time
+                    else:
+                        if high_queue_start is not None:
+                            log.debug(f"Queue size back to normal: {queue_size}")
+                        high_queue_start = (
+                            None  # Reset if queue size drops below threshold
+                        )
+
+                    self._subscription_queue.task_done()
+                    yield update
+                    log.debug("Subscription update received")
+
+                except asyncio.CancelledError:
+                    log.info("Shutting down subscription websocket...")
+                    break  # Exit the loop gracefully
+
+        finally:
+            # Ensure that the monitor task is cancelled when listen is exited
+            if not self._monitor_task.done():
+                self._monitor_task.cancel()
+                try:
+                    await self._monitor_task
+                except asyncio.CancelledError:
+                    log.debug("Monitor task cancelled successfully")
 
     def get_subscribed_race_ids(self) -> List[str]:
         """Get a list of all subscribed races"""
@@ -852,8 +874,7 @@ class BetwatchAsyncClient:
         race_id: str,
         query: DocumentNode,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]:
-        ...
+    ) -> Union[Race, None]: ...
 
     @overload
     async def _get_race_by_id(
@@ -861,8 +882,7 @@ class BetwatchAsyncClient:
         race_id: str,
         query: DocumentNode,
         parse_result: Literal[False] = False,
-    ) -> Union[Dict, None]:
-        ...
+    ) -> Union[Dict, None]: ...
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     async def _get_race_by_id(
@@ -892,8 +912,7 @@ class BetwatchAsyncClient:
         market_id: str,
         query: DocumentNode,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]:
-        ...
+    ) -> Union[Race, None]: ...
 
     @overload
     async def _get_race_from_bookmaker_market(
@@ -901,8 +920,7 @@ class BetwatchAsyncClient:
         market_id: str,
         query: DocumentNode,
         parse_result: Literal[False] = False,
-    ) -> Union[Dict, None]:
-        ...
+    ) -> Union[Dict, None]: ...
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     async def _get_race_from_bookmaker_market(
