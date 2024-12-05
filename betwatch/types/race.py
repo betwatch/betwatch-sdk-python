@@ -263,7 +263,7 @@ class EnhancedJSONEncoder(json.JSONEncoder):
     # Create a custom encoder to handle nested dataclasses
     # and convert them to dicts. Also handles datetime objects
     def default(self, o):
-        if dataclasses.is_dataclass(o):
+        if dataclasses.is_dataclass(o) and not isinstance(o, type):
             return dataclasses.asdict(o)
         if isinstance(o, (datetime, date, time)):
             return o.isoformat()
@@ -287,8 +287,11 @@ class Race:
 
     name: Optional[str] = None
     distance: Optional[int] = None
-    classConditions: Optional[str] = field(
+    class_conditions: Optional[str] = field(
         metadata={"name": "classConditions"}, default=None
+    )
+    track_condition: Optional[str] = field(
+        metadata={"name": "trackCondition"}, default=None
     )
     results: Optional[List[List[int]]] = None
 
@@ -298,9 +301,6 @@ class Race:
     _actual_start_time: Optional[str] = field(
         metadata={"name": "actualStartTime"}, default=None
     )
-
-    # _updated_at: Optional[str] = field(metadata={"name": "updatedAt"}, default=None)
-    # _created_at: Optional[str] = field(metadata={"name": "createdAt"}, default=None)
 
     def is_open(self) -> bool:
         # NOTE: Perhaps this should raise an exception if the Race object does not have a status
