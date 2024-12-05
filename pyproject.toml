@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "betwatch"
-version = "1.4.3"
+version = "1.4.4"
 description = 'A Python package for interacting with the Betwatch.com API'
 readme = "README.md"
 requires-python = ">=3.8"
@@ -58,6 +58,4 @@ fix = true
 "__init__.py" = ["F401", "E402"]
 
 [dependency-groups]
-dev = [
-    "ruff>=0.8.1",
-]
+dev = ["ruff>=0.8.1"]
