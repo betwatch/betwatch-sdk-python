@@ -28,7 +28,7 @@ wheels = [
 
 [[package]]
 name = "betwatch"
-version = "1.4.6"
+version = "1.4.7"
 source = { editable = "." }
 dependencies = [
     { name = "ciso8601" },
