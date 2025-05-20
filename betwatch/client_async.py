@@ -95,6 +95,13 @@ class BetwatchAsyncClient:
         self._subscriptions_prices_type_args: Dict[
             str, Optional[List[Union[MeetingType, str]]]
         ] = {}
+        self._subscriptions_prices_bookmaker_args: Dict[
+            str, Optional[List[Union[Bookmaker, str]]]
+        ] = {}
+        self._subscriptions_prices_projection_args: Dict[
+            str, Optional[RaceProjection]
+        ] = {}
+
         self._subscriptions_updates: Dict[Tuple[str, str], asyncio.Task] = {}
 
         self._monitor_task: Union[asyncio.Task, None] = None
@@ -536,8 +543,10 @@ class BetwatchAsyncClient:
                             # replace the task in the dict with a new one
                             if d == self._subscriptions_prices:
                                 race_types = self._subscriptions_prices_type_args[key]
+                                bookmakers = self._subscriptions_prices_bookmaker_args[key]
+                                projection = self._subscriptions_prices_projection_args[key]
                                 d[key] = asyncio.create_task(
-                                    self._subscribe_bookmaker_updates(key, race_types)
+                                    self._subscribe_bookmaker_updates(key, race_types=race_types, bookmakers=bookmakers, projection=projection)
                                 )
                             elif d == self._subscriptions_updates:
                                 d[key] = asyncio.create_task(
@@ -646,6 +655,8 @@ class BetwatchAsyncClient:
         self._subscriptions_prices[race_id].cancel()
         del self._subscriptions_prices[race_id]
         del self._subscriptions_prices_type_args[race_id]
+        del self._subscriptions_prices_bookmaker_args[race_id]
+        del self._subscriptions_prices_projection_args[race_id]
         log.info(
             f"Unsubscribed from {race_id if race_id else 'all races'} bookmaker updates"
         )
@@ -663,6 +674,7 @@ class BetwatchAsyncClient:
             ]
         ] = None,
         projection: Optional[RaceProjection] = None,
+        bookmakers: Optional[List[Union[Bookmaker, str]]] = None,
     ):
         # set defaults
         if not projection:
@@ -683,14 +695,17 @@ class BetwatchAsyncClient:
         _race_types = [str(t) for t in race_types] if race_types else []
 
         self._subscriptions_prices[race_id] = asyncio.create_task(
-            self._subscribe_bookmaker_updates(race_id, _race_types, projection)
+            self._subscribe_bookmaker_updates(race_id,race_types= _race_types, projection=projection, bookmakers=bookmakers)
         )
         self._subscriptions_prices_type_args[race_id] = _race_types
+        self._subscriptions_prices_bookmaker_args[race_id] = bookmakers
+        self._subscriptions_prices_projection_args[race_id] = projection
 
     async def _subscribe_bookmaker_updates(
         self,
         race_id: str,
         race_types: Optional[List[Union[MeetingType, str]]] = None,
+        bookmakers: Optional[List[Union[Bookmaker, str]]] = None,
         projection: Optional[RaceProjection] = None,
     ):
         """Subscribe to price updates for a specific race.
@@ -716,10 +731,12 @@ class BetwatchAsyncClient:
                 variables["types"] = [str(t) for t in race_types]
             else:
                 variables["types"] = []
+            if bookmakers:
+                variables["bookmakers"] = [str(b) for b in bookmakers]
 
             log.info(
                 f"Subscribing to bookmaker updates for {race_id if race_id else 'all races'} "
-                f"with race types: {race_types if race_types else 'all races'}"
+                f"with race types: {race_types if race_types else 'all races'} and bookmakers: {bookmakers if bookmakers else 'all bookmakers'}"
             )
 
             async for result in session.subscribe(query, variable_values=variables):

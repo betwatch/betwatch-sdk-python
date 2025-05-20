@@ -86,12 +86,11 @@ SUBSCRIPTION_RUNNER_UPDATES = gql(
     """
 )
 
-
 def subscription_race_price_updates(projection: RaceProjection) -> DocumentNode:
     return gql(
         """
-    subscription PriceUpdates($id: ID!, $types: [RaceType!]) {
-      priceUpdates(id: $id, types: $types) {
+    subscription PriceUpdates($id: ID!, $types: [RaceType!], $bookmakers: [String!]) {
+      priceUpdates(id: $id, types: $types, bookmakers: $bookmakers) {
         id
         raceId
         selectionId
@@ -99,20 +98,32 @@ def subscription_race_price_updates(projection: RaceProjection) -> DocumentNode:
         fixedWin {
           price
           lastUpdated
-          flucs {
+          """
+        + (
+            """flucs {
             price
             lastUpdated
-          }
+          }"""
+            if projection.flucs
+            else ""
+        )
+        + """
         }
         """
         + (
             """fixedPlace {
           price
           lastUpdated
-          flucs {
+          """
+            + (
+                """flucs {
             price
             lastUpdated
-          }
+          }"""
+                if projection.flucs
+                else ""
+            )
+            + """
         }
         """
             if projection.place_markets
