@@ -370,14 +370,21 @@ class BetwatchAsyncClient:
                 result = await session.execute(query, variable_values=variables)
 
                 if result.get("races"):
-                    log.info(
-                        f"Received {len(result['races'])} races - attempting to get more..."
-                    )
-
                     if parse_result:
                         races.extend(typedload.load(result["races"], List[Race]))
                     else:
                         races.extend(result["races"])
+
+                    # if the length of the races is less than the limit, we've reached the end
+                    if len(result["races"]) < filter.limit:
+                        done = True
+                        filter.offset = 0
+                        log.debug("Reached the end of the races")
+                        break
+
+                    log.info(
+                        f"Received {len(result['races'])} races - attempting to get more..."
+                    )
 
                     # change the offset to the next page
                     filter.offset += filter.limit
@@ -543,10 +550,19 @@ class BetwatchAsyncClient:
                             # replace the task in the dict with a new one
                             if d == self._subscriptions_prices:
                                 race_types = self._subscriptions_prices_type_args[key]
-                                bookmakers = self._subscriptions_prices_bookmaker_args[key]
-                                projection = self._subscriptions_prices_projection_args[key]
+                                bookmakers = self._subscriptions_prices_bookmaker_args[
+                                    key
+                                ]
+                                projection = self._subscriptions_prices_projection_args[
+                                    key
+                                ]
                                 d[key] = asyncio.create_task(
-                                    self._subscribe_bookmaker_updates(key, race_types=race_types, bookmakers=bookmakers, projection=projection)
+                                    self._subscribe_bookmaker_updates(
+                                        key,
+                                        race_types=race_types,
+                                        bookmakers=bookmakers,
+                                        projection=projection,
+                                    )
                                 )
                             elif d == self._subscriptions_updates:
                                 d[key] = asyncio.create_task(
@@ -695,7 +711,12 @@ class BetwatchAsyncClient:
         _race_types = [str(t) for t in race_types] if race_types else []
 
         self._subscriptions_prices[race_id] = asyncio.create_task(
-            self._subscribe_bookmaker_updates(race_id,race_types= _race_types, projection=projection, bookmakers=bookmakers)
+            self._subscribe_bookmaker_updates(
+                race_id,
+                race_types=_race_types,
+                projection=projection,
+                bookmakers=bookmakers,
+            )
         )
         self._subscriptions_prices_type_args[race_id] = _race_types
         self._subscriptions_prices_bookmaker_args[race_id] = bookmakers

@@ -171,13 +171,21 @@ class BetwatchClient:
                 result = self._gql_client.execute(query, variable_values=variables)
 
                 if result.get("races"):
-                    log.info(
-                        f"Received {len(result['races'])} races - attempting to get more..."
-                    )
                     if parse_result:
                         races.extend(typedload.load(result["races"], List[Race]))
                     else:
                         races.extend(result["races"])
+
+                    # if the length of the races is less than the limit, we've reached the end
+                    if len(result["races"]) < filter.limit:
+                        done = True
+                        filter.offset = 0
+                        log.debug("Reached the end of the races")
+                        break
+
+                    log.info(
+                        f"Received {len(result['races'])} races - attempting to get more..."
+                    )
 
                     # change the offset to the next page
                     filter.offset += filter.limit
