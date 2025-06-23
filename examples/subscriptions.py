@@ -31,7 +31,11 @@ async def main():
 
         # subscribe to the 5 next open races
         for i in range(min(5, len(open_races))):
-            await client.subscribe_bookmaker_updates(open_races[i].id, bookmakers=["Sportsbet", "Tab"])
+            await client.subscribe_bookmaker_updates(
+                open_races[i].id,
+                bookmakers=["Sportsbet", "Tab"],
+                race_types=["Thoroughbred"],
+            )
             await client.subscribe_betfair_updates(open_races[i].id)
 
         async for update in client.listen():
