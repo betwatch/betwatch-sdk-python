@@ -102,6 +102,7 @@ class Bookmaker(str, Enum):
     BETCHAMPS = "Betchamps"
     TRADIEBET = "Tradiebet"
     TABNZ = "Tab NZ"
+    BETLEGENDS = "BetLegends"
 
     def __str__(self):
         return self.value
