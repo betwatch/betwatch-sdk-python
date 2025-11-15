@@ -12,9 +12,7 @@ from gql import Client
 from gql.client import AsyncClientSession, ReconnectingAsyncClientSession
 from gql.transport.exceptions import TransportError, TransportQueryError
 from gql.transport.httpx import HTTPXAsyncTransport
-from gql.transport.httpx import log as httpx_logger
 from gql.transport.websockets import WebsocketsTransport
-from gql.transport.websockets import log as websockets_logger
 from graphql import DocumentNode
 from httpx._exceptions import HTTPError
 from typedload.exceptions import TypedloadException
@@ -78,8 +76,8 @@ class BetwatchAsyncClient:
             None, ReconnectingAsyncClientSession, AsyncClientSession
         ] = None
 
-        websockets_logger.setLevel(transport_logging_level)
-        httpx_logger.setLevel(transport_logging_level)
+        logging.getLogger("gql.transport.websockets").setLevel(transport_logging_level)
+        logging.getLogger("gql.transport.httpx").setLevel(transport_logging_level)
         logging.getLogger("httpx").setLevel(transport_logging_level)
         logging.getLogger("httpcore").setLevel(transport_logging_level)
 

@@ -9,7 +9,6 @@ import typedload
 from gql import Client
 from gql.transport.exceptions import TransportQueryError
 from gql.transport.requests import RequestsHTTPTransport
-from gql.transport.requests import log as http_logger
 from graphql import DocumentNode
 
 from betwatch.__about__ import __version__
@@ -55,7 +54,7 @@ class BetwatchClient:
             transport=self._gql_transport,
         )
 
-        http_logger.setLevel(transport_logging_level)
+        logging.getLogger("gql.transport.requests").setLevel(transport_logging_level)
 
         # register the cleanup function to be called on exit
         atexit.register(self.__exit)
