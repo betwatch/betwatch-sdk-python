@@ -7,15 +7,13 @@ name = "betwatch"
 version = "1.5.1"
 description = 'A Python package for interacting with the Betwatch.com API'
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = "MIT"
 keywords = ["betwatch", "betting", "sports", "api", "sdk"]
 authors = [{ name = "Jamie Watts", email = "jamie@betwatch.com" }]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -23,9 +21,9 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-    "gql[httpx,websockets,requests]>=3.5.0",
-    "typedload>=2.27",
-    "ciso8601>=2.3.1",
+    "gql[httpx,websockets,requests]>=4.0.0",
+    "typedload>=2.39",
+    "ciso8601>=2.3.3",
 ]
 
 [project.urls]
@@ -58,7 +56,4 @@ fix = true
 "__init__.py" = ["F401", "E402"]
 
 [dependency-groups]
-dev = [
-    "basedpyright>=1.29.1",
-    "ruff>=0.8.1",
-]
+dev = ["basedpyright>=1.29.1", "ruff>=0.8.1"]
