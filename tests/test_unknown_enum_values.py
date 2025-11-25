@@ -1,16 +1,15 @@
 """Test that unknown enum values are handled gracefully"""
 
-import pytest
 from betwatch.types import Bookmaker
-from betwatch.types.race import (
-    RaceLink,
-    Meeting,
-    Race,
-    RaceUpdate,
-    MeetingType,
-    RaceStatus,
-)
 from betwatch.types.markets import BookmakerMarket
+from betwatch.types.race import (
+    Meeting,
+    MeetingType,
+    Race,
+    RaceLink,
+    RaceStatus,
+    RaceUpdate,
+)
 
 
 def test_race_link_unknown_bookmaker():

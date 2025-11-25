@@ -4,7 +4,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 from time import monotonic
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union, overload
+from typing import Any, Literal, overload
 
 import backoff
 import typedload
@@ -50,7 +50,7 @@ log = logging.getLogger(__name__)
 class BetwatchAsyncClient:
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         transport_logging_level: int = logging.WARNING,
         request_timeout: int = 60,
     ):
@@ -67,14 +67,10 @@ class BetwatchAsyncClient:
 
         self.connect(request_timeout)
 
-        self._http_session: Union[
-            None, ReconnectingAsyncClientSession, AsyncClientSession
-        ] = None
+        self._http_session: None | ReconnectingAsyncClientSession | AsyncClientSession = None
 
         # flag to indicate if we have entered the context manager
-        self._websocket_session: Union[
-            None, ReconnectingAsyncClientSession, AsyncClientSession
-        ] = None
+        self._websocket_session: None | ReconnectingAsyncClientSession | AsyncClientSession = None
 
         logging.getLogger("gql.transport.websockets").setLevel(transport_logging_level)
         logging.getLogger("gql.transport.httpx").setLevel(transport_logging_level)
@@ -88,21 +84,21 @@ class BetwatchAsyncClient:
         self._session_lock = asyncio.Lock()
 
         self._subscription_queue: asyncio.Queue[SubscriptionUpdate] = asyncio.Queue()
-        self._subscriptions_betfair: Dict[str, asyncio.Task] = {}
-        self._subscriptions_prices: Dict[str, asyncio.Task] = {}
-        self._subscriptions_prices_type_args: Dict[
-            str, Optional[List[Union[MeetingType, str]]]
+        self._subscriptions_betfair: dict[str, asyncio.Task] = {}
+        self._subscriptions_prices: dict[str, asyncio.Task] = {}
+        self._subscriptions_prices_type_args: dict[
+            str, list[MeetingType | str] | None
         ] = {}
-        self._subscriptions_prices_bookmaker_args: Dict[
-            str, Optional[List[Union[Bookmaker, str]]]
+        self._subscriptions_prices_bookmaker_args: dict[
+            str, list[Bookmaker | str] | None
         ] = {}
-        self._subscriptions_prices_projection_args: Dict[
-            str, Optional[RaceProjection]
+        self._subscriptions_prices_projection_args: dict[
+            str, RaceProjection | None
         ] = {}
 
-        self._subscriptions_updates: Dict[Tuple[str, str], asyncio.Task] = {}
+        self._subscriptions_updates: dict[tuple[str, str], asyncio.Task] = {}
 
-        self._monitor_task: Union[asyncio.Task, None] = None
+        self._monitor_task: asyncio.Task | None = None
         self._last_reconnect: float = monotonic()
 
     def connect(self, request_timeout: int):
@@ -213,25 +209,25 @@ class BetwatchAsyncClient:
     @overload
     async def get_races_today(
         self,
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
+        projection: RaceProjection | None = None,
+        filter: RacesFilter | None = None,
         parse_result: Literal[True] = True,
-    ) -> List[Race]: ...
+    ) -> list[Race]: ...
 
     @overload
     async def get_races_today(
         self,
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
+        projection: RaceProjection | None = None,
+        filter: RacesFilter | None = None,
         parse_result: Literal[False] = False,
-    ) -> List[Race]: ...
+    ) -> list[Race]: ...
 
     async def get_races_today(
         self,
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
+        projection: RaceProjection | None = None,
+        filter: RacesFilter | None = None,
         parse_result: bool = True,
-    ) -> Union[List[Race], List[Dict]]:
+    ) -> list[Race] | list[dict]:
         """Get all races for today."""
         # set defaults
         if not projection:
@@ -262,31 +258,31 @@ class BetwatchAsyncClient:
     @overload
     async def get_races_between_dates(
         self,
-        date_from: Union[str, datetime],
-        date_to: Union[str, datetime],
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
+        date_from: str | datetime,
+        date_to: str | datetime,
+        projection: RaceProjection | None = None,
+        filter: RacesFilter | None = None,
         parse_result: Literal[True] = True,
-    ) -> List[Race]: ...
+    ) -> list[Race]: ...
 
     @overload
     async def get_races_between_dates(
         self,
-        date_from: Union[str, datetime],
-        date_to: Union[str, datetime],
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
+        date_from: str | datetime,
+        date_to: str | datetime,
+        projection: RaceProjection | None = None,
+        filter: RacesFilter | None = None,
         parse_result: Literal[False] = False,
-    ) -> List[Race]: ...
+    ) -> list[Race]: ...
 
     async def get_races_between_dates(
         self,
-        date_from: Union[str, datetime],
-        date_to: Union[str, datetime],
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
+        date_from: str | datetime,
+        date_to: str | datetime,
+        projection: RaceProjection | None = None,
+        filter: RacesFilter | None = None,
         parse_result: bool = True,
-    ) -> Union[List[Race], List[Dict]]:
+    ) -> list[Race] | list[dict]:
         """Get a list of races in between two dates.
 
         Args:
@@ -326,26 +322,26 @@ class BetwatchAsyncClient:
     @overload
     async def get_races(
         self,
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
+        projection: RaceProjection | None = None,
+        filter: RacesFilter | None = None,
         parse_result: Literal[True] = True,
-    ) -> List[Race]: ...
+    ) -> list[Race]: ...
 
     @overload
     async def get_races(
         self,
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
+        projection: RaceProjection | None = None,
+        filter: RacesFilter | None = None,
         parse_result: Literal[False] = False,
-    ) -> List[Dict]: ...
+    ) -> list[dict]: ...
 
     @backoff.on_exception(backoff.expo, (HTTPError))
     async def get_races(
         self,
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
+        projection: RaceProjection | None = None,
+        filter: RacesFilter | None = None,
         parse_result: bool = True,
-    ) -> Union[List[Race], List[Dict]]:
+    ) -> list[Race] | list[dict]:
         # set defaults
         if not projection:
             projection = RaceProjection()
@@ -355,7 +351,7 @@ class BetwatchAsyncClient:
             log.info(f"Getting races with projection {projection} and filter {filter}")
 
             done = False
-            races: List[Race] = []
+            races: list[Race] = []
 
             # iterate until no more races are found
             while not done:
@@ -369,7 +365,7 @@ class BetwatchAsyncClient:
 
                 if result.get("races"):
                     if parse_result:
-                        races.extend(typedload.load(result["races"], List[Race]))
+                        races.extend(typedload.load(result["races"], list[Race]))
                     else:
                         races.extend(result["races"])
 
@@ -427,24 +423,24 @@ class BetwatchAsyncClient:
     async def get_race(
         self,
         race_id: str,
-        projection: Optional[RaceProjection] = None,
+        projection: RaceProjection | None = None,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]: ...
+    ) -> Race | None: ...
 
     @overload
     async def get_race(
         self,
         race_id: str,
-        projection: Optional[RaceProjection] = None,
+        projection: RaceProjection | None = None,
         parse_result: Literal[False] = False,
-    ) -> Union[Race, None]: ...
+    ) -> Race | None: ...
 
     async def get_race(
         self,
         race_id: str,
-        projection: Optional[RaceProjection] = None,
+        projection: RaceProjection | None = None,
         parse_result: bool = True,
-    ) -> Union[Race, Dict, None]:
+    ) -> Race | dict | None:
         """Get all details of a specific race by id.
 
         Args:
@@ -467,24 +463,24 @@ class BetwatchAsyncClient:
     async def get_race_from_bookmaker_market(
         self,
         market_id: str,
-        projection: Optional[RaceProjection] = None,
+        projection: RaceProjection | None = None,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]: ...
+    ) -> Race | None: ...
 
     @overload
     async def get_race_from_bookmaker_market(
         self,
         market_id: str,
-        projection: Optional[RaceProjection] = None,
+        projection: RaceProjection | None = None,
         parse_result: Literal[False] = False,
-    ) -> Union[Race, None]: ...
+    ) -> Race | None: ...
 
     async def get_race_from_bookmaker_market(
         self,
         market_id: str,
-        projection: Optional[RaceProjection] = None,
+        projection: RaceProjection | None = None,
         parse_result: bool = True,
-    ) -> Union[Race, Dict, None]:
+    ) -> Race | dict | None:
         """Get all details of a specific race by id.
 
         Args:
@@ -648,7 +644,7 @@ class BetwatchAsyncClient:
                 except asyncio.CancelledError:
                     log.debug("Monitor task cancelled successfully")
 
-    def get_subscribed_race_ids(self) -> List[str]:
+    def get_subscribed_race_ids(self) -> list[str]:
         """Get a list of all subscribed races"""
         unique = list(self._subscriptions_prices.keys()) + list(
             self._subscriptions_betfair.keys()
@@ -678,17 +674,9 @@ class BetwatchAsyncClient:
     async def subscribe_bookmaker_updates(
         self,
         race_id: str,
-        race_types: Optional[
-            List[
-                Union[
-                    Literal["Thoroughbred"],
-                    Literal["Harness"],
-                    Literal["Greyhound"],
-                ]
-            ]
-        ] = None,
-        projection: Optional[RaceProjection] = None,
-        bookmakers: Optional[List[Union[Bookmaker, str]]] = None,
+        race_types: list[Literal["Thoroughbred"] | Literal["Harness"] | Literal["Greyhound"]] | None = None,
+        projection: RaceProjection | None = None,
+        bookmakers: list[Bookmaker | str] | None = None,
     ):
         # set defaults
         if not projection:
@@ -723,9 +711,9 @@ class BetwatchAsyncClient:
     async def _subscribe_bookmaker_updates(
         self,
         race_id: str,
-        race_types: Optional[List[Union[MeetingType, str]]] = None,
-        bookmakers: Optional[List[Union[Bookmaker, str]]] = None,
-        projection: Optional[RaceProjection] = None,
+        race_types: list[MeetingType | str] | None = None,
+        bookmakers: list[Bookmaker | str] | None = None,
+        projection: RaceProjection | None = None,
     ):
         """Subscribe to price updates for a specific race.
 
@@ -764,7 +752,7 @@ class BetwatchAsyncClient:
                         update = SubscriptionUpdate(
                             race_id=race_id,
                             bookmaker_markets=typedload.load(
-                                result["priceUpdates"], List[BookmakerMarket]
+                                result["priceUpdates"], list[BookmakerMarket]
                             ),
                         )
                         self._subscription_queue.put_nowait(update)
@@ -846,7 +834,7 @@ class BetwatchAsyncClient:
                         update = SubscriptionUpdate(
                             race_id=race_id,
                             betfair_markets=typedload.load(
-                                result["betfairUpdates"], List[BetfairMarket]
+                                result["betfairUpdates"], list[BetfairMarket]
                             ),
                         )
                         self._subscription_queue.put_nowait(update)
@@ -924,7 +912,7 @@ class BetwatchAsyncClient:
         race_id: str,
         query: DocumentNode,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]: ...
+    ) -> Race | None: ...
 
     @overload
     async def _get_race_by_id(
@@ -932,7 +920,7 @@ class BetwatchAsyncClient:
         race_id: str,
         query: DocumentNode,
         parse_result: Literal[False] = False,
-    ) -> Union[Dict, None]: ...
+    ) -> dict | None: ...
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     async def _get_race_by_id(
@@ -940,7 +928,7 @@ class BetwatchAsyncClient:
         race_id: str,
         query: DocumentNode,
         parse_result: bool = False,
-    ) -> Union[Race, Dict, None]:
+    ) -> Race | dict | None:
         log.info(f"Getting race (id={race_id})")
         session = await self._setup_http_session()
         variables = {
@@ -962,7 +950,7 @@ class BetwatchAsyncClient:
         market_id: str,
         query: DocumentNode,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]: ...
+    ) -> Race | None: ...
 
     @overload
     async def _get_race_from_bookmaker_market(
@@ -970,7 +958,7 @@ class BetwatchAsyncClient:
         market_id: str,
         query: DocumentNode,
         parse_result: Literal[False] = False,
-    ) -> Union[Dict, None]: ...
+    ) -> dict | None: ...
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     async def _get_race_from_bookmaker_market(
@@ -978,7 +966,7 @@ class BetwatchAsyncClient:
         market_id: str,
         query: DocumentNode,
         parse_result: bool = False,
-    ) -> Union[Race, Dict, None]:
+    ) -> Race | dict | None:
         log.info(f"Getting race from bookmaker market (id={market_id})")
         session = await self._setup_http_session()
         variables = {
@@ -995,7 +983,7 @@ class BetwatchAsyncClient:
         return None
 
     async def update_event_data(
-        self, race_id: str, column_name: str, data: List[SelectionData]
+        self, race_id: str, column_name: str, data: list[SelectionData]
     ):
         """
         Updates event data for a given race ID.
@@ -1030,7 +1018,7 @@ class BetwatchAsyncClient:
 
     async def get_race_last_updated_times(
         self, race_id: str
-    ) -> Dict[Union[Bookmaker, str], datetime]:
+    ) -> dict[Bookmaker | str, datetime]:
         """Get the last time each bookmaker was checked for a price update.
            This does not mean that the price was updated, just that the bookmaker was checked.
 
@@ -1050,7 +1038,7 @@ class BetwatchAsyncClient:
                 for link in race.links
                 if link.bookmaker and link.last_successful_price_update
             }
-        elif isinstance(race, Dict) and "links" in race:
+        elif isinstance(race, dict) and "links" in race:
             return {
                 link["bookmaker"]: link["last_successful_price_update"]
                 for link in race["links"]

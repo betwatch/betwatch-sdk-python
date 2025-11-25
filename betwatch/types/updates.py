@@ -1,6 +1,6 @@
-from typing import TypedDict, Union
+from typing import TypedDict
 
 
 class SelectionData(TypedDict):
     selection_id: str
-    value: Union[str, int, float]
+    value: str | int | float

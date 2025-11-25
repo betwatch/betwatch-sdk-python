@@ -2,7 +2,6 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Union
 
 import ciso8601
 
@@ -28,10 +27,10 @@ class Fluc:
 
 @dataclass
 class Price:
-    price: Union[float, None]
+    price: float | None
     _last_updated: str = field(metadata={"name": "lastUpdated"})
 
-    flucs: Optional[List[Fluc]] = field(default_factory=list)
+    flucs: list[Fluc] | None = field(default_factory=list)
 
     def __repr__(self) -> str:
         # calculate fluc drop %
@@ -48,7 +47,7 @@ class Price:
 
         return f"Price({self.price}, {self.last_updated}, {len(self.flucs) if self.flucs else 0} flucs)"
 
-    def get_price_at_time(self, at: datetime) -> Optional[Fluc]:
+    def get_price_at_time(self, at: datetime) -> Fluc | None:
         """Get the price/fluc at a certain time"""
         if not self.flucs:
             return None
@@ -73,18 +72,18 @@ class MarketPriceType(str, Enum):
 @dataclass
 class BookmakerMarket:
     id: str
-    _bookmaker: Union[Bookmaker, str] = field(metadata={"name": "bookmaker"})
-    selection_id: Optional[str] = field(metadata={"name": "selectionId"}, default=None)
-    race_id: Optional[str] = field(metadata={"name": "raceId"}, default=None)
-    _fixed_win: Union[None, Price, str] = field(
+    _bookmaker: Bookmaker | str = field(metadata={"name": "bookmaker"})
+    selection_id: str | None = field(metadata={"name": "selectionId"}, default=None)
+    race_id: str | None = field(metadata={"name": "raceId"}, default=None)
+    _fixed_win: None | Price | str = field(
         metadata={"name": "fixedWin"}, default=None
     )
-    _fixed_place: Union[None, Price, str] = field(
+    _fixed_place: None | Price | str = field(
         metadata={"name": "fixedPlace"}, default=None
     )
 
     @property
-    def fixed_win(self) -> Union[None, Price]:
+    def fixed_win(self) -> None | Price:
         # BUG: sometimes we get a string here instead of a Price object
         # and this crashes the subscription channel
         if isinstance(self._fixed_win, str):
@@ -92,7 +91,7 @@ class BookmakerMarket:
         return self._fixed_win
 
     @property
-    def fixed_place(self) -> Union[None, Price]:
+    def fixed_place(self) -> None | Price:
         # BUG: sometimes we get a string here instead of a Price object
         # and this crashes the subscription channel
         if isinstance(self._fixed_place, str):
@@ -100,7 +99,7 @@ class BookmakerMarket:
         return self._fixed_place
 
     @property
-    def bookmaker(self) -> Union[Bookmaker, str]:
+    def bookmaker(self) -> Bookmaker | str:
         try:
             if isinstance(self._bookmaker, str):
                 return Bookmaker(self._bookmaker)
@@ -120,7 +119,7 @@ class BookmakerMarket:
     def __str__(self) -> str:
         return self.__repr__()
 
-    def get_price(self, market_type: MarketPriceType) -> Optional[Price]:
+    def get_price(self, market_type: MarketPriceType) -> Price | None:
         if market_type == MarketPriceType.FIXED_WIN:
             return self.fixed_win
         if market_type == MarketPriceType.FIXED_PLACE:
@@ -132,7 +131,7 @@ class BookmakerMarket:
 class BetfairTick:
     price: float
     size: float
-    _last_updated: Optional[str] = field(metadata={"name": "lastUpdated"}, default=None)
+    _last_updated: str | None = field(metadata={"name": "lastUpdated"}, default=None)
 
     def __post_init__(self):
         self.last_updated = (
@@ -151,18 +150,18 @@ class BetfairMarket:
     total_matched: float = field(metadata={"name": "totalMatched"})
     market_total_matched: float = field(metadata={"name": "marketTotalMatched"})
     starting_price: float = field(metadata={"name": "sp"})
-    selection_id: Optional[str] = field(metadata={"name": "selectionId"}, default=None)
-    race_id: Optional[str] = field(metadata={"name": "raceId"}, default=None)
+    selection_id: str | None = field(metadata={"name": "selectionId"}, default=None)
+    race_id: str | None = field(metadata={"name": "raceId"}, default=None)
 
-    back: Optional[List[BetfairTick]] = field(default_factory=list)
-    lay: Optional[List[BetfairTick]] = field(default_factory=list)
+    back: list[BetfairTick] | None = field(default_factory=list)
+    lay: list[BetfairTick] | None = field(default_factory=list)
 
-    market_name: Optional[str] = field(metadata={"name": "marketName"}, default=None)
-    last_price_traded: Optional[float] = field(
+    market_name: str | None = field(metadata={"name": "marketName"}, default=None)
+    last_price_traded: float | None = field(
         metadata={"name": "lastPriceTraded"}, default=None
     )
-    market_id: Optional[str] = field(metadata={"name": "marketId"}, default=None)
+    market_id: str | None = field(metadata={"name": "marketId"}, default=None)
 
     @property
-    def sp(self) -> Union[float, None]:
+    def sp(self) -> float | None:
         return self.starting_price

@@ -2,7 +2,7 @@ import atexit
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Dict, List, Literal, Optional, Union, overload
+from typing import Literal, overload
 
 import backoff
 import typedload
@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 class BetwatchClient:
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         transport_logging_level: int = logging.WARNING,
         host="api.betwatch.com",
         request_timeout=60,
@@ -70,31 +70,31 @@ class BetwatchClient:
     @overload
     def get_races_between_dates(
         self,
-        date_from: Union[str, datetime],
-        date_to: Union[str, datetime],
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
+        date_from: str | datetime,
+        date_to: str | datetime,
+        projection: RaceProjection | None = None,
+        filter: RacesFilter | None = None,
         parse_result: Literal[True] = True,
-    ) -> List[Race]: ...
+    ) -> list[Race]: ...
 
     @overload
     def get_races_between_dates(
         self,
-        date_from: Union[str, datetime],
-        date_to: Union[str, datetime],
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
+        date_from: str | datetime,
+        date_to: str | datetime,
+        projection: RaceProjection | None = None,
+        filter: RacesFilter | None = None,
         parse_result: Literal[False] = False,
-    ) -> List[Dict]: ...
+    ) -> list[dict]: ...
 
     def get_races_between_dates(
         self,
-        date_from: Union[str, datetime],
-        date_to: Union[str, datetime],
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
+        date_from: str | datetime,
+        date_to: str | datetime,
+        projection: RaceProjection | None = None,
+        filter: RacesFilter | None = None,
         parse_result: bool = True,
-    ) -> Union[List[Race], List[Dict]]:
+    ) -> list[Race] | list[dict]:
         """Get a list of races in between two dates.
 
         Args:
@@ -131,25 +131,25 @@ class BetwatchClient:
     @overload
     def get_races(
         self,
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
+        projection: RaceProjection | None = None,
+        filter: RacesFilter | None = None,
         parse_result: Literal[True] = True,
-    ) -> List[Race]: ...
+    ) -> list[Race]: ...
 
     @overload
     def get_races(
         self,
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
+        projection: RaceProjection | None = None,
+        filter: RacesFilter | None = None,
         parse_result: Literal[False] = False,
-    ) -> List[Dict]: ...
+    ) -> list[dict]: ...
 
     def get_races(
         self,
-        projection: Optional[RaceProjection] = None,
-        filter: Optional[RacesFilter] = None,
+        projection: RaceProjection | None = None,
+        filter: RacesFilter | None = None,
         parse_result: bool = True,
-    ) -> Union[List[Race], List[Dict]]:
+    ) -> list[Race] | list[dict]:
         # handle defaults
         if not projection:
             projection = RaceProjection()
@@ -160,7 +160,7 @@ class BetwatchClient:
             log.info(f"Getting races with projection {projection} and filter {filter}")
 
             done = False
-            races: List[Race] = []
+            races: list[Race] = []
             # iterate until no more races are found
             while not done:
                 query = query_get_races(projection)
@@ -171,7 +171,7 @@ class BetwatchClient:
 
                 if result.get("races"):
                     if parse_result:
-                        races.extend(typedload.load(result["races"], List[Race]))
+                        races.extend(typedload.load(result["races"], list[Race]))
                     else:
                         races.extend(result["races"])
 
@@ -223,24 +223,24 @@ class BetwatchClient:
     def get_race(
         self,
         race_id: str,
-        projection: Optional[RaceProjection] = None,
+        projection: RaceProjection | None = None,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]: ...
+    ) -> Race | None: ...
 
     @overload
     def get_race(
         self,
         race_id: str,
-        projection: Optional[RaceProjection] = None,
+        projection: RaceProjection | None = None,
         parse_result: Literal[True] = True,
-    ) -> Union[Dict, None]: ...
+    ) -> dict | None: ...
 
     def get_race(
         self,
         race_id: str,
-        projection: Optional[RaceProjection] = None,
+        projection: RaceProjection | None = None,
         parse_result: bool = True,
-    ) -> Union[Race, Dict, None]:
+    ) -> Race | dict | None:
         # handle defaults
         if not projection:
             projection = RaceProjection(markets=True)
@@ -255,24 +255,24 @@ class BetwatchClient:
     def get_race_from_bookmaker_market(
         self,
         market_id: str,
-        projection: Optional[RaceProjection] = None,
+        projection: RaceProjection | None = None,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]: ...
+    ) -> Race | None: ...
 
     @overload
     def get_race_from_bookmaker_market(
         self,
         market_id: str,
-        projection: Optional[RaceProjection] = None,
+        projection: RaceProjection | None = None,
         parse_result: Literal[True] = True,
-    ) -> Union[Dict, None]: ...
+    ) -> dict | None: ...
 
     def get_race_from_bookmaker_market(
         self,
         market_id: str,
-        projection: Optional[RaceProjection] = None,
+        projection: RaceProjection | None = None,
         parse_result: bool = True,
-    ) -> Union[Race, Dict, None]:
+    ) -> Race | dict | None:
         # handle defaults
         if not projection:
             projection = RaceProjection(markets=True)
@@ -288,8 +288,8 @@ class BetwatchClient:
             )
 
     def get_races_today(
-        self, projection: Optional[RaceProjection] = None
-    ) -> List[Race]:
+        self, projection: RaceProjection | None = None
+    ) -> list[Race]:
         """Get all races for today."""
         today = datetime.now()
         tomorrow = datetime.now() + timedelta(days=0)
@@ -301,7 +301,7 @@ class BetwatchClient:
         race_id: str,
         query: DocumentNode,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]: ...
+    ) -> Race | None: ...
 
     @overload
     def _get_race_by_id(
@@ -309,7 +309,7 @@ class BetwatchClient:
         race_id: str,
         query: DocumentNode,
         parse_result: Literal[False] = False,
-    ) -> Union[Dict, None]: ...
+    ) -> dict | None: ...
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     def _get_race_by_id(
@@ -317,7 +317,7 @@ class BetwatchClient:
         race_id: str,
         query: DocumentNode,
         parse_result: bool = True,
-    ) -> Union[Race, Dict, None]:
+    ) -> Race | dict | None:
         log.info(f"Getting race (id={race_id})")
 
         variables = {
@@ -338,7 +338,7 @@ class BetwatchClient:
         market_id: str,
         query: DocumentNode,
         parse_result: Literal[True] = True,
-    ) -> Union[Race, None]: ...
+    ) -> Race | None: ...
 
     @overload
     def _get_race_from_bookmaker_market(
@@ -346,7 +346,7 @@ class BetwatchClient:
         market_id: str,
         query: DocumentNode,
         parse_result: Literal[False] = False,
-    ) -> Union[Dict, None]: ...
+    ) -> dict | None: ...
 
     @backoff.on_exception(backoff.expo, Exception, max_time=60, max_tries=5)
     def _get_race_from_bookmaker_market(
@@ -354,7 +354,7 @@ class BetwatchClient:
         market_id: str,
         query: DocumentNode,
         parse_result: bool = True,
-    ) -> Union[Race, Dict, None]:
+    ) -> Race | dict | None:
         log.info(f"Getting race from bookmaker market (market_id={market_id})")
 
         variables = {
@@ -370,7 +370,7 @@ class BetwatchClient:
         return None
 
     def update_event_data(
-        self, race_id: str, column_name: str, data: List[SelectionData]
+        self, race_id: str, column_name: str, data: list[SelectionData]
     ):
         """
         Updates event data for a given race ID.
@@ -404,7 +404,7 @@ class BetwatchClient:
 
     def get_race_last_updated_times(
         self, race_id: str
-    ) -> Dict[Union[Bookmaker, str], datetime]:
+    ) -> dict[Bookmaker | str, datetime]:
         """Get the last time each bookmaker was checked for a price update.
            This does not mean that the price was updated, just that the bookmaker was checked.
 
