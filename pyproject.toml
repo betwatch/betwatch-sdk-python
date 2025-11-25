@@ -17,6 +17,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
@@ -47,6 +49,7 @@ path = "betwatch/__about__.py"
 exclude = [".rye"]
 target-version = "py310"
 line-length = 120
+fix = true
 
 [tool.ruff.lint]
 # Enable Pyflakes, pycodestyle, isort, and other useful rules
@@ -61,7 +64,6 @@ select = [
 ]
 # Never enforce line length violations
 ignore = ["E501"]
-fix = true
 
 # Ignore import violations in __init__.py files
 [tool.ruff.lint.per-file-ignores]
