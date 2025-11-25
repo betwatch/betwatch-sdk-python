@@ -1,9 +1,10 @@
+import contextlib
 import dataclasses
 import json
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from enum import Enum
-from typing import List, Literal, Optional, Union
+from typing import Literal, Optional
 
 import ciso8601
 
@@ -19,8 +20,8 @@ from betwatch.types.markets import (
 @dataclass
 class SubscriptionUpdate:
     race_id: str
-    bookmaker_markets: List[BookmakerMarket] = field(default_factory=list)
-    betfair_markets: List[BetfairMarket] = field(default_factory=list)
+    bookmaker_markets: list[BookmakerMarket] = field(default_factory=list)
+    betfair_markets: list[BetfairMarket] = field(default_factory=list)
     race_update: Optional["RaceUpdate"] = None
 
 
@@ -51,7 +52,7 @@ class RaceStatus(str, Enum):
 @dataclass
 class Meeting:
     id: str
-    _type: Union[MeetingType, str] = field(metadata={"name": "type"})
+    _type: MeetingType | str = field(metadata={"name": "type"})
     date: str
     track: str
     location: str
@@ -60,7 +61,7 @@ class Meeting:
     # )
 
     @property
-    def type(self) -> Union[MeetingType, str]:
+    def type(self) -> MeetingType | str:
         try:
             if isinstance(self._type, str):
                 return MeetingType(self._type)
@@ -90,17 +91,11 @@ class Runner:
     emergency: bool
     # age: Optional[int] = None
 
-    _scratched_time: Optional[str] = field(
-        metadata={"name": "scratchedTime"}, default=None
-    )
+    _scratched_time: str | None = field(metadata={"name": "scratchedTime"}, default=None)
 
-    bookmaker_markets: Optional[List[BookmakerMarket]] = field(
-        metadata={"name": "bookmakerMarkets"}, default_factory=list
-    )
+    bookmaker_markets: list[BookmakerMarket] | None = field(metadata={"name": "bookmakerMarkets"}, default_factory=list)
 
-    betfair_markets: Optional[List[BetfairMarket]] = field(
-        metadata={"name": "betfairMarkets"}, default_factory=list
-    )
+    betfair_markets: list[BetfairMarket] | None = field(metadata={"name": "betfairMarkets"}, default_factory=list)
 
     def __str__(self) -> str:
         return f"{self.number}. {self.name}"
@@ -112,22 +107,13 @@ class Runner:
         return self._scratched_time is not None
 
     def __post_init__(self):
-        self.scratched_time = (
-            ciso8601.parse_datetime(self._scratched_time)
-            if self._scratched_time
-            else None
-        )
+        self.scratched_time = ciso8601.parse_datetime(self._scratched_time) if self._scratched_time else None
 
-    def get_bookmaker_market(
-        self, bookmaker: Union[Bookmaker, str]
-    ) -> Optional[BookmakerMarket]:
+    def get_bookmaker_market(self, bookmaker: Bookmaker | str) -> BookmakerMarket | None:
         # try to get bookmaker if passed as string
         if isinstance(bookmaker, str):
-            try:
+            with contextlib.suppress(ValueError):
                 bookmaker = Bookmaker(bookmaker)
-            except ValueError:
-                # If bookmaker is unknown, try to match as string
-                pass
 
         if not self.bookmaker_markets:
             return None
@@ -136,7 +122,7 @@ class Runner:
                 return market
         return None
 
-    def get_betfair_win_market(self) -> Optional[BetfairMarket]:
+    def get_betfair_win_market(self) -> BetfairMarket | None:
         if not self.betfair_markets:
             return None
         for market in self.betfair_markets:
@@ -144,7 +130,7 @@ class Runner:
                 return market
         return None
 
-    def get_betfair_place_market(self) -> Optional[BetfairMarket]:
+    def get_betfair_place_market(self) -> BetfairMarket | None:
         if not self.betfair_markets:
             return None
         for market in self.betfair_markets:
@@ -154,19 +140,19 @@ class Runner:
 
     def get_bookmaker_markets_by_price(
         self,
-        bookmakers: Optional[List[Bookmaker]] = None,
+        bookmakers: list[Bookmaker] | None = None,
         price_type: MarketPriceType = MarketPriceType.FIXED_WIN,
-        max_length: Optional[int] = None,
-    ) -> List[BookmakerMarket]:
+        max_length: int | None = None,
+    ) -> list[BookmakerMarket]:
         """Sorts the bookmaker markets for a runner with the given price type by price"""
         # handle defaults
         if not bookmakers:
-            bookmakers = [bookmaker for bookmaker in Bookmaker]
+            bookmakers = list(Bookmaker)
 
         if not self.bookmaker_markets:
             return []
-        best_markets: List[BookmakerMarket] = []
-        best_prices: List[Price] = []
+        best_markets: list[BookmakerMarket] = []
+        best_prices: list[Price] = []
         for market in self.bookmaker_markets:
             if market.bookmaker in bookmakers:
                 price = market.get_price(price_type)
@@ -196,32 +182,28 @@ class Runner:
 
     def get_highest_bookmaker_market(
         self,
-        bookmakers: Optional[List[Bookmaker]] = None,
+        bookmakers: list[Bookmaker] | None = None,
         market_type: MarketPriceType = MarketPriceType.FIXED_WIN,
-    ) -> Optional[BookmakerMarket]:
+    ) -> BookmakerMarket | None:
         """Returns the best bookmaker market for a runner with the given market type"""
         # handle defaults
         if not bookmakers:
-            bookmakers = [bookmaker for bookmaker in Bookmaker]
+            bookmakers = list(Bookmaker)
 
-        best_markets = self.get_bookmaker_markets_by_price(
-            bookmakers=bookmakers, price_type=market_type, max_length=1
-        )
+        best_markets = self.get_bookmaker_markets_by_price(bookmakers=bookmakers, price_type=market_type, max_length=1)
         if best_markets:
             return best_markets[0]
         return None
 
     def get_lowest_bookmaker_market(
         self,
-        bookmakers: Optional[List[Bookmaker]] = None,
-        market_type: Union[
-            Literal["FIXED_WIN", "FIXED_PLACE"], MarketPriceType
-        ] = MarketPriceType.FIXED_WIN,
-    ) -> Optional[BookmakerMarket]:
+        bookmakers: list[Bookmaker] | None = None,
+        market_type: Literal["FIXED_WIN", "FIXED_PLACE"] | MarketPriceType = MarketPriceType.FIXED_WIN,
+    ) -> BookmakerMarket | None:
         """Returns the worst bookmaker market for a runner with the given market type"""
         # handle defaults
         if not bookmakers:
-            bookmakers = [bookmaker for bookmaker in Bookmaker]
+            bookmakers = list(Bookmaker)
 
         # parse market type
         if isinstance(market_type, str):
@@ -231,9 +213,7 @@ class Runner:
                 # If market type is unknown, default to FIXED_WIN
                 market_type = MarketPriceType.FIXED_WIN
 
-        best_markets = self.get_bookmaker_markets_by_price(
-            bookmakers=bookmakers, price_type=market_type
-        )
+        best_markets = self.get_bookmaker_markets_by_price(bookmakers=bookmakers, price_type=market_type)
         if best_markets:
             return best_markets[-1]
         return None
@@ -241,22 +221,18 @@ class Runner:
 
 @dataclass
 class RaceLink:
-    _bookmaker: Union[Bookmaker, str] = field(metadata={"name": "bookmaker"})
-    nav_link: Optional[str] = field(metadata={"name": "navLink"}, default=None)
-    fixed_win_link: Optional[str] = field(metadata={"name": "fixedWin"}, default=None)
-    _last_successful_price_update: Optional[str] = field(
-        metadata={"name": "lastSuccessfulPriceUpdate"}, default=None
-    )
+    _bookmaker: Bookmaker | str = field(metadata={"name": "bookmaker"})
+    nav_link: str | None = field(metadata={"name": "navLink"}, default=None)
+    fixed_win_link: str | None = field(metadata={"name": "fixedWin"}, default=None)
+    _last_successful_price_update: str | None = field(metadata={"name": "lastSuccessfulPriceUpdate"}, default=None)
 
     def __post_init__(self):
         self.last_successful_price_update = (
-            ciso8601.parse_datetime(self._last_successful_price_update)
-            if self._last_successful_price_update
-            else None
+            ciso8601.parse_datetime(self._last_successful_price_update) if self._last_successful_price_update else None
         )
 
     @property
-    def bookmaker(self) -> Union[Bookmaker, str]:
+    def bookmaker(self) -> Bookmaker | str:
         try:
             if isinstance(self._bookmaker, str):
                 return Bookmaker(self._bookmaker)
@@ -276,11 +252,11 @@ class RaceUpdate:
     """Only the fields that are returned in the RacesUpdated query"""
 
     id: str
-    _status: Union[RaceStatus, str] = field(metadata={"name": "status"})
+    _status: RaceStatus | str = field(metadata={"name": "status"})
     _start_time: str = field(metadata={"name": "startTime"})
 
     @property
-    def status(self) -> Union[RaceStatus, str]:
+    def status(self) -> RaceStatus | str:
         try:
             if isinstance(self._status, str):
                 return RaceStatus(self._status)
@@ -317,34 +293,26 @@ class EnhancedJSONEncoder(json.JSONEncoder):
 class Race:
     id: str
 
-    _status: Optional[Union[RaceStatus, str]] = field(
-        metadata={"name": "status"}, default=None
-    )
+    _status: RaceStatus | str | None = field(metadata={"name": "status"}, default=None)
 
-    runners: Optional[List[Runner]] = None
+    runners: list[Runner] | None = None
 
-    meeting: Optional[Meeting] = None
-    number: Optional[int] = None
+    meeting: Meeting | None = None
+    number: int | None = None
 
-    name: Optional[str] = None
-    distance: Optional[int] = None
-    class_conditions: Optional[str] = field(
-        metadata={"name": "classConditions"}, default=None
-    )
-    track_condition: Optional[str] = field(
-        metadata={"name": "trackCondition"}, default=None
-    )
-    results: Optional[List[List[int]]] = None
+    name: str | None = None
+    distance: int | None = None
+    class_conditions: str | None = field(metadata={"name": "classConditions"}, default=None)
+    track_condition: str | None = field(metadata={"name": "trackCondition"}, default=None)
+    results: list[list[int]] | None = None
 
-    links: Optional[List[RaceLink]] = None
+    links: list[RaceLink] | None = None
 
-    _start_time: Optional[str] = field(metadata={"name": "startTime"}, default=None)
-    _actual_start_time: Optional[str] = field(
-        metadata={"name": "actualStartTime"}, default=None
-    )
+    _start_time: str | None = field(metadata={"name": "startTime"}, default=None)
+    _actual_start_time: str | None = field(metadata={"name": "actualStartTime"}, default=None)
 
     @property
-    def status(self) -> Optional[Union[RaceStatus, str]]:
+    def status(self) -> RaceStatus | str | None:
         if self._status is None:
             return None
         try:
@@ -365,22 +333,14 @@ class Race:
         return self.status == RaceStatus.OPEN
 
     def __post_init__(self):
-        self.start_time: Optional[datetime] = (
-            ciso8601.parse_datetime(self._start_time) if self._start_time else None
-        )
-        self.actual_start_time: Optional[datetime] = (
-            ciso8601.parse_datetime(self._actual_start_time)
-            if self._actual_start_time
-            else None
+        self.start_time: datetime | None = ciso8601.parse_datetime(self._start_time) if self._start_time else None
+        self.actual_start_time: datetime | None = (
+            ciso8601.parse_datetime(self._actual_start_time) if self._actual_start_time else None
         )
 
     def __str__(self) -> str:
         # format start_time in local timezone
-        st = (
-            self.start_time.astimezone().strftime(" [%d/%m/%Y %H:%M]")
-            if self.start_time
-            else ""
-        )
+        st = self.start_time.astimezone().strftime(" [%d/%m/%Y %H:%M]") if self.start_time else ""
 
         if self.meeting is None:
             return f"R{self.number} [{st}]"
@@ -389,17 +349,12 @@ class Race:
     def __repr__(self) -> str:
         return str(self)
 
-    def get_bookmaker_link(
-        self, bookmaker: Union[Bookmaker, str]
-    ) -> Optional[RaceLink]:
+    def get_bookmaker_link(self, bookmaker: Bookmaker | str) -> RaceLink | None:
         """Returns the link for the given bookmaker"""
         # parse bookmaker if string
         if isinstance(bookmaker, str):
-            try:
+            with contextlib.suppress(ValueError):
                 bookmaker = Bookmaker(bookmaker)
-            except ValueError:
-                # If bookmaker is unknown, try to match as string
-                pass
 
         if not self.links:
             return None
@@ -414,20 +369,18 @@ class Race:
     def get_runners_by_price(
         self,
         market_type: MarketPriceType,
-        bookmakers: Optional[List[Bookmaker]] = None,
-    ) -> List[Runner]:
+        bookmakers: list[Bookmaker] | None = None,
+    ) -> list[Runner]:
         """Sorts the runners by the given market types best price"""
         # handle defaults
         if not bookmakers:
-            bookmakers = [bookmaker for bookmaker in Bookmaker]
+            bookmakers = list(Bookmaker)
         if not self.runners:
             return []
-        best_runners: List[Runner] = []
-        best_prices: List[Price] = []
+        best_runners: list[Runner] = []
+        best_prices: list[Price] = []
         for runner in self.runners:
-            market = runner.get_highest_bookmaker_market(
-                market_type=market_type, bookmakers=bookmakers
-            )
+            market = runner.get_highest_bookmaker_market(market_type=market_type, bookmakers=bookmakers)
             if not market:
                 continue
             price = market.get_price(market_type)
@@ -446,9 +399,7 @@ class Race:
                 if not best_price or not best_price.price:
                     continue
                 # put price at back if zero
-                if (
-                    price.price < best_price.price or not best_price.price
-                ) and price.price > 1.01:
+                if (price.price < best_price.price or not best_price.price) and price.price > 1.01:
                     best_runners.insert(i, runner)
                     best_prices.insert(i, price)
                     break

@@ -1,11 +1,11 @@
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal
 
 from betwatch.types.bookmakers import Bookmaker
 from betwatch.types.race import MeetingType
 
 
-def get_australian_states() -> List[str]:
+def get_australian_states() -> list[str]:
     """Return a list of Australian states."""
     return [
         "ACT",
@@ -24,29 +24,15 @@ class RacesFilter:
         self,
         limit: int = 100,
         offset: int = 0,
-        types: Optional[List[Union[MeetingType, str]]] = None,
-        tracks: Optional[List[str]] = None,
-        locations: Optional[
-            Union[
-                List[str],
-                Literal["Australia"],
-                Literal["NZL"],
-                Literal["QLD"],
-                Literal["NSW"],
-                Literal["VIC"],
-                Literal["SA"],
-                Literal["WA"],
-                Literal["TAS"],
-                Literal["NT"],
-                Literal["ACT"],
-            ]
-        ] = None,
-        has_bookmakers: Optional[Union[List[Bookmaker], List[str]]] = None,
-        has_runners: Optional[List[str]] = None,
-        has_trainers: Optional[List[str]] = None,
-        has_riders: Optional[List[str]] = None,
-        date_from: Optional[Union[datetime, str]] = None,
-        date_to: Optional[Union[datetime, str]] = None,
+        types: list[MeetingType | str] | None = None,
+        tracks: list[str] | None = None,
+        locations: list[str] | Literal["Australia"] | Literal["NZL"] | Literal["QLD"] | Literal["NSW"] | Literal["VIC"] | Literal["SA"] | Literal["WA"] | Literal["TAS"] | Literal["NT"] | Literal["ACT"] | None = None,
+        has_bookmakers: list[Bookmaker] | list[str] | None = None,
+        has_runners: list[str] | None = None,
+        has_trainers: list[str] | None = None,
+        has_riders: list[str] | None = None,
+        date_from: datetime | str | None = None,
+        date_to: datetime | str | None = None,
     ) -> None:
         self.limit = limit
         self.offset = offset
@@ -80,7 +66,7 @@ class RacesFilter:
         self.date_from = date_from
         self.date_to = date_to
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to a dict."""
         return {
             "limit": self.limit,
@@ -112,7 +98,7 @@ class RaceProjection:
         flucs=False,
         links=False,
         betfair=False,
-        bookmakers: Optional[List[Union[Bookmaker, str]]] = None,
+        bookmakers: list[Bookmaker | str] | None = None,
     ) -> None:
         self.markets = markets
         self.place_markets = place_markets
