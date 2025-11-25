@@ -119,14 +119,12 @@ class BetwatchClient:
 
         # prefer the date_from and date_to passed into the function
         if filter.date_from and filter.date_from != date_from:
-            log.debug(
-                f"Overriding date_from in filter ({filter.date_from} with {date_from})"
-            )
+            log.debug(f"Overriding date_from in filter ({filter.date_from} with {date_from})")
             filter.date_from = date_from
         if filter.date_to and filter.date_to != date_to:
             log.debug(f"Overriding date_to in filter ({filter.date_to} with {date_to})")
             filter.date_to = date_to
-        return self.get_races(projection, filter)
+        return self.get_races(projection, filter, parse_result)
 
     @overload
     def get_races(
@@ -182,9 +180,7 @@ class BetwatchClient:
                         log.debug("Reached the end of the races")
                         break
 
-                    log.info(
-                        f"Received {len(result['races'])} races - attempting to get more..."
-                    )
+                    log.info(f"Received {len(result['races'])} races - attempting to get more...")
 
                     # change the offset to the next page
                     filter.offset += filter.limit
@@ -204,9 +200,7 @@ class BetwatchClient:
                         if "limit argument" in msg:
                             # adjust the limit and try again
 
-                            filter.limit = int(
-                                msg.split("limit argument less than")[1].strip()
-                            )
+                            filter.limit = int(msg.split("limit argument less than")[1].strip())
                             log.info(
                                 f"Cannot query more than {filter.limit} - adjusting limit to {filter.limit} and trying again"
                             )
@@ -279,17 +273,11 @@ class BetwatchClient:
         query = query_get_race_from_bookmaker_market(projection)
 
         if parse_result:
-            return self._get_race_from_bookmaker_market(
-                market_id, query, parse_result=True
-            )
+            return self._get_race_from_bookmaker_market(market_id, query, parse_result=True)
         else:
-            return self._get_race_from_bookmaker_market(
-                market_id, query, parse_result=False
-            )
+            return self._get_race_from_bookmaker_market(market_id, query, parse_result=False)
 
-    def get_races_today(
-        self, projection: RaceProjection | None = None
-    ) -> list[Race]:
+    def get_races_today(self, projection: RaceProjection | None = None) -> list[Race]:
         """Get all races for today."""
         today = datetime.now()
         tomorrow = datetime.now() + timedelta(days=0)
@@ -369,9 +357,7 @@ class BetwatchClient:
                 return result["raceFromBookmakerMarket"]
         return None
 
-    def update_event_data(
-        self, race_id: str, column_name: str, data: list[SelectionData]
-    ):
+    def update_event_data(self, race_id: str, column_name: str, data: list[SelectionData]):
         """
         Updates event data for a given race ID.
 
@@ -382,9 +368,7 @@ class BetwatchClient:
         """
 
         log.info(f"Updating event data (id={race_id})")
-        selection_data = [
-            {"selectionId": d["selection_id"], "value": str(d["value"])} for d in data
-        ]
+        selection_data = [{"selectionId": d["selection_id"], "value": str(d["value"])} for d in data]
 
         if not selection_data:
             raise ValueError("Cannot update event data with empty selection data")
@@ -394,17 +378,13 @@ class BetwatchClient:
             variable_values={
                 "input": {
                     "eventId": race_id,
-                    "customData": [
-                        {"columnName": column_name, "selectionData": selection_data}
-                    ],
+                    "customData": [{"columnName": column_name, "selectionData": selection_data}],
                 }
             },
         )
         log.debug(res)
 
-    def get_race_last_updated_times(
-        self, race_id: str
-    ) -> dict[Bookmaker | str, datetime]:
+    def get_race_last_updated_times(self, race_id: str) -> dict[Bookmaker | str, datetime]:
         """Get the last time each bookmaker was checked for a price update.
            This does not mean that the price was updated, just that the bookmaker was checked.
 

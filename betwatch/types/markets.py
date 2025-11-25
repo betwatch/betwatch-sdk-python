@@ -114,7 +114,7 @@ class BookmakerMarket:
             return self._bookmaker
 
     def __repr__(self) -> str:
-        return f"BookmakerMarket({str(self.bookmaker)}, FW:{self.fixed_win}, FP:{self.fixed_place})"
+        return f"BookmakerMarket({self.bookmaker!s}, FW:{self.fixed_win}, FP:{self.fixed_place})"
 
     def __str__(self) -> str:
         return self.__repr__()
