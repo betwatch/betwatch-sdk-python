@@ -2,7 +2,7 @@ name: Create Release
 
 permissions:
   contents: write
-  pull-requests: write
+  id-token: write
 
 on:
   workflow_dispatch:
@@ -74,53 +74,24 @@ jobs:
           
           cat release_notes.md
       
-      - name: Create Pull Request
-        id: create_pr
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore(release): bump version to ${{ steps.bump.outputs.version }}"
-          branch: release/v${{ steps.bump.outputs.version }}
-          title: "chore(release): v${{ steps.bump.outputs.version }}"
-          body-path: release_notes.md
-          labels: release
-          delete-branch: true
-      
-      - name: Enable Pull Request Automerge
-        if: steps.create_pr.outputs.pull-request-number != ''
-        run: gh pr merge --auto --squash "${{ steps.create_pr.outputs.pull-request-number }}"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Wait for PR merge and create release
-        if: steps.create_pr.outputs.pull-request-number != ''
+      - name: Push changes to main
         run: |
-          echo "Waiting for PR to be merged..."
-          for i in {1..30}; do
-            PR_STATE=$(gh pr view "${{ steps.create_pr.outputs.pull-request-number }}" --json state,mergedAt -q .state)
-            
-            if [ "$PR_STATE" = "MERGED" ]; then
-              echo "PR merged! Creating release..."
-              
-              # Pull latest changes
-              git fetch origin main
-              git checkout main
-              git pull origin main
-              
-              # Create GitHub release
-              gh release create "v${{ steps.bump.outputs.version }}" \
-                --title "v${{ steps.bump.outputs.version }}" \
-                --notes-file release_notes.md \
-                --target main
-              
-              exit 0
-            fi
-            
-            echo "PR state: $PR_STATE, waiting... (attempt $i/30)"
-            sleep 10
-          done
-          
-          echo "PR was not merged within the timeout period"
-          exit 1
+          git push origin main --follow-tags
+      
+      - name: Create GitHub release
+        run: |
+          gh release create "v${{ steps.bump.outputs.version }}" \
+            --title "v${{ steps.bump.outputs.version }}" \
+            --notes-file release_notes.md \
+            --target main
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build package
+        run: |
+          uv build
+      
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true
