@@ -760,14 +760,18 @@ class BetwatchAsyncClient:
 
             async for result in session.subscribe(query, variable_values=variables):
                 if result.get("priceUpdates"):
-                    update = SubscriptionUpdate(
-                        race_id=race_id,
-                        bookmaker_markets=typedload.load(
-                            result["priceUpdates"], List[BookmakerMarket]
-                        ),
-                    )
-
-                    self._subscription_queue.put_nowait(update)
+                    try:
+                        update = SubscriptionUpdate(
+                            race_id=race_id,
+                            bookmaker_markets=typedload.load(
+                                result["priceUpdates"], List[BookmakerMarket]
+                            ),
+                        )
+                        self._subscription_queue.put_nowait(update)
+                    except TypedloadException as e:
+                        log.warning(
+                            f"Failed to parse bookmaker price update for race {race_id}: {e}"
+                        )
         except TransportError as e:
             log.debug(f"Error subscribing to bookmaker updates: {e}")
 
@@ -838,13 +842,18 @@ class BetwatchAsyncClient:
 
             async for result in session.subscribe(query, variable_values=variables):
                 if result.get("betfairUpdates"):
-                    update = SubscriptionUpdate(
-                        race_id=race_id,
-                        betfair_markets=typedload.load(
-                            result["betfairUpdates"], List[BetfairMarket]
-                        ),
-                    )
-                    self._subscription_queue.put_nowait(update)
+                    try:
+                        update = SubscriptionUpdate(
+                            race_id=race_id,
+                            betfair_markets=typedload.load(
+                                result["betfairUpdates"], List[BetfairMarket]
+                            ),
+                        )
+                        self._subscription_queue.put_nowait(update)
+                    except TypedloadException as e:
+                        log.warning(
+                            f"Failed to parse betfair update for race {race_id}: {e}"
+                        )
 
         except TransportError as e:
             log.debug(f"Error subscribing to betfair updates: {e}")
@@ -889,12 +898,17 @@ class BetwatchAsyncClient:
 
             async for result in session.subscribe(query, variable_values=variables):
                 if result.get("racesUpdates"):
-                    ru = typedload.load(result["racesUpdates"], RaceUpdate)
-                    update = SubscriptionUpdate(
-                        race_id=ru.id,
-                        race_update=ru,
-                    )
-                    self._subscription_queue.put_nowait(update)
+                    try:
+                        ru = typedload.load(result["racesUpdates"], RaceUpdate)
+                        update = SubscriptionUpdate(
+                            race_id=ru.id,
+                            race_update=ru,
+                        )
+                        self._subscription_queue.put_nowait(update)
+                    except TypedloadException as e:
+                        log.warning(
+                            f"Failed to parse race update for {date_from} - {date_to}: {e}"
+                        )
 
         except TransportError as e:
             log.debug(f"Error subscribing to race updates: {e}")
@@ -1016,7 +1030,7 @@ class BetwatchAsyncClient:
 
     async def get_race_last_updated_times(
         self, race_id: str
-    ) -> Dict[Bookmaker, datetime]:
+    ) -> Dict[Union[Bookmaker, str], datetime]:
         """Get the last time each bookmaker was checked for a price update.
            This does not mean that the price was updated, just that the bookmaker was checked.
 
@@ -1024,7 +1038,7 @@ class BetwatchAsyncClient:
             race_id (str): race id to be checked
 
         Returns:
-            Dict[str, datetime]: dictionary with bookmaker name as key and datetime as value
+            Dict[Union[Bookmaker, str], datetime]: dictionary with bookmaker (or bookmaker name as string if unknown) as key and datetime as value
         """
         race = await self._get_race_by_id(
             race_id, QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE

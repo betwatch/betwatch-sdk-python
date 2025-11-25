@@ -51,13 +51,28 @@ class RaceStatus(str, Enum):
 @dataclass
 class Meeting:
     id: str
-    type: MeetingType
+    _type: Union[MeetingType, str] = field(metadata={"name": "type"})
     date: str
     track: str
     location: str
     # rail_position: Optional[str] = field(
     #     metadata={"name": "railPosition"}, default=None
     # )
+
+    @property
+    def type(self) -> Union[MeetingType, str]:
+        try:
+            if isinstance(self._type, str):
+                return MeetingType(self._type)
+            return self._type
+        except ValueError:
+            if isinstance(self._type, str):
+                # try to find enum value by name (case insensitive)
+                for mt in MeetingType:
+                    if mt.value.lower() == self._type.lower():
+                        return mt
+            # Return the string if meeting type is unknown
+            return self._type
 
     def __str__(self) -> str:
         return f"({self.type}) {self.track} [{self.date}]"
@@ -108,7 +123,11 @@ class Runner:
     ) -> Optional[BookmakerMarket]:
         # try to get bookmaker if passed as string
         if isinstance(bookmaker, str):
-            bookmaker = Bookmaker(bookmaker)
+            try:
+                bookmaker = Bookmaker(bookmaker)
+            except ValueError:
+                # If bookmaker is unknown, try to match as string
+                pass
 
         if not self.bookmaker_markets:
             return None
@@ -206,7 +225,11 @@ class Runner:
 
         # parse market type
         if isinstance(market_type, str):
-            market_type = MarketPriceType(market_type)
+            try:
+                market_type = MarketPriceType(market_type)
+            except ValueError:
+                # If market type is unknown, default to FIXED_WIN
+                market_type = MarketPriceType.FIXED_WIN
 
         best_markets = self.get_bookmaker_markets_by_price(
             bookmakers=bookmakers, price_type=market_type
@@ -233,18 +256,19 @@ class RaceLink:
         )
 
     @property
-    def bookmaker(self) -> Bookmaker:
+    def bookmaker(self) -> Union[Bookmaker, str]:
         try:
             if isinstance(self._bookmaker, str):
                 return Bookmaker(self._bookmaker)
             return self._bookmaker
-        except ValueError as e:
+        except ValueError:
             if isinstance(self._bookmaker, str):
                 # try to find enum value by name (case insensitive)
                 for bm in Bookmaker:
                     if bm.value.lower() == self._bookmaker.lower():
                         return bm
-            raise e
+            # Return the string if bookmaker is unknown instead of raising
+            return self._bookmaker
 
 
 @dataclass
@@ -252,8 +276,23 @@ class RaceUpdate:
     """Only the fields that are returned in the RacesUpdated query"""
 
     id: str
-    status: RaceStatus
+    _status: Union[RaceStatus, str] = field(metadata={"name": "status"})
     _start_time: str = field(metadata={"name": "startTime"})
+
+    @property
+    def status(self) -> Union[RaceStatus, str]:
+        try:
+            if isinstance(self._status, str):
+                return RaceStatus(self._status)
+            return self._status
+        except ValueError:
+            if isinstance(self._status, str):
+                # try to find enum value by name (case insensitive)
+                for rs in RaceStatus:
+                    if rs.value.lower() == self._status.lower():
+                        return rs
+            # Return the string if race status is unknown
+            return self._status
 
     def __post_init__(self):
         self.start_time = ciso8601.parse_datetime(self._start_time)
@@ -278,7 +317,9 @@ class EnhancedJSONEncoder(json.JSONEncoder):
 class Race:
     id: str
 
-    status: Optional[RaceStatus] = None
+    _status: Optional[Union[RaceStatus, str]] = field(
+        metadata={"name": "status"}, default=None
+    )
 
     runners: Optional[List[Runner]] = None
 
@@ -301,6 +342,23 @@ class Race:
     _actual_start_time: Optional[str] = field(
         metadata={"name": "actualStartTime"}, default=None
     )
+
+    @property
+    def status(self) -> Optional[Union[RaceStatus, str]]:
+        if self._status is None:
+            return None
+        try:
+            if isinstance(self._status, str):
+                return RaceStatus(self._status)
+            return self._status
+        except ValueError:
+            if isinstance(self._status, str):
+                # try to find enum value by name (case insensitive)
+                for rs in RaceStatus:
+                    if rs.value.lower() == self._status.lower():
+                        return rs
+            # Return the string if race status is unknown
+            return self._status
 
     def is_open(self) -> bool:
         # NOTE: Perhaps this should raise an exception if the Race object does not have a status
@@ -337,7 +395,11 @@ class Race:
         """Returns the link for the given bookmaker"""
         # parse bookmaker if string
         if isinstance(bookmaker, str):
-            bookmaker = Bookmaker(bookmaker)
+            try:
+                bookmaker = Bookmaker(bookmaker)
+            except ValueError:
+                # If bookmaker is unknown, try to match as string
+                pass
 
         if not self.links:
             return None

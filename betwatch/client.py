@@ -402,7 +402,9 @@ class BetwatchClient:
         )
         log.debug(res)
 
-    def get_race_last_updated_times(self, race_id: str) -> Dict[Bookmaker, datetime]:
+    def get_race_last_updated_times(
+        self, race_id: str
+    ) -> Dict[Union[Bookmaker, str], datetime]:
         """Get the last time each bookmaker was checked for a price update.
            This does not mean that the price was updated, just that the bookmaker was checked.
 
@@ -410,7 +412,7 @@ class BetwatchClient:
             race_id (str): race id to be checked
 
         Returns:
-            Dict[str, datetime]: dictionary with bookmaker name as key and datetime as value
+            Dict[Union[Bookmaker, str], datetime]: dictionary with bookmaker (or bookmaker name as string if unknown) as key and datetime as value
         """
         race = self._get_race_by_id(race_id, QUERY_GET_LAST_SUCCESSFUL_PRICE_UPDATE)
         if not race or not race.links:
