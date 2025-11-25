@@ -1,0 +1,126 @@
+name: Create Release
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+      
+      - name: Install dependencies
+        run: |
+          uv sync
+      
+      - name: Install git-cliff
+        run: |
+          wget https://github.com/orhun/git-cliff/releases/download/v2.7.0/git-cliff-2.7.0-x86_64-unknown-linux-gnu.tar.gz
+          tar -xzf git-cliff-2.7.0-x86_64-unknown-linux-gnu.tar.gz
+          sudo mv git-cliff-2.7.0/git-cliff /usr/local/bin/
+          chmod +x /usr/local/bin/git-cliff
+      
+      - name: Bump version using commitizen
+        id: bump
+        run: |
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Bump version and capture new version
+          uv run cz bump --yes --increment ${{ inputs.bump }}
+          NEW_VERSION=$(uv run cz version --project)
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+      
+      - name: Generate changelog for release notes
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          CURRENT_TAG="v${{ steps.bump.outputs.version }}"
+          
+          if [ -z "$PREV_TAG" ]; then
+            echo "First release - generating full changelog"
+            git-cliff --unreleased --strip all > release_notes.md
+          else
+            echo "Generating changelog from $PREV_TAG to $CURRENT_TAG"
+            git-cliff $PREV_TAG..$CURRENT_TAG --strip all > release_notes.md
+          fi
+          
+          cat release_notes.md
+      
+      - name: Create Pull Request
+        id: create_pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(release): bump version to ${{ steps.bump.outputs.version }}"
+          branch: release/v${{ steps.bump.outputs.version }}
+          title: "chore(release): v${{ steps.bump.outputs.version }}"
+          body-path: release_notes.md
+          labels: release
+          delete-branch: true
+      
+      - name: Enable Pull Request Automerge
+        if: steps.create_pr.outputs.pull-request-number != ''
+        run: gh pr merge --auto --squash "${{ steps.create_pr.outputs.pull-request-number }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Wait for PR merge and create release
+        if: steps.create_pr.outputs.pull-request-number != ''
+        run: |
+          echo "Waiting for PR to be merged..."
+          for i in {1..30}; do
+            PR_STATE=$(gh pr view "${{ steps.create_pr.outputs.pull-request-number }}" --json state,mergedAt -q .state)
+            
+            if [ "$PR_STATE" = "MERGED" ]; then
+              echo "PR merged! Creating release..."
+              
+              # Pull latest changes
+              git fetch origin main
+              git checkout main
+              git pull origin main
+              
+              # Create GitHub release
+              gh release create "v${{ steps.bump.outputs.version }}" \
+                --title "v${{ steps.bump.outputs.version }}" \
+                --notes-file release_notes.md \
+                --target main
+              
+              exit 0
+            fi
+            
+            echo "PR state: $PR_STATE, waiting... (attempt $i/30)"
+            sleep 10
+          done
+          
+          echo "PR was not merged within the timeout period"
+          exit 1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

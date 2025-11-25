@@ -1,15 +1,19 @@
-name: Test releases
+name: CI
 
 permissions:
   contents: read
 
-on: [push]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 env:
   API_KEY: ${{ secrets.BETWATCH_API_KEY }}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.sha }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -25,14 +29,19 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-      - name: Install ourself
+          uv sync --frozen
+      - name: Run linting
         run: |
-          pip install -r requirements-dev.lock
+          uv run ruff check .
+      - name: Run type checking
+        run: |
+          uv run basedpyright
       - name: Run tests
         run: |
-          pytest
+          uv run pytest
         env:
           BETWATCH_API_KEY: ${{ secrets.BETWATCH_API_KEY }}
