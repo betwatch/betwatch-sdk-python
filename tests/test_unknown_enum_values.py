@@ -1,5 +1,7 @@
 """Test that unknown enum values are handled gracefully"""
 
+import pytest
+
 from betwatch.types import Bookmaker
 from betwatch.types.markets import BookmakerMarket
 from betwatch.types.race import (
@@ -75,6 +77,35 @@ def test_case_insensitive_bookmaker():
     # Should match case-insensitively and return the enum
     assert race_link.bookmaker == Bookmaker.SPORTSBET
     assert isinstance(race_link.bookmaker, Bookmaker)
+
+
+@pytest.mark.parametrize(
+    ("raw_bookmaker", "enum_bookmaker"),
+    [
+        ("CrownBet", Bookmaker.CROWNBET),
+        ("UpYaGo", Bookmaker.UPYAGO),
+        ("BetAus", Bookmaker.BETAUS),
+        ("BetLocal", Bookmaker.BETLOCAL),
+        ("BetSupreme", Bookmaker.BETSUPREME),
+        ("BetYouCan", Bookmaker.BETYOUCAN),
+        ("BetZooka", Bookmaker.BETZOOKA),
+        ("EarlyCrow", Bookmaker.EARLYCROW),
+        ("FatBet", Bookmaker.FATBET),
+        ("KnuckleBet", Bookmaker.KNUCKLEBET),
+        ("Next2Go", Bookmaker.NEXT2GO),
+        ("PuntX", Bookmaker.PUNTX),
+        ("TerryBet", Bookmaker.TERRYBET),
+    ],
+)
+def test_new_bookmakers_are_known(raw_bookmaker, enum_bookmaker):
+    """Test that newly added bookmakers resolve to enum values"""
+    market = BookmakerMarket(
+        id="test123",
+        _bookmaker=raw_bookmaker,
+    )
+
+    assert market.bookmaker == enum_bookmaker
+    assert isinstance(market.bookmaker, Bookmaker)
 
 
 def test_meeting_unknown_type():

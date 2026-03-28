@@ -103,6 +103,19 @@ class Bookmaker(str, Enum):
     TRADIEBET = "Tradiebet"
     TABNZ = "Tab NZ"
     BETLEGENDS = "BetLegends"
+    CROWNBET = "CrownBet"
+    UPYAGO = "UpYaGo"
+    BETAUS = "BetAus"
+    BETLOCAL = "BetLocal"
+    BETSUPREME = "BetSupreme"
+    BETYOUCAN = "BetYouCan"
+    BETZOOKA = "BetZooka"
+    EARLYCROW = "EarlyCrow"
+    FATBET = "FatBet"
+    KNUCKLEBET = "KnuckleBet"
+    NEXT2GO = "Next2Go"
+    PUNTX = "PuntX"
+    TERRYBET = "TerryBet"
 
     def __str__(self):
         return self.value
