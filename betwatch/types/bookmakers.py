@@ -101,6 +101,7 @@ class Bookmaker(str, Enum):
     VINBET = "Vinbet"
     BETCHAMPS = "Betchamps"
     TRADIEBET = "Tradiebet"
+    BETBUNKER = "Betbunker"
     TABNZ = "Tab NZ"
     BETLEGENDS = "BetLegends"
     CROWNBET = "CrownBet"
