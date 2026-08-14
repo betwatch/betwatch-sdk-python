@@ -1,3 +1,9 @@
+## v1.7.4 (2026-08-14)
+
+### Fix
+
+- add BetBunker bookmaker
+
 ## v1.7.3 (2026-03-28)
 
 ### Fix
