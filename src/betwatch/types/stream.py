@@ -8,6 +8,7 @@ import msgspec
 from .common import Model
 from .coverage import Coverage
 from .entrant import Entrant
+from .enums import EventStatus
 from .market import Market
 from .odds import Odds
 from .outcome import Outcome
@@ -17,7 +18,7 @@ class StreamEvent(Model):
     """Lightweight event payload on the live stream (not the full REST Event)."""
 
     id: str
-    status: str
+    status: EventStatus
     start_at: datetime | None = None
     updated_at: datetime | None = None
 

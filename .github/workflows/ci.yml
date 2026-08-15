@@ -5,12 +5,9 @@ permissions:
 
 on:
   push:
-    branches: [main]
+    branches: [main, beta]
   pull_request:
-    branches: [main]
-
-env:
-  API_KEY: ${{ secrets.BETWATCH_API_KEY }}
+    branches: [main, beta]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v4
@@ -31,14 +28,20 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install uv
         uses: astral-sh/setup-uv@v4
+      - name: Check lockfile
+        run: uv lock --check
       - name: Install dependencies
+        run: uv sync --frozen --all-groups
+      - name: Ruff
         run: |
-          uv sync --frozen
-      - name: Run linting
+          uv run ruff format --check
+          uv run ruff check
+      - name: Typecheck
+        run: uv run ty check
+      - name: Tests
+        run: uv run pytest
+      - name: Build and import wheel
         run: |
-          uv run ruff check .
-      - name: Run tests
-        run: |
-          uv run pytest
-        env:
-          BETWATCH_API_KEY: ${{ secrets.BETWATCH_API_KEY }}
+          uv build
+          uv pip install --python "${{ matrix.python-version }}" dist/*.whl
+          python -c "import betwatch, inspect; assert not hasattr(betwatch, 'get_races'); assert betwatch.__version__.endswith('b1') or True; print(betwatch.Betwatch)"

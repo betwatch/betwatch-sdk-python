@@ -140,3 +140,13 @@ playground/
 .DS_Store
 .mise.toml
 .mise.**
+
+# fnox — machine-local secrets, including ciphertext
+fnox.toml
+fnox.local.toml
+.fnox.toml
+.fnox/
+age.txt
+*.age
+.firehose-cursor
+.firehose-cursor-*

@@ -1,96 +1,43 @@
-name: Create Release
+name: Publish
 
 permissions:
-  contents: write
+  contents: read
   id-token: write
 
 on:
+  push:
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
-      bump:
-        description: 'Version bump type'
+      tag:
+        description: "Existing tag to publish (e.g. v2.0.0b1)"
         required: true
-        type: choice
-        options:
-          - major
-          - minor
-          - patch
+        type: string
 
 jobs:
-  release:
+  publish:
     runs-on: ubuntu-latest
+    environment: pypi
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-      
-      - name: Install dependencies
+      - uses: astral-sh/setup-uv@v4
+      - name: Check tag matches package version
         run: |
-          uv sync
-      
-      - name: Install git-cliff
+          TAG="${{ inputs.tag || github.ref_name }}"
+          TAG="${TAG#v}"
+          VERSION=$(python -c "import pathlib; t=pathlib.Path('src/betwatch/__about__.py').read_text(); print([l.split('=')[1].strip().strip(chr(34).join(chr(39))) for l in t.splitlines() if l.startswith('__version__')][0])")
+          test "$TAG" = "$VERSION"
+      - name: Test
         run: |
-          wget https://github.com/orhun/git-cliff/releases/download/v2.7.0/git-cliff-2.7.0-x86_64-unknown-linux-gnu.tar.gz
-          tar -xzf git-cliff-2.7.0-x86_64-unknown-linux-gnu.tar.gz
-          sudo mv git-cliff-2.7.0/git-cliff /usr/local/bin/
-          chmod +x /usr/local/bin/git-cliff
-      
-      - name: Bump version using commitizen
-        id: bump
-        run: |
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Bump version and capture new version
-          uv run cz bump --yes --increment ${{ inputs.bump }}
-          NEW_VERSION=$(uv run cz version --project)
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "New version: $NEW_VERSION"
-      
-      - name: Generate changelog for release notes
-        id: changelog
-        run: |
-          # Get the previous tag
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
-          CURRENT_TAG="v${{ steps.bump.outputs.version }}"
-          
-          if [ -z "$PREV_TAG" ]; then
-            echo "First release - generating full changelog"
-            git-cliff --unreleased --strip all > release_notes.md
-          else
-            echo "Generating changelog from $PREV_TAG to $CURRENT_TAG"
-            git-cliff $PREV_TAG..$CURRENT_TAG --strip all > release_notes.md
-          fi
-          
-          cat release_notes.md
-      
-      - name: Push changes to main
-        run: |
-          git push origin main --follow-tags
-      
-      - name: Create GitHub release
-        run: |
-          gh release create "v${{ steps.bump.outputs.version }}" \
-            --title "v${{ steps.bump.outputs.version }}" \
-            --notes-file release_notes.md \
-            --target main
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Build package
-        run: |
+          uv sync --frozen --all-groups
+          uv run pytest
           uv build
-      
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:

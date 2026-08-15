@@ -3,7 +3,7 @@
 Preferred workflow for agents and humans:
 
 ```python
-from betwatch import Betwatch, OddsFrame
+from betwatch import Betwatch, EventStatuses, OddsFrame
 
 with Betwatch() as client:
     page = client.events.list(sport="thoroughbred", country="au", limit=5)
@@ -11,7 +11,8 @@ with Betwatch() as client:
         print(live.snapshot.event.name)
         for frame in live:
             if isinstance(frame, OddsFrame):
-                print(frame.data.source.id, frame.data.price)
+                if live.snapshot.event.status == EventStatuses.OPEN:
+                    print(frame.data.source.id, frame.data.price)
 ```
 
 There is no `get_races`. Events are races; entrants are runners.
@@ -45,6 +46,8 @@ from .types import (
     EventFrame,
     EventPage,
     EventSnapshot,
+    EventStatus,
+    EventStatuses,
     Market,
     MarketFrame,
     Meeting,
@@ -55,6 +58,8 @@ from .types import (
     Outcome,
     ReadyFrame,
     Source,
+    Sport,
+    Sports,
     StreamFrame,
     SyncFrame,
     UnknownFrame,
@@ -86,6 +91,8 @@ __all__ = [
     "EventFrame",
     "EventPage",
     "EventSnapshot",
+    "EventStatus",
+    "EventStatuses",
     "FilterRequiredError",
     "InternalServerError",
     "Market",
@@ -102,6 +109,8 @@ __all__ = [
     "ReadyFrame",
     "ResyncRequired",
     "Source",
+    "Sport",
+    "Sports",
     "StreamFrame",
     "SyncFrame",
     "UnprocessableEntityError",

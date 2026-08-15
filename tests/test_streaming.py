@@ -19,7 +19,7 @@ def test_decoder_parses_named_event_and_keeps_last_event_id() -> None:
         b"event: odds\n"
         b'data: {"id":"odd_1","eventId":"evt_1","marketId":"mkt_1","outcomeId":"out_1",'
         b'"source":{"id":"sportsbet","name":"Sportsbet","kind":"bookmaker"},'
-        b'"state":"priced","price":3.2}\n'
+        b'"state":"available","price":3.2}\n'
         b"\n"
     )
     events = list(SSEDecoder().iter_bytes(iter([raw[:17], raw[17:40], raw[40:]])))
@@ -75,6 +75,25 @@ def test_iter_sse_skips_comments_and_frame_policy_skips_ping() -> None:
     assert frames[1] is not None
     assert frames[1].type == "event"
     assert frames[1].cursor == "cur_event"
+
+
+def test_error_frame_incomplete_snapshot_is_resync() -> None:
+    raw = b'id: cur_err\nevent: error\ndata: {"code":"incomplete_snapshot","detail":"hydrate failed","traceId":"abc"}\n\n'
+    events = list(SSEDecoder().iter_bytes(iter([raw])))
+    with pytest.raises(ResyncRequired) as raised:
+        frame_from_sse(events[0])
+    assert raised.value.reason == "incomplete_snapshot"
+
+
+def test_error_frame_other_codes_are_status_errors() -> None:
+    from betwatch import APIStatusError
+
+    raw = b'id: cur_err\nevent: error\ndata: {"code":"stream_unavailable","detail":"nats down","traceId":"abc"}\n\n'
+    events = list(SSEDecoder().iter_bytes(iter([raw])))
+    with pytest.raises(APIStatusError) as raised:
+        frame_from_sse(events[0])
+    assert raised.value.code == "stream_unavailable"
+    assert raised.value.trace_id == "abc"
 
 
 def test_frame_from_sse_raises_resync_and_stops_retry() -> None:
@@ -176,6 +195,7 @@ def test_stream_open_409_is_resync_required() -> None:
 
     class FakeResponse:
         status_code = 409
+        headers = {"x-trace-id": "trace-409"}
 
         def read(self) -> bytes:
             return b'{"code":"cursor_scope_changed","detail":"cursor does not match this stream scope"}'
@@ -220,6 +240,34 @@ def test_stream_enter_does_not_retry_auth_errors() -> None:
             with stream:
                 pass
         assert calls["n"] == 1
+    finally:
+        client.close()
+
+
+def test_stream_clean_close_before_sync_is_resync() -> None:
+    from betwatch import Betwatch, ResyncRequired
+    from betwatch._client import Stream
+
+    client = Betwatch(api_key="bw_test", base_url="http://127.0.0.1:9")
+    stream = Stream(client, {"snapshot": "full"}, reconnect=True)
+
+    class FakeResponse:
+        def iter_bytes(self):
+            return iter(
+                (
+                    b"id: cur_ready\nevent: ready\ndata: {\"cursor\":\"cur_ready\"}\n\n",
+                    b"id: cur_ready\nevent: event\ndata: {\"id\":\"evt_1\",\"status\":\"open\"}\n\n",
+                )
+            )
+
+        def close(self) -> None:
+            return None
+
+    object.__setattr__(stream, "_response", FakeResponse())
+    try:
+        with pytest.raises(ResyncRequired) as raised:
+            list(stream)
+        assert raised.value.reason == "incomplete_snapshot"
     finally:
         client.close()
 

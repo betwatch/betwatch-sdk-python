@@ -3,120 +3,99 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/betwatch.svg)](https://pypi.org/project/betwatch)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/betwatch.svg)](https://pypi.org/project/betwatch)
 
------
-The Betwatch Python SDK allows you to interact with the [Betwatch.com](https://www.betwatch.com) API to integrate up to date racing price data into your Python applications.
+Public `/v1` REST + SSE client. **`2.0.0b1` on the `beta` branch** — not the
+GraphQL 1.x `get_races` client.
 
-### Disclaimer
-This library is provided on a best-effort basis in order to lower the barrier of entry for accessing the Betwatch API. No guarantees are made for the reliability of this library and development will be ongoing.
+Agents: read [`AGENTS.md`](AGENTS.md) first.
 
-## Installation
+## Install
 
 ```console
-pip install betwatch
+pip install betwatch==2.0.0b1
+# or, from the beta branch:
+# pip install "betwatch @ git+https://github.com/betwatch/betwatch-sdk-python@beta"
 ```
 
-## Usage
-See [examples](https://github.com/betwatch/betwatch-sdk-python/tree/main/examples)
+Secrets live in a **gitignored** `fnox.toml`, encrypted to this machine's age
+key (`~/.config/fnox/age.txt`). Ciphertext is not committed.
 
-A Betwatch API key is required. Please contact [api@betwatch.com](mailto:api@betwatch.com) for more information.
+```console
+fnox exec -- uv run examples/live_check.py          # local → http://127.0.0.1:8888
+fnox exec --profile prod -- uv run examples/watch_event.py
+```
+
+Or set `BETWATCH_API_KEY` yourself. Optional `BETWATCH_API_URL` (default
+`https://api-beta.betwatch.com`). `FNOX_PROFILE=prod` selects the hosted API.
+
+## Usage
+
+See [examples](examples) — the same use cases as 1.x (`get_races`,
+`get_race_prices`, `subscriptions`), plus `firehose.py` for every
+code with a resumable cursor, and `tui.py` for a Textual raceday grid.
+
+```python
+from betwatch import Betwatch, OddsFrame
+
+with Betwatch() as client:
+    page = client.events.list(sport="thoroughbred", country="au", limit=5)
+    event = page[0]
+    print(event.name, event.start_at, event.racing.race_number)
+
+    with client.watch(event.id) as live:
+        print(live.snapshot.event.name, "runners", len(live.snapshot.entrants))
+        for frame in live:
+            if isinstance(frame, OddsFrame):
+                print(frame.data.source.id, frame.data.price)
+```
+
+Dump to pandas without caring that the backend is msgspec:
+
+```python
+import pandas as pd
+
+card = client.events.snapshot(event.id)
+df = pd.DataFrame.from_records(card.to_records())
+```
+
+Sync and async clients share one resource tree (`AsyncBetwatch`).
+
+## TUI
+
+`examples/tui.py` is a Textual demo (not part of the installed package). Left
+pane is the raceday list **ordered by time-to-jump**; right pane is the runner
+× bookmaker grid. The selected race follows live `/v1/stream`.
+
+```console
+uv sync
+fnox exec -- uv run examples/tui.py
+fnox exec -- uv run examples/tui.py --sport harness --country au
+```
+
+`1`/`2`/`3` switch code, `n` jumps to the next race, `w`/`p` is win/place,
+`/` filters tracks, `?` is help.
 
 ## Development
 
-### Setup
-
-Install dependencies using `uv`:
 ```console
 uv sync
-```
-
-Install pre-commit hooks:
-```console
-pre-commit install --hook-type commit-msg
-```
-
-### Commit Convention
-
-This project follows [Conventional Commits](https://www.conventionalcommits.org/) for automatic changelog generation. All commit messages must follow this format:
-
-```
-<type>(<scope>): <subject>
-
-[optional body]
-
-[optional footer]
-```
-
-**Types:**
-- `feat`: A new feature (triggers minor version bump)
-- `fix`: A bug fix (triggers patch version bump)
-- `docs`: Documentation only changes
-- `style`: Changes that don't affect code meaning (white-space, formatting)
-- `refactor`: Code change that neither fixes a bug nor adds a feature
-- `perf`: Performance improvement
-- `test`: Adding missing tests
-- `chore`: Changes to build process or auxiliary tools
-
-**Breaking Changes:**
-Add `!` after the type or `BREAKING CHANGE:` in the footer to trigger a major version bump.
-
-**Examples:**
-```bash
-feat: add support for new market types
-fix: resolve race condition in async client
-docs: update API examples
-feat!: change API endpoint structure
-```
-
-The pre-commit hook will validate your commit messages automatically.
-
-### Running Tests
-
-```console
+uv run ruff check
+uv run ty check
 uv run pytest
 ```
 
-### Linting and Type Checking
+Live check against a local API:
 
 ```console
-uv run ruff check .
-uv run basedpyright
-```
-
-### Generating Changelog Locally
-
-To see what the changelog would look like:
-```console
-git-cliff --unreleased
+export BETWATCH_API_KEY=bw_...
+export BETWATCH_API_URL=http://localhost:8888
+uv run examples/live_check.py run-1
 ```
 
 ## Releasing
 
-This project uses GitHub Actions for automated releases and publishing to PyPI.
+Tag the exact version in `src/betwatch/__about__.py` (`v2.0.0b1`) and push the
+tag. `.github/workflows/release.yml` builds that commit, checks the tag matches
+the package version, and publishes with PyPI Trusted Publishing. Do not bump
+versions from CI.
 
-### Release Process
-
-1. Go to the [Actions tab](https://github.com/betwatch/betwatch-sdk-python/actions/workflows/release.yml) in GitHub
-2. Click "Run workflow"
-3. Enter the new version number (e.g., `1.8.0`)
-4. Select the release type (`major`, `minor`, or `patch`)
-5. Click "Run workflow"
-
-This will:
-- Create a release branch with the version bump
-- Generate a changelog from recent commits
-- Create a Pull Request for the release
-- Auto-merge the PR (if CI passes)
-- Create a GitHub release with the changelog
-- Trigger the publish workflow to upload to PyPI
-
-### Manual Release
-
-If you need to create a release manually:
-
-1. Update the version in `pyproject.toml`
-2. Commit the change: `git commit -am "chore: bump version to X.Y.Z"`
-3. Create a tag: `git tag vX.Y.Z`
-4. Push the tag: `git push origin vX.Y.Z`
-5. Create a GitHub release from the tag
-
-The publish workflow will automatically upload to PyPI when a GitHub release is published.
+Changelog locally: `uv run git-cliff --unreleased`.
