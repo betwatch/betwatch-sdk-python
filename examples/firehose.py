@@ -1,7 +1,8 @@
 """All-code firehose. Resume from the last SSE cursor.
 
 First run snapshots quietly, then prints live ticks only. Unchanged
-republishes are dropped. Pass --verbose to dump every frame.
+republishes are dropped. Default scope is every country the key can
+see — pass --country au to narrow.
 
     fnox exec --profile prod -- uv run examples/firehose.py --reset-all-cursors
 """
@@ -10,7 +11,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from time import sleep
 from urllib.parse import urlparse
@@ -24,10 +25,12 @@ from betwatch import (
     EntrantFrame,
     EventFrame,
     OddsFrame,
+    OddsSetFrame,
     ReadyFrame,
     ResyncRequired,
     SyncFrame,
 )
+from betwatch.types.stream import iter_odds
 
 
 def _ts() -> str:
@@ -71,6 +74,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Print every snapshot and unchanged frame.",
     )
+    parser.add_argument(
+        "--country",
+        action="append",
+        default=None,
+        help="Optional country filter (repeatable). Default: every country the key can see.",
+    )
     return parser.parse_args(argv)
 
 
@@ -84,9 +93,6 @@ def _odds_delta(prev: float | None, price: float | None) -> str:
 
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
-    now = datetime.now(UTC)
-    start_from = (now - timedelta(hours=2)).isoformat().replace("+00:00", "Z")
-    start_to = (now + timedelta(hours=24)).isoformat().replace("+00:00", "Z")
     last_price: dict[tuple[str, str, str, str], float | None] = {}
     last_event: dict[str, str] = {}
     last_entrant: dict[str, tuple[bool, str]] = {}
@@ -97,7 +103,8 @@ def main(argv: list[str] | None = None) -> None:
             _reset_cursors(cursor_file, all_hosts=args.reset_all_cursors)
         last = cursor_file.read_text().strip() if cursor_file.exists() else None
         live = bool(last)
-        print(_ts(), "connect", client.base_url, "cursor", bool(last), flush=True)
+        scope = ",".join(args.country) if args.country else "all-countries"
+        print(_ts(), "connect", client.base_url, "cursor", bool(last), "scope", scope, flush=True)
         while True:
             snap_counts: Counter[str] = Counter()
             snap_sources: Counter[str] = Counter()
@@ -106,9 +113,7 @@ def main(argv: list[str] | None = None) -> None:
                 print(_ts(), "open", snapshot, flush=True)
                 with client.stream(
                     sport=["thoroughbred", "greyhound", "harness"],
-                    country="au",
-                    start_from=start_from,
-                    start_to=start_to,
+                    country=args.country,
                     snapshot=snapshot,
                     cursor=last,
                 ) as stream:
@@ -132,29 +137,29 @@ def main(argv: list[str] | None = None) -> None:
                                 "— ticks after this are live",
                                 flush=True,
                             )
-                        elif isinstance(frame, OddsFrame):
-                            q = frame.data
-                            key = (q.event_id, q.entrant_id or "", q.source.id, q.market_id)
-                            prev = last_price.get(key)
-                            last_price[key] = q.price
-                            delta = _odds_delta(prev, q.price)
-                            if not live:
-                                snap_counts["odds"] += 1
-                                snap_sources[q.source.id] += 1
-                                if not args.verbose:
+                        elif isinstance(frame, (OddsFrame, OddsSetFrame)):
+                            for q in iter_odds(frame):
+                                key = (q.event_id, q.entrant_id or "", q.source.id, q.market_id)
+                                prev = last_price.get(key)
+                                last_price[key] = q.price
+                                delta = _odds_delta(prev, q.price)
+                                if not live:
+                                    snap_counts["odds"] += 1
+                                    snap_sources[q.source.id] += 1
+                                    if not args.verbose:
+                                        continue
+                                elif not args.verbose and delta == "same":
                                     continue
-                            elif not args.verbose and delta == "same":
-                                continue
-                            print(
-                                ts,
-                                "odds",
-                                q.source.id,
-                                q.price,
-                                delta,
-                                q.event_id,
-                                q.entrant_id,
-                                flush=True,
-                            )
+                                print(
+                                    ts,
+                                    "odds",
+                                    q.source.id,
+                                    q.price,
+                                    delta,
+                                    q.event_id,
+                                    q.entrant_id,
+                                    flush=True,
+                                )
                         elif isinstance(frame, EventFrame):
                             ev = frame.data
                             prev_status = last_event.get(ev.id)
