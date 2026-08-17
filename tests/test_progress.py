@@ -239,3 +239,33 @@ def test_read_timeout_outlasts_the_silent_bootstrap_window() -> None:
     from betwatch._base_client import STREAM_READ_TIMEOUT
 
     assert STREAM_READ_TIMEOUT > 60, "must survive a snapshot that sends nothing for ~46s"
+
+
+# --- resync budget --------------------------------------------------------
+
+
+def test_resync_budget_is_consecutive_not_lifetime() -> None:
+    """A worker restart broadcasts resync to every client, so they are routine.
+
+    A lifetime cap would kill a week-long consumer on its eighth ordinary
+    resync. The budget is for consecutive failures to re-bootstrap.
+    """
+    import inspect
+
+    from betwatch import _client
+
+    source = inspect.getsource(_client)
+    assert "_resyncs > 8" not in source, "lifetime cap"
+    assert source.count("self._resyncs = 0") >= 3, "reset once frames flow, in each watcher"
+    assert _client.MAX_CONSECUTIVE_RESYNCS >= 3
+
+
+def test_bootstrap_restarts_are_bounded() -> None:
+    """An unbounded restart loop is a hang, not resilience."""
+    from betwatch import BootstrapFailedError
+    from betwatch._client import MAX_BOOTSTRAP_RESTARTS
+
+    assert MAX_BOOTSTRAP_RESTARTS >= 1
+    err = BootstrapFailedError(4, ["thoroughbred"])
+    assert "restarted 4 times" in str(err)
+    assert "client.follow(page)" in str(err), "must name the way out"

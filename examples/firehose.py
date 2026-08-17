@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 from datetime import UTC, datetime
 from pathlib import Path
-from time import sleep
+from time import monotonic, sleep
 from urllib.parse import urlparse
 
 import httpx
@@ -106,7 +106,7 @@ def main(argv: list[str] | None = None) -> None:
         if args.reset_cursor or args.reset_all_cursors:
             _reset_cursors(cursor_file, all_hosts=args.reset_all_cursors)
         last = cursor_file.read_text().strip() if cursor_file.exists() else None
-        live = bool(last)
+        saved_at = 0.0
         countries = ",".join(args.country) if args.country else "all-countries"
         sports = ",".join(args.sport) if args.sport else "all-sports"
         print(
@@ -121,34 +121,47 @@ def main(argv: list[str] | None = None) -> None:
         )
         while True:
             try:
-                snapshot = "none" if last else "full"
-                print(_ts(), "open", snapshot, flush=True)
-                with client.stream(
-                    sport=args.sport or ["thoroughbred", "greyhound", "harness"],
-                    country=args.country,
-                    snapshot=snapshot,
-                    cursor=last,
-                    progress=print_progress,
-                ) as stream:
+                print(_ts(), "open", "resume" if last else "rest-bootstrap", flush=True)
+                # A saved cursor resumes directly; otherwise bootstrap the scope
+                # over REST rather than waiting out a server-built snapshot, which
+                # on the widest scope can take minutes and may not survive it.
+                stream = (
+                    client.stream(
+                        sport=args.sport or ["thoroughbred", "greyhound", "harness"],
+                        country=args.country,
+                        snapshot="none",
+                        cursor=last,
+                        progress=print_progress,
+                    )
+                    if last
+                    else client.watch_scope(
+                        sport=args.sport or ["thoroughbred", "greyhound", "harness"],
+                        country=args.country,
+                        progress=print_progress,
+                    )
+                )
+                with stream:
                     for frame in stream:
                         ts = _ts()
                         if frame.cursor:
                             last = frame.cursor
+                            # Neither path emits `sync`, so persist on a clock
+                            # instead of at a boundary that never comes. This
+                            # bounds replay on restart to a couple of seconds
+                            # whatever the frame rate.
+                            if monotonic() - saved_at > 2.0:
+                                cursor_file.write_text(last)
+                                saved_at = monotonic()
                         if isinstance(frame, ReadyFrame):
-                            print(ts, "ready", "live" if live else "snapshot", flush=True)
+                            print(ts, "ready — ticks after this are live", flush=True)
                             continue
                         if isinstance(frame, SyncFrame):
-                            live = True
-                            if last:
-                                cursor_file.write_text(last)
-                            print(ts, "sync — ticks after this are live", flush=True)
+                            print(ts, "sync", flush=True)
                             continue
                         # The SDK knows what "changed" means per frame kind, so
                         # a republished price at the same number is dropped here.
                         if not args.verbose and not changes.changed(frame):
                             continue
-                        if not live and not args.verbose:
-                            continue  # bootstrap state; progress= already reports it
 
                         if isinstance(frame, (OddsFrame, OddsSetFrame)):
                             for q in iter_odds(frame):
@@ -196,7 +209,6 @@ def main(argv: list[str] | None = None) -> None:
                 if isinstance(exc, APIStatusError) and exc.status_code != 409:
                     raise
                 last = None
-                live = False
                 changes.clear()
                 cursor_file.unlink(missing_ok=True)
                 reason = getattr(exc, "reason", None) or getattr(exc, "code", None) or "resync"

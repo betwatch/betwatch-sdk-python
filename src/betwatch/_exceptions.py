@@ -64,6 +64,28 @@ class CredentialInQueryError(BetwatchError, ValueError):
         )
 
 
+class BootstrapFailedError(BetwatchError):
+    """A `snapshot=full` stream lost its connection too many times to finish.
+
+    There is no resumable position before `sync`, so every drop restarts the
+    whole snapshot. When the snapshot takes longer to build than the connection
+    survives, retrying cannot converge — so the SDK stops rather than looping.
+
+    Bootstrap over REST instead and attach the stream at that position, which
+    is the contract's preferred path anyway: take a page from
+    `client.events.list(...)` and pass it to `client.follow(page)`.
+    """
+
+    def __init__(self, restarts: int, scope: object = None) -> None:
+        self.restarts = restarts
+        narrower = " Narrow the filters, or " if scope else " "
+        super().__init__(
+            f"the stream snapshot restarted {restarts} times without completing."
+            f"{narrower}bootstrap over REST and follow the cursor it returns: "
+            "page = client.events.list(...); client.follow(page)"
+        )
+
+
 class APIDecodeError(BetwatchError):
     """The HTTP body was not the expected public schema."""
 

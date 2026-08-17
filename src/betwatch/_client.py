@@ -23,7 +23,12 @@ from ._base_client import (
     should_retry_status,
     stream_headers_and_query,
 )
-from ._exceptions import APIConnectionError, APITimeoutError, ResyncRequired
+from ._exceptions import (
+    APIConnectionError,
+    APITimeoutError,
+    BootstrapFailedError,
+    ResyncRequired,
+)
 from ._progress import (
     DEFAULT_INTERVAL,
     AsyncBootstrapReporter,
@@ -43,6 +48,7 @@ from .resources.sources import AsyncSources, Sources
 from .resources.venues import AsyncVenues, Venues
 from .types.common import as_sequence
 from .types.enums import ErrorCodes, IncludeFlag, SnapshotMode, Sport
+from .types.event import Event
 from .types.snapshot import EventSnapshot
 from .types.stream import ReadyFrame, StreamFrame, SyncFrame, frame_name
 
@@ -54,6 +60,18 @@ _T = TypeVar("_T")
 # happened. `tests/test_contract_spec.py` pins both against openapi.json.
 RESYNC_STATUS = 409
 RESYNC_CODES = frozenset({ErrorCodes.CURSOR_EXPIRED, ErrorCodes.CURSOR_SCOPE_CHANGED})
+
+# A dropped bootstrap starts the whole snapshot again, so an unbounded retry
+# is a hang rather than resilience: on a broad scope the snapshot can take
+# longer to build than the connection survives, and it would loop forever.
+MAX_BOOTSTRAP_RESTARTS = 3
+
+# A `resync` is routine rather than exceptional: an ingestion worker
+# restarting broadcasts one to every connected client. This budgets
+# *consecutive* failures to re-bootstrap, and resets as soon as frames
+# flow again, so a consumer running for a week does not die on its
+# eighth ordinary resync.
+MAX_CONSECUTIVE_RESYNCS = 8
 
 
 def _stream_backoff(attempt: int) -> float:
@@ -85,6 +103,7 @@ class Stream:
         self.cursor: str | None = params.get("cursor")
         self.trace_id: str | None = None
         self._synced = False
+        self._restarts = 0
         # Only a full snapshot has a bootstrap; a cursor resume is live at once.
         self._reporter = (
             BootstrapReporter(progress, interval=progress_interval)
@@ -202,8 +221,13 @@ class Stream:
                         # Say so: a silent restart is indistinguishable from a
                         # bootstrap that is merely slow.
                         self.cursor = None
+                        self._restarts += 1
                         if self._reporter is not None:
                             self._reporter.record_restart()
+                        if self._restarts > MAX_BOOTSTRAP_RESTARTS:
+                            raise BootstrapFailedError(
+                                self._restarts, self._params.get("sport")
+                            ) from exc
                     continue
         except KeyboardInterrupt:
             raise
@@ -229,6 +253,7 @@ class AsyncStream:
         self.cursor: str | None = params.get("cursor")
         self.trace_id: str | None = None
         self._synced = False
+        self._restarts = 0
         self._reporter = (
             AsyncBootstrapReporter(progress, interval=progress_interval)
             if progress is not None and params.get("snapshot") != "none"
@@ -345,8 +370,13 @@ class AsyncStream:
                         # Say so: a silent restart is indistinguishable from a
                         # bootstrap that is merely slow.
                         self.cursor = None
+                        self._restarts += 1
                         if self._reporter is not None:
                             self._reporter.record_restart()
+                        if self._restarts > MAX_BOOTSTRAP_RESTARTS:
+                            raise BootstrapFailedError(
+                                self._restarts, self._params.get("sport")
+                            ) from exc
                     continue
         except (KeyboardInterrupt, asyncio.CancelledError):
             raise
@@ -407,11 +437,126 @@ class Watch:
             raise RuntimeError("Watch must be used as a context manager")
         while True:
             try:
-                yield from self._stream
+                for frame in self._stream:
+                    # Frames are flowing, so the last bootstrap worked. The
+                    # budget below is for consecutive failures, not a lifetime
+                    # cap: a resync is routine, and a long-running consumer
+                    # would otherwise die after the eighth one.
+                    self._resyncs = 0
+                    yield frame
                 return
             except ResyncRequired:
                 self._resyncs += 1
-                if not self._reconnect or self._resyncs > 8:
+                if not self._reconnect or self._resyncs > MAX_CONSECUTIVE_RESYNCS:
+                    raise
+                self._open()
+
+
+class ScopeWatch:
+    """Bootstrap a whole filter scope over REST, then attach the stream to it.
+
+    The contract's preferred way to start anything real, and for a broad scope
+    the only practical one. Both start paths are *correct* — `snapshot=full`
+    anchors its cursor before hydrating and replays everything published while
+    it built, so it has no staleness window — but it can send nothing for 20s to
+    3 minutes first, and a connection lost in that window restarts the whole
+    snapshot. This starts in seconds and re-bootstraps just as cheaply, which
+    matters because a `resync` is routine: an ingestion worker restarting
+    broadcasts one to every connected client.
+
+    The list response carries a stream cursor captured before it read anything,
+    so the two halves meet exactly: everything at or before it is in the page,
+    everything after it replays on the stream.
+
+    ```python
+    with client.watch_scope(sport="thoroughbred", country="au") as live:
+        print(len(live.events), "races in scope")
+        for frame in live:
+            ...
+    ```
+
+    The same filters bootstrap and subscribe, so the cursor's scope cannot
+    drift out of step with what was read. On `resync` it bootstraps again.
+    """
+
+    def __init__(
+        self,
+        client: Betwatch,
+        *,
+        sport: Sequence[Sport] | Sport | None = None,
+        country: Sequence[str] | str | None = None,
+        meeting: Sequence[str] | str | None = None,
+        venue: Sequence[str] | str | None = None,
+        source: Sequence[str] | str | None = None,
+        start_from: str | None = None,
+        start_to: str | None = None,
+        max_events: int = 1000,
+        reconnect: bool = True,
+        progress: ProgressCallback | None = None,
+    ) -> None:
+        self._client = client
+        self._filters: dict[str, Any] = {
+            "sport": sport,
+            "country": country,
+            "meeting": meeting,
+            "venue": venue,
+            "start_from": start_from,
+            "start_to": start_to,
+        }
+        self._source = source
+        self._max_events = max_events
+        self._reconnect = reconnect
+        self._progress = progress
+        self.events: list[Event] = []
+        self.cursor: str | None = None
+        self._stream: Stream | None = None
+        self._resyncs = 0
+
+    def _open(self) -> None:
+        if self._stream is not None:
+            self._stream.close()
+        first = self._client.events.list(**self._filters, limit=200)
+        if not first.cursor:
+            raise ResyncRequired(None, "list response carried no stream cursor")
+        # The first page's cursor is the earliest position, so later pages can
+        # only duplicate what the stream replays — never leave a gap.
+        self.cursor = first.cursor
+        self.events = list(first)
+        after = first.next
+        while after and len(self.events) < self._max_events:
+            page = self._client.events.list(**self._filters, after=after, limit=200)
+            self.events.extend(page)
+            after = page.next
+        self._stream = self._client.stream(
+            **self._filters,
+            source=self._source,
+            snapshot="none",
+            cursor=self.cursor,
+            reconnect=self._reconnect,
+            progress=self._progress,
+        )
+        self._stream.__enter__()
+
+    def __enter__(self) -> ScopeWatch:
+        self._open()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        if self._stream is not None:
+            self._stream.__exit__(*exc)
+
+    def __iter__(self) -> Iterator[StreamFrame]:
+        if self._stream is None:
+            raise RuntimeError("ScopeWatch must be used as a context manager")
+        while True:
+            try:
+                for frame in self._stream:
+                    self._resyncs = 0
+                    yield frame
+                return
+            except ResyncRequired:
+                self._resyncs += 1
+                if not self._reconnect or self._resyncs > MAX_CONSECUTIVE_RESYNCS:
                     raise
                 self._open()
 
@@ -460,11 +605,12 @@ class AsyncWatch:
         while True:
             try:
                 async for frame in self._stream:
+                    self._resyncs = 0
                     yield frame
                 return
             except ResyncRequired:
                 self._resyncs += 1
-                if not self._reconnect or self._resyncs > 8:
+                if not self._reconnect or self._resyncs > MAX_CONSECUTIVE_RESYNCS:
                     raise
                 await self._open()
 
@@ -601,6 +747,40 @@ class Betwatch:
             source=source,
             include=include,
             reconnect=reconnect,
+        )
+
+    def watch_scope(
+        self,
+        *,
+        sport: Sequence[Sport] | Sport | None = None,
+        country: Sequence[str] | str | None = None,
+        meeting: Sequence[str] | str | None = None,
+        venue: Sequence[str] | str | None = None,
+        source: Sequence[str] | str | None = None,
+        start_from: str | None = None,
+        start_to: str | None = None,
+        max_events: int = 1000,
+        reconnect: bool = True,
+        progress: ProgressCallback | None = None,
+    ) -> ScopeWatch:
+        """Bootstrap a filter scope over REST, then follow it live.
+
+        Prefer this to `stream(snapshot="full")` for anything broader than one
+        event: it starts immediately instead of waiting out a snapshot the
+        server may take minutes to build.
+        """
+        return ScopeWatch(
+            self,
+            sport=sport,
+            country=country,
+            meeting=meeting,
+            venue=venue,
+            source=source,
+            start_from=start_from,
+            start_to=start_to,
+            max_events=max_events,
+            reconnect=reconnect,
+            progress=progress,
         )
 
     def stream(

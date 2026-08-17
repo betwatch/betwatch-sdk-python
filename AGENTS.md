@@ -64,6 +64,26 @@ fails `pyright` (`reportUnnecessaryComparison`).
 - Do not treat `ping` frames as data — the SDK swallows them and still advances the cursor.
 - Do not publish from `main` as `2.0.0` until this contract is promoted.
 
+## Starting a stream
+
+Two correct ways, and the difference is time, not correctness:
+
+- `client.watch_scope(sport=..., country=...)` — REST bootstrap, then attach the
+  stream at the cursor that read returned. Starts in seconds. **Prefer this for
+  anything broader than one event.**
+- `client.watch(event_id)` — the same thing for a single event.
+- `client.stream(snapshot="full")` — the server builds the snapshot first, which
+  on a broad scope sends *nothing* for 20s to 3 minutes.
+
+`snapshot="full"` is not a staleness trap: its cursor is anchored before
+hydration and everything published while it built is delivered after `sync`.
+The reason to avoid it on a broad scope is that a connection lost before `sync`
+restarts the whole snapshot, and it may not survive long enough to finish.
+`BootstrapFailedError` is raised rather than looping forever.
+
+A `resync` is routine — an ingestion worker restarting broadcasts one to every
+client — so re-bootstrap cheaply and do not treat it as exceptional.
+
 ## Out of the box
 
 Reach for the SDK before writing it in an example. `client.stream(progress=
