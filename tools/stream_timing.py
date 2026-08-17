@@ -21,6 +21,7 @@ import json
 import sys
 from collections import Counter
 from time import monotonic
+from typing import Any
 
 from betwatch import Betwatch, ReadyFrame, StreamProgress, SyncFrame
 from betwatch.types.stream import frame_name
@@ -43,11 +44,82 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     p.add_argument("--json", action="store_true", help="Emit one JSON object instead of a report.")
     p.add_argument("--quiet", action="store_true", help="Suppress the per-interval progress lines.")
+    p.add_argument(
+        "--repeat",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Run N attempts and report how many survived. Use to measure drop rate.",
+    )
     return p.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.repeat > 1:
+        return _repeat(args)
+    return _once(args)
+
+
+def _repeat(args: argparse.Namespace) -> int:
+    """Connections die mid-response sometimes; one run cannot tell you how often."""
+    drops: list[str] = []
+    synced: list[float] = []
+    for attempt in range(1, args.repeat + 1):
+        print(f"--- attempt {attempt}/{args.repeat} ---", file=sys.stderr, flush=True)
+        try:
+            result = _measure(args)
+        except Exception as exc:  # noqa: BLE001 - a drop is the measurement
+            drops.append(f"{type(exc).__name__}: {exc}")
+            print(f"  DROPPED  {type(exc).__name__}", file=sys.stderr, flush=True)
+            continue
+        if result["sync_s"] is None:
+            drops.append("no sync before timeout")
+            print("  NO SYNC", file=sys.stderr, flush=True)
+        else:
+            synced.append(result["sync_s"])
+            print(f"  synced in {result['sync_s']}s", file=sys.stderr, flush=True)
+
+    survived = len(synced)
+    print(
+        json.dumps(
+            {
+                "attempts": args.repeat,
+                "survived": survived,
+                "dropped": len(drops),
+                "drop_rate": round(len(drops) / args.repeat, 3),
+                "sync_seconds": synced,
+                "failures": drops,
+            }
+        )
+    )
+    return 0 if not drops else 1
+
+
+def _once(args: argparse.Namespace) -> int:
+    result = _measure(args)
+    if args.json:
+        print(json.dumps(result))
+    else:
+        print(
+            f"\nready       {result['ready_s']}s"
+            f"\nfirst frame {result['first_frame_s']}s"
+            f"\nsilence     {result['silence_s']}s  <- dead air after ready"
+            f"\nsync        {result['sync_s']}s"
+            f"\nframes      {result['frames']} at {result['frames_per_s']}/s  {result['counts']}"
+            f"\nkeepalives  {result['keepalives_during_bootstrap']} during bootstrap"
+            + ("\nTIMED OUT before sync" if result["timed_out"] else "")
+        )
+    if args.require_sync is not None and (
+        result["sync_s"] is None or result["sync_s"] > args.require_sync
+    ):
+        got = "no sync" if result["sync_s"] is None else f"{result['sync_s']:.1f}s"
+        print(f"FAIL: bootstrap needed <= {args.require_sync}s, got {got}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def _measure(args: argparse.Namespace) -> dict[str, Any]:
     counts: Counter[str] = Counter()
     pings = 0
     started = monotonic()
@@ -110,24 +182,7 @@ def main(argv: list[str] | None = None) -> int:
         "timed_out": timed_out,
     }
 
-    if args.json:
-        print(json.dumps(result))
-    else:
-        print(
-            f"\nready       {result['ready_s']}s"
-            f"\nfirst frame {result['first_frame_s']}s"
-            f"\nsilence     {result['silence_s']}s  <- dead air after ready"
-            f"\nsync        {result['sync_s']}s"
-            f"\nframes      {frames} at {result['frames_per_s']}/s  {dict(counts)}"
-            f"\nkeepalives  {pings} during bootstrap"
-            + ("\nTIMED OUT before sync" if timed_out else "")
-        )
-
-    if args.require_sync is not None and (t_sync is None or t_sync > args.require_sync):
-        got = "no sync" if t_sync is None else f"{t_sync:.1f}s"
-        print(f"FAIL: bootstrap needed <= {args.require_sync}s, got {got}", file=sys.stderr)
-        return 1
-    return 0
+    return result
 
 
 if __name__ == "__main__":
