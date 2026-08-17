@@ -1381,13 +1381,31 @@
           "cursor": {
             "type": "string"
           },
+          "entrant": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "event": {
             "items": {
               "type": "string"
             },
             "type": "array"
           },
+          "market": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "meeting": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "outcome": {
             "items": {
               "type": "string"
             },

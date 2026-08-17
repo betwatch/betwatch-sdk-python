@@ -519,6 +519,9 @@ def _continuation_params(stream: StreamContinuation) -> dict[str, Any]:
         "country": stream.country,
         "meeting": stream.meeting,
         "venue": stream.venue,
+        "market": stream.market,
+        "outcome": stream.outcome,
+        "entrant": stream.entrant,
         "start_from": stream.start_from,
         "start_to": stream.start_to,
     }

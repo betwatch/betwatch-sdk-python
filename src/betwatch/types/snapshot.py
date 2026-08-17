@@ -31,6 +31,9 @@ class StreamContinuation(Model):
     country: list[str] = []
     meeting: list[str] = []
     venue: list[str] = []
+    market: list[str] = []
+    outcome: list[str] = []
+    entrant: list[str] = []
     start_from: str | None = None
     start_to: str | None = None
 
