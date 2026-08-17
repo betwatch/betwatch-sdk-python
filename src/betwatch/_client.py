@@ -468,6 +468,17 @@ class ScopeWatch:
     so the two halves meet exactly: everything at or before it is in the page,
     everything after it replays on the stream.
 
+    **This bootstraps the race card, not prices.** `/v1/odds` requires an
+    event-shaped filter, so there is no single call that returns current prices
+    for a filter scope — only `/v1/events/{id}/snapshot`, one event at a time.
+    Prices therefore arrive here as sources move them, and a runner nobody
+    reprices stays absent until it does. If you need prices at attach time,
+    either snapshot the events you care about individually, or use
+    `stream(snapshot="full")` and accept its bootstrap cost.
+
+    A scope-level snapshot endpoint would collapse this whole class into one
+    call; its absence is why this method exists in the shape it does.
+
     ```python
     with client.watch_scope(sport="thoroughbred", country="au") as live:
         print(len(live.events), "races in scope")
