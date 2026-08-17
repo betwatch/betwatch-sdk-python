@@ -91,6 +91,13 @@ _LIST_KEYS = frozenset(
 )
 
 
+# COMPENSATION, not design — delete when the contract stops declaring arrays
+# nullable. 26 response arrays are typed `["array", "null"]`, including every
+# list endpoint's `items`, so every model would otherwise have to treat "no
+# odds" and "null odds" as the same thing. Probing seven endpoint shapes
+# produced zero nulls, so this looks like a Go nil slice reaching the schema
+# rather than intent. It is not free: on a 33KB snapshot this walk costs
+# 0.11ms against msgspec's 0.03ms — 3.5x the actual decode, on every response.
 def _null_lists_to_empty(value: Any) -> Any:
     if isinstance(value, dict):
         return {
@@ -142,8 +149,13 @@ def stream_headers_and_query(
 def default_event_window() -> tuple[str, str]:
     """Raceday window used when list() is called without start_from/start_to.
 
-    Unscoped /v1/events is oldest-first across the entitlement history, so a
-    bare `limit=5` returns last month's card. Examples and agents want today.
+    COMPENSATION, not design — delete when the server defaults sensibly.
+    `/v1/events` orders by start time ascending with an unbounded backwards
+    window, so a bare `limit=3` returns the oldest retained races (measured:
+    three days old). Rewriting the caller's query is the wrong place to fix
+    that — it only helps people using this client, and it means
+    `events.list(limit=5)` does not send what it says. Raised with the platform
+    team; remove this and stop rewriting once the API's own default is useful.
     """
     now = datetime.now(UTC)
     start = (now - timedelta(hours=2)).isoformat().replace("+00:00", "Z")
