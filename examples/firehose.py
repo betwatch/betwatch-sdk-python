@@ -1,16 +1,22 @@
 """All-code firehose. Resume from the last SSE cursor.
 
-First run snapshots quietly, then prints live ticks only. Unchanged
-republishes are dropped. Default scope is every country the key can
-see — pass --country au to narrow.
+The first run takes a full snapshot, reporting progress while it arrives,
+then prints live ticks only; unchanged republishes are dropped. Later runs
+resume from the saved cursor and are live immediately.
+
+Default scope is every sport in every country the key can see, which is the
+slowest possible bootstrap: expect no frames at all for the first 20-45s while
+the server builds the snapshot, then tens of thousands of rows. The wait and
+the volume both scale with scope, and sport narrows it far more than country
+does on an AU-weighted key.
 
     fnox exec --profile prod -- uv run examples/firehose.py --reset-all-cursors
+    fnox exec --profile prod -- uv run examples/firehose.py --sport thoroughbred --country au
 """
 
 from __future__ import annotations
 
 import argparse
-from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from time import sleep
@@ -21,6 +27,7 @@ import httpx
 from betwatch import (
     APIStatusError,
     Betwatch,
+    ChangeTracker,
     CoverageFrame,
     EntrantFrame,
     EventFrame,
@@ -29,6 +36,7 @@ from betwatch import (
     ReadyFrame,
     ResyncRequired,
     SyncFrame,
+    print_progress,
 )
 from betwatch.types.stream import iter_odds
 
@@ -80,42 +88,47 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Optional country filter (repeatable). Default: every country the key can see.",
     )
+    parser.add_argument(
+        "--sport",
+        action="append",
+        choices=["thoroughbred", "greyhound", "harness"],
+        default=None,
+        help="Sport filter (repeatable). Default: all three, which is the slowest bootstrap.",
+    )
     return parser.parse_args(argv)
-
-
-def _odds_delta(prev: float | None, price: float | None) -> str:
-    if prev is None:
-        return "new"
-    if prev == price:
-        return "same"
-    return f"{prev}->{price}"
 
 
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
-    last_price: dict[tuple[str, str, str, str], float | None] = {}
-    last_event: dict[str, str] = {}
-    last_entrant: dict[str, tuple[bool, str]] = {}
-    last_coverage: dict[tuple[str, str, str], str] = {}
+    changes = ChangeTracker()
     with Betwatch() as client:
         cursor_file = _cursor_path(client.base_url)
         if args.reset_cursor or args.reset_all_cursors:
             _reset_cursors(cursor_file, all_hosts=args.reset_all_cursors)
         last = cursor_file.read_text().strip() if cursor_file.exists() else None
         live = bool(last)
-        scope = ",".join(args.country) if args.country else "all-countries"
-        print(_ts(), "connect", client.base_url, "cursor", bool(last), "scope", scope, flush=True)
+        countries = ",".join(args.country) if args.country else "all-countries"
+        sports = ",".join(args.sport) if args.sport else "all-sports"
+        print(
+            _ts(),
+            "connect",
+            client.base_url,
+            "cursor",
+            bool(last),
+            "scope",
+            f"{sports}/{countries}",
+            flush=True,
+        )
         while True:
-            snap_counts: Counter[str] = Counter()
-            snap_sources: Counter[str] = Counter()
             try:
                 snapshot = "none" if last else "full"
                 print(_ts(), "open", snapshot, flush=True)
                 with client.stream(
-                    sport=["thoroughbred", "greyhound", "harness"],
+                    sport=args.sport or ["thoroughbred", "greyhound", "harness"],
                     country=args.country,
                     snapshot=snapshot,
                     cursor=last,
+                    progress=print_progress,
                 ) as stream:
                     for frame in stream:
                         ts = _ts()
@@ -123,72 +136,39 @@ def main(argv: list[str] | None = None) -> None:
                             last = frame.cursor
                         if isinstance(frame, ReadyFrame):
                             print(ts, "ready", "live" if live else "snapshot", flush=True)
-                        elif isinstance(frame, SyncFrame):
+                            continue
+                        if isinstance(frame, SyncFrame):
                             live = True
                             if last:
                                 cursor_file.write_text(last)
-                            parts = [
-                                f"{name}={snap_counts[name]}"
-                                for name in ("event", "entrant", "odds", "coverage")
-                                if snap_counts[name]
-                            ]
-                            sources = len(snap_sources)
-                            print(
-                                ts,
-                                "sync",
-                                *parts,
-                                f"sources={sources}" if sources else "",
-                                "— ticks after this are live",
-                                flush=True,
-                            )
-                        elif isinstance(frame, (OddsFrame, OddsSetFrame)):
+                            print(ts, "sync — ticks after this are live", flush=True)
+                            continue
+                        # The SDK knows what "changed" means per frame kind, so
+                        # a republished price at the same number is dropped here.
+                        if not args.verbose and not changes.changed(frame):
+                            continue
+                        if not live and not args.verbose:
+                            continue  # bootstrap state; progress= already reports it
+
+                        if isinstance(frame, (OddsFrame, OddsSetFrame)):
                             for q in iter_odds(frame):
-                                key = (q.event_id, q.entrant_id or "", q.source.id, q.market_id)
-                                prev = last_price.get(key)
-                                last_price[key] = q.price
-                                delta = _odds_delta(prev, q.price)
-                                if not live:
-                                    snap_counts["odds"] += 1
-                                    snap_sources[q.source.id] += 1
-                                    if not args.verbose:
-                                        continue
-                                elif not args.verbose and delta == "same":
+                                if not args.verbose and not changes.changed(q):
                                     continue
                                 print(
                                     ts,
                                     "odds",
                                     q.source.id,
                                     q.price,
-                                    delta,
                                     q.event_id,
                                     q.entrant_id,
                                     flush=True,
                                 )
                         elif isinstance(frame, EventFrame):
                             ev = frame.data
-                            prev_status = last_event.get(ev.id)
-                            last_event[ev.id] = ev.status
-                            if not live:
-                                snap_counts["event"] += 1
-                                if not args.verbose:
-                                    continue
-                            elif not args.verbose and prev_status == ev.status:
-                                continue
                             print(ts, "event", ev.id, ev.status, ev.start_at, flush=True)
                         elif isinstance(frame, EntrantFrame):
                             runner = frame.data
                             mark = "scr" if runner.scratched else runner.entry_state
-                            prev_mark = last_entrant.get(runner.id)
-                            last_entrant[runner.id] = (runner.scratched, runner.entry_state)
-                            if not live:
-                                snap_counts["entrant"] += 1
-                                if not args.verbose:
-                                    continue
-                            elif not args.verbose and prev_mark == (
-                                runner.scratched,
-                                runner.entry_state,
-                            ):
-                                continue
                             print(
                                 ts,
                                 "entrant",
@@ -200,17 +180,6 @@ def main(argv: list[str] | None = None) -> None:
                             )
                         elif isinstance(frame, CoverageFrame):
                             c = frame.data
-                            done = "complete" if c.complete else "partial"
-                            cov_key = (c.event_id, c.market_id, c.source_id)
-                            prev_state = last_coverage.get(cov_key)
-                            last_coverage[cov_key] = c.state
-                            if not live:
-                                snap_counts["coverage"] += 1
-                                snap_sources[c.source_id] += 1
-                                if not args.verbose:
-                                    continue
-                            elif not args.verbose and prev_state == c.state:
-                                continue
                             print(
                                 ts,
                                 "coverage",
@@ -218,7 +187,7 @@ def main(argv: list[str] | None = None) -> None:
                                 c.event_id,
                                 c.market_id,
                                 c.state,
-                                done,
+                                "complete" if c.complete else "partial",
                                 flush=True,
                             )
                         else:
@@ -228,10 +197,7 @@ def main(argv: list[str] | None = None) -> None:
                     raise
                 last = None
                 live = False
-                last_price.clear()
-                last_event.clear()
-                last_entrant.clear()
-                last_coverage.clear()
+                changes.clear()
                 cursor_file.unlink(missing_ok=True)
                 reason = getattr(exc, "reason", None) or getattr(exc, "code", None) or "resync"
                 print(_ts(), "resync", reason, "— dropping cursor, snapshot=full next", flush=True)

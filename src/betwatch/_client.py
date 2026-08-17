@@ -24,6 +24,12 @@ from ._base_client import (
     stream_headers_and_query,
 )
 from ._exceptions import APIConnectionError, APITimeoutError, ResyncRequired
+from ._progress import (
+    DEFAULT_INTERVAL,
+    AsyncBootstrapReporter,
+    BootstrapReporter,
+    ProgressCallback,
+)
 from ._ratelimit import RateLimit
 from ._streaming import aiter_sse, frame_from_sse, iter_sse
 from .resources.competitors import AsyncCompetitors, Competitors
@@ -38,7 +44,7 @@ from .resources.venues import AsyncVenues, Venues
 from .types.common import as_sequence
 from .types.enums import ErrorCodes, IncludeFlag, SnapshotMode, Sport
 from .types.snapshot import EventSnapshot
-from .types.stream import StreamFrame, SyncFrame
+from .types.stream import ReadyFrame, StreamFrame, SyncFrame, frame_name
 
 _T = TypeVar("_T")
 
@@ -62,7 +68,15 @@ class Stream:
     HTTP, decode, and `resync` failures surface immediately.
     """
 
-    def __init__(self, client: Betwatch, params: dict[str, Any], *, reconnect: bool) -> None:
+    def __init__(
+        self,
+        client: Betwatch,
+        params: dict[str, Any],
+        *,
+        reconnect: bool,
+        progress: ProgressCallback | None = None,
+        progress_interval: float = DEFAULT_INTERVAL,
+    ) -> None:
         self._client = client
         self._params = dict(params)
         self._reconnect = reconnect
@@ -71,6 +85,12 @@ class Stream:
         self.cursor: str | None = params.get("cursor")
         self.trace_id: str | None = None
         self._synced = False
+        # Only a full snapshot has a bootstrap; a cursor resume is live at once.
+        self._reporter = (
+            BootstrapReporter(progress, interval=progress_interval)
+            if progress is not None and params.get("snapshot") != "none"
+            else None
+        )
 
     def _open(self) -> httpx.Response:
         extra, query = stream_headers_and_query(self._params, self.cursor)
@@ -101,6 +121,11 @@ class Stream:
                 raise ResyncRequired(self.cursor, err.code or "conflict") from err
             raise err
         self.trace_id = response.headers.get("x-trace-id") or None
+        # The stream declares the budget headers too, so a long-lived consumer
+        # can see its remaining monthly quota without issuing a REST call.
+        self._client.rate_limit = (
+            RateLimit.from_headers(response.headers) or self._client.rate_limit
+        )
         return response
 
     def _open_with_retry(self) -> httpx.Response:
@@ -116,12 +141,16 @@ class Stream:
 
     def __enter__(self) -> Stream:
         self._response = self._open_with_retry()
+        if self._reporter is not None:
+            self._reporter.start()
         return self
 
     def __exit__(self, *exc: object) -> None:
         self.close()
 
     def close(self) -> None:
+        if self._reporter is not None:
+            self._reporter.stop()
         if self._response is not None:
             self._response.close()
             self._response = None
@@ -136,8 +165,21 @@ class Stream:
                         if sse.id is not None:
                             self.cursor = sse.id
                         frame = frame_from_sse(sse)
+                        if self._reporter is not None and frame is None and sse.event == "ping":
+                            # Swallowed as data, but during a bootstrap a ping is
+                            # the proof the connection is alive rather than hung.
+                            self._reporter.record_ping()
                         if frame is not None:
                             self._attempt = 0
+                            if self._reporter is not None:
+                                if isinstance(frame, SyncFrame):
+                                    self._reporter.stop(synced=True)
+                                    self._reporter = None
+                                elif not isinstance(frame, ReadyFrame):
+                                    # `ready` is the connection opening, not
+                                    # snapshot data — counting it would hide the
+                                    # "nothing has arrived yet" state entirely.
+                                    self._reporter.record(frame_name(frame))
                             if isinstance(frame, SyncFrame):
                                 self._synced = True
                             yield frame
@@ -164,7 +206,15 @@ class Stream:
 
 
 class AsyncStream:
-    def __init__(self, client: AsyncBetwatch, params: dict[str, Any], *, reconnect: bool) -> None:
+    def __init__(
+        self,
+        client: AsyncBetwatch,
+        params: dict[str, Any],
+        *,
+        reconnect: bool,
+        progress: ProgressCallback | None = None,
+        progress_interval: float = DEFAULT_INTERVAL,
+    ) -> None:
         self._client = client
         self._params = dict(params)
         self._reconnect = reconnect
@@ -173,6 +223,11 @@ class AsyncStream:
         self.cursor: str | None = params.get("cursor")
         self.trace_id: str | None = None
         self._synced = False
+        self._reporter = (
+            AsyncBootstrapReporter(progress, interval=progress_interval)
+            if progress is not None and params.get("snapshot") != "none"
+            else None
+        )
 
     async def _open(self) -> httpx.Response:
         extra, query = stream_headers_and_query(self._params, self.cursor)
@@ -203,6 +258,11 @@ class AsyncStream:
                 raise ResyncRequired(self.cursor, err.code or "conflict") from err
             raise err
         self.trace_id = response.headers.get("x-trace-id") or None
+        # The stream declares the budget headers too, so a long-lived consumer
+        # can see its remaining monthly quota without issuing a REST call.
+        self._client.rate_limit = (
+            RateLimit.from_headers(response.headers) or self._client.rate_limit
+        )
         return response
 
     async def _open_with_retry(self) -> httpx.Response:
@@ -218,12 +278,16 @@ class AsyncStream:
 
     async def __aenter__(self) -> AsyncStream:
         self._response = await self._open_with_retry()
+        if self._reporter is not None:
+            self._reporter.start()
         return self
 
     async def __aexit__(self, *exc: object) -> None:
         await self.close()
 
     async def close(self) -> None:
+        if self._reporter is not None:
+            self._reporter.stop()
         if self._response is not None:
             await self._response.aclose()
             self._response = None
@@ -238,8 +302,21 @@ class AsyncStream:
                         if sse.id is not None:
                             self.cursor = sse.id
                         frame = frame_from_sse(sse)
+                        if self._reporter is not None and frame is None and sse.event == "ping":
+                            # Swallowed as data, but during a bootstrap a ping is
+                            # the proof the connection is alive rather than hung.
+                            self._reporter.record_ping()
                         if frame is not None:
                             self._attempt = 0
+                            if self._reporter is not None:
+                                if isinstance(frame, SyncFrame):
+                                    self._reporter.stop(synced=True)
+                                    self._reporter = None
+                                elif not isinstance(frame, ReadyFrame):
+                                    # `ready` is the connection opening, not
+                                    # snapshot data — counting it would hide the
+                                    # "nothing has arrived yet" state entirely.
+                                    self._reporter.record(frame_name(frame))
                             if isinstance(frame, SyncFrame):
                                 self._synced = True
                             yield frame
@@ -531,8 +608,15 @@ class Betwatch:
         source: Sequence[str] | str | None = None,
         start_from: str | None = None,
         start_to: str | None = None,
+        progress: ProgressCallback | None = None,
+        progress_interval: float = DEFAULT_INTERVAL,
     ) -> Stream:
-        """Open `/v1/stream`. Prefer `watch()` or `follow(snapshot)`."""
+        """Open `/v1/stream`. Prefer `watch()` or `follow(snapshot)`.
+
+        `progress=print_progress` reports the bootstrap while `snapshot=full`
+        is being delivered — a broad scope sends nothing for tens of seconds
+        before the first frame, and looks hung without it.
+        """
         return Stream(
             self,
             _stream_params(
@@ -551,6 +635,8 @@ class Betwatch:
                 start_to=start_to,
             ),
             reconnect=reconnect,
+            progress=progress,
+            progress_interval=progress_interval,
         )
 
 
@@ -661,6 +747,8 @@ class AsyncBetwatch:
         source: Sequence[str] | str | None = None,
         start_from: str | None = None,
         start_to: str | None = None,
+        progress: ProgressCallback | None = None,
+        progress_interval: float = DEFAULT_INTERVAL,
     ) -> AsyncStream:
         return AsyncStream(
             self,
@@ -680,4 +768,6 @@ class AsyncBetwatch:
                 start_to=start_to,
             ),
             reconnect=reconnect,
+            progress=progress,
+            progress_interval=progress_interval,
         )

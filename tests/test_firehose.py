@@ -13,8 +13,26 @@ def _firehose():
     return module
 
 
-def test_odds_delta_only_calls_first_seen_new() -> None:
-    delta = _firehose()._odds_delta
-    assert delta(None, 3.2) == "new"
-    assert delta(3.2, 3.2) == "same"
-    assert delta(3.2, 3.4) == "3.2->3.4"
+def test_example_parses_its_scope_flags() -> None:
+    args = _firehose().parse_args(["--sport", "thoroughbred", "--country", "au"])
+    assert args.sport == ["thoroughbred"]
+    assert args.country == ["au"]
+
+
+def test_example_defaults_to_the_widest_scope() -> None:
+    args = _firehose().parse_args([])
+    assert args.sport is None
+    assert args.country is None
+
+
+def test_example_leaves_dedup_and_progress_to_the_sdk() -> None:
+    """The example demonstrates the API; it does not reimplement it.
+
+    Both of these were hand-rolled here and are now SDK features. If they come
+    back, the example has started growing its own client again.
+    """
+    source = (Path(__file__).resolve().parents[1] / "examples" / "firehose.py").read_text()
+    assert "ChangeTracker" in source
+    assert "progress=" in source
+    assert "class _BootstrapProgress" not in source
+    assert "_odds_delta" not in source

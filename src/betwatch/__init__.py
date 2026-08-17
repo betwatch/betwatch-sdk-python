@@ -19,6 +19,7 @@ There is no `get_races`. Events are races; entrants are runners.
 """
 
 from .__about__ import __version__
+from ._changes import ChangeTracker
 from ._client import AsyncBetwatch, AsyncWatch, Betwatch, Watch
 from ._exceptions import (
     AccountDisabledError,
@@ -48,6 +49,7 @@ from ._exceptions import (
     UnprocessableEntityError,
     UnsupportedMediaTypeError,
 )
+from ._progress import StreamProgress, print_progress
 from ._ratelimit import RateLimit
 from .types import (
     BudgetHeaders,
@@ -86,6 +88,9 @@ from .types import (
 )
 
 __all__ = [
+    "ChangeTracker",
+    "print_progress",
+    "StreamProgress",
     "CursorError",
     "BudgetHeaders",
     "UnsupportedMediaTypeError",
