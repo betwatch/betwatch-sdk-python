@@ -91,6 +91,11 @@ Every page returns the same `stream.cursor`, captured before the first page was
 read, so paging to the end and then following cannot miss a change to a race you
 read earlier. Follow from any page; page the rest with `after=snap.next`.
 
+Hydration costs roughly half a second per race, so for a large scope take a
+small first page, attach, and read the rest while already live — you are
+following in about five seconds instead of fifty, and the cursor guarantees the
+races you have not read yet still replay.
+
 ### Paging a collection
 
 Every collection has `iter()`, which follows `next` until it stops coming:

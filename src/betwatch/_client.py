@@ -665,6 +665,22 @@ class Betwatch:
         change to a race read earlier — follow from any page. Page with
         `after=snap.next`.
 
+        That property is worth using rather than just knowing: hydration costs
+        roughly half a second per race, so a small first page attaches far
+        sooner and the rest can be read while already live.
+
+        ```python
+        page = client.snapshot(sport="thoroughbred", country="au", limit=10)
+        with client.follow(page) as live:      # attached in ~5s, not ~50s
+            rest = page
+            while rest.next:                   # fill in the card as it streams
+                rest = client.snapshot(sport="thoroughbred", country="au",
+                                       limit=10, after=rest.next)
+        ```
+
+        Nothing is missed in the meantime: the cursor predates every page, so
+        changes to races still being read replay once you are attached.
+
         `include="history"` is refused here: fluctuations stay event-scoped, so
         ask `/v1/odds` for them.
         """
@@ -868,6 +884,22 @@ class AsyncBetwatch:
         page was read, so paging to the end and then following cannot miss a
         change to a race read earlier — follow from any page. Page with
         `after=snap.next`.
+
+        That property is worth using rather than just knowing: hydration costs
+        roughly half a second per race, so a small first page attaches far
+        sooner and the rest can be read while already live.
+
+        ```python
+        page = client.snapshot(sport="thoroughbred", country="au", limit=10)
+        with client.follow(page) as live:      # attached in ~5s, not ~50s
+            rest = page
+            while rest.next:                   # fill in the card as it streams
+                rest = client.snapshot(sport="thoroughbred", country="au",
+                                       limit=10, after=rest.next)
+        ```
+
+        Nothing is missed in the meantime: the cursor predates every page, so
+        changes to races still being read replay once you are attached.
 
         `include="history"` is refused here: fluctuations stay event-scoped, so
         ask `/v1/odds` for them.

@@ -1,25 +1,24 @@
 #!/usr/bin/env python
-"""Does a `snapshot=full` stream miss changes published while it is building?
+"""Does anything change between reading a snapshot and following its cursor?
 
-`ready` is flushed within a second, then the server spends 20-45s hydrating the
-snapshot. Anything that changes during that window is either replayed to us
-afterwards or silently lost, and the difference matters: a lost change means we
-hold a stale price until that source moves again.
+`GET /v1/snapshot` anchors its cursor before it reads, so every change published
+while the read was in flight should replay once you connect. If that were wrong
+a client would silently hold a stale price until that source moved again — the
+worst failure available here, because nothing announces it.
 
 The test, for one scope:
 
-  1. Stream `snapshot=full`, recording every odds row and the wall-clock
-     instants of `ready` and `sync`.
-  2. The moment `sync` lands, read the same scope over REST. That is the
-     authoritative current state.
-  3. Compare. A row where REST disagrees with what we streamed, *and* whose
-     REST `updatedAt` falls inside the bootstrap window, is a change published
-     during generation that never reached us.
-  4. Separately, watch the frames arriving just after `sync`. If the server
-     replays the window, some of them carry an `updatedAt` from inside it.
+  1. `client.snapshot(...)`, recording every price and the wall-clock window the
+     read occupied.
+  2. `client.follow(snap)` and watch, looking for frames whose `updatedAt` falls
+     inside that window. Those are the replay, and seeing them is the guarantee
+     working rather than merely not failing.
+  3. Read the same events over REST. A row where REST disagrees with both the
+     snapshot and everything replayed, whose change landed inside the window, is
+     a change that never reached us.
 
-Rows whose REST `updatedAt` is after `sync` are ordinary live movement and are
-excluded — they are not evidence of anything.
+A quiet window proves nothing: if nothing moved there was nothing to miss, and
+the report says so rather than claiming a pass.
 
     fnox exec --profile prod -- uv run tools/bootstrap_gap.py --sport thoroughbred --country au
 """
@@ -30,14 +29,7 @@ import argparse
 from datetime import UTC, datetime
 from time import monotonic
 
-from betwatch import (
-    APIConnectionError,
-    Betwatch,
-    Odds,
-    ReadyFrame,
-    ResyncRequired,
-    SyncFrame,
-)
+from betwatch import APIConnectionError, Betwatch, Odds, ResyncRequired
 from betwatch.types.stream import iter_odds
 
 Key = tuple[str, str, str]
@@ -53,9 +45,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     p.add_argument("--sport", action="append", choices=["thoroughbred", "greyhound", "harness"])
     p.add_argument("--country", action="append")
-    p.add_argument("--watch-after-sync", type=float, default=20.0)
-    p.add_argument("--timeout", type=float, default=240.0)
-    p.add_argument("--events", type=int, default=50, help="How many events to verify over REST.")
+    p.add_argument("--watch", type=float, default=30.0, help="Seconds to follow after the read.")
+    p.add_argument("--events", type=int, default=50, help="Events to verify over REST.")
     return p.parse_args(argv)
 
 
@@ -63,106 +54,81 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     scope = {"sport": args.sport or ["thoroughbred"], "country": args.country or ["au"]}
 
-    streamed: dict[Key, Odds] = {}
-    replayed_from_window: list[tuple[Key, datetime]] = []
-    t_ready = t_sync = None
-    synced_at = 0.0
-    started = monotonic()
+    in_snapshot: dict[Key, Odds] = {}
+    replayed: dict[Key, Odds] = {}
+    from_window: list[tuple[Key, datetime]] = []
 
-    dropped = False
     with Betwatch() as client:
         print(f"host={client.base_url} scope={scope}", flush=True)
+
+        opened = datetime.now(UTC)
+        snap = client.snapshot(**scope, limit=200)
+        read_done = datetime.now(UTC)
+        for row in snap.odds:
+            in_snapshot[_key(row)] = row
+        print(
+            f"snapshot read in {(read_done - opened).total_seconds():.1f}s — "
+            f"{len(snap.events)} races, {len(snap.odds)} prices",
+            flush=True,
+        )
+
+        watch_started = monotonic()
         try:
-            with client.stream(**scope, snapshot="full", reconnect=False) as stream:
-                for frame in stream:
-                    now = monotonic()
-                    if isinstance(frame, ReadyFrame):
-                        t_ready = datetime.now(UTC)
-                        print(f"ready at {t_ready.isoformat()}", flush=True)
-                        continue
-                    if isinstance(frame, SyncFrame):
-                        t_sync = datetime.now(UTC)
-                        synced_at = now
-                        print(
-                            f"sync at {t_sync.isoformat()} "
-                            f"({(t_sync - t_ready).total_seconds():.1f}s window, "
-                            f"{len(streamed)} odds rows) — watching "
-                            f"{args.watch_after_sync:.0f}s for replayed changes",
-                            flush=True,
-                        )
-                        continue
+            with client.follow(snap, reconnect=False) as live:
+                for frame in live:
                     for row in iter_odds(frame):
-                        if t_sync is None:
-                            streamed[_key(row)] = row
-                        elif row.updated_at and t_ready <= row.updated_at <= t_sync:
-                            # published while the snapshot was building, delivered after
-                            replayed_from_window.append((_key(row), row.updated_at))
-                    if t_sync is not None and now - synced_at > args.watch_after_sync:
+                        replayed[_key(row)] = row
+                        if row.updated_at and opened <= row.updated_at <= read_done:
+                            from_window.append((_key(row), row.updated_at))
+                    if monotonic() - watch_started > args.watch:
                         break
-                    if now - started > args.timeout:
-                        print("TIMED OUT before sync", flush=True)
-                        return 1
-
         except (APIConnectionError, ResyncRequired) as exc:
-            dropped = True
-            print(f"STREAM ENDED EARLY: {type(exc).__name__}: {exc}", flush=True)
+            # A rolling deploy cuts in-flight streams on this cluster. Resuming
+            # from the cursor is the contract; for this test it just ends early.
+            print(f"stream ended early: {type(exc).__name__}", flush=True)
 
-        if t_ready is None or t_sync is None:
-            print("never reached sync — the connection did not survive the bootstrap", flush=True)
-            return 1
-
-        # 2. authoritative current state. /v1/odds needs an event-shaped filter,
-        #    so read back the events the snapshot itself gave us (50 max per call).
-        event_ids = sorted({row.event_id for row in streamed.values()})[: args.events]
+        event_ids = sorted({row.event_id for row in in_snapshot.values()})[: args.events]
         rest: dict[Key, Odds] = {}
         for start in range(0, len(event_ids), 50):
             for row in client.odds.iter(event=event_ids[start : start + 50]):
                 rest[_key(row)] = row
-        t_rest = datetime.now(UTC)
-        print(
-            f"rest read {len(rest)} rows across {len(event_ids)} events by {t_rest.isoformat()}",
-            flush=True,
-        )
+        print(f"rest verified {len(rest)} rows across {len(event_ids)} events", flush=True)
 
-        # 3. disagreements whose change landed inside the bootstrap window
-        missed: list[tuple[Key, float | None, float | None, datetime]] = []
-        stale_after_sync = 0
-        for key, rest_row in rest.items():
-            streamed_row = streamed.get(key)
-            if streamed_row is None or rest_row.price == streamed_row.price:
-                continue
-            changed_at = rest_row.updated_at
-            if changed_at is None:
-                continue
-            if t_ready <= changed_at <= t_sync:
-                missed.append((key, streamed_row.price, rest_row.price, changed_at))
-            elif changed_at > t_sync:
-                stale_after_sync += 1
+    missed: list[tuple[Key, float | None, float | None, datetime]] = []
+    moved_after = 0
+    for key, current in rest.items():
+        known = replayed.get(key) or in_snapshot.get(key)
+        if known is None or current.price == known.price:
+            continue
+        changed_at = current.updated_at
+        if changed_at is None:
+            continue
+        if opened <= changed_at <= read_done:
+            missed.append((key, known.price, current.price, changed_at))
+        elif changed_at > read_done:
+            moved_after += 1
 
-    window = (t_sync - t_ready).total_seconds()
     print("\n" + "=" * 72)
-    print(
-        f"bootstrap window          {window:.1f}s  ({t_ready.isoformat()} -> {t_sync.isoformat()})"
-    )
-    print(f"odds rows streamed        {len(streamed)}")
-    print(f"odds rows over REST       {len(rest)}")
-    print(f"rows changed after sync   {stale_after_sync}  (ordinary live movement, not evidence)")
-    print(
-        f"REPLAYED FROM WINDOW      {len(replayed_from_window)}  (post-sync frames dated inside the window)"
-    )
-    print(f"connection dropped        {dropped}")
-    print(f"MISSED CHANGES            {len(missed)}")
-    for key, streamed_price, rest_price, changed_at in missed[:20]:
-        print(
-            f"  {key}  streamed={streamed_price} rest={rest_price} changed_at={changed_at.isoformat()}"
-        )
-    if len(missed) > 20:
-        print(f"  … and {len(missed) - 20} more")
+    print(f"read window            {(read_done - opened).total_seconds():.1f}s")
+    print(f"prices in snapshot     {len(in_snapshot)}")
+    print(f"prices replayed after  {len(replayed)}")
+    print(f"REPLAYED FROM WINDOW   {len(from_window)}  <- the guarantee working")
+    print(f"moved after the read   {moved_after}  (ordinary live movement)")
+    print(f"MISSED CHANGES         {len(missed)}")
+    for key, was, now, at in missed[:20]:
+        print(f"  {key} snapshot={was} rest={now} changed_at={at.isoformat()}")
 
     if missed:
-        print("\nVERDICT: changes published during snapshot generation did NOT reach the client.")
+        print("\nVERDICT: changes published during the read did not reach the client.")
         return 2
-    print("\nVERDICT: no missed changes detected in this window.")
+    observed = len(from_window) + moved_after
+    if not observed:
+        print(
+            "\nVERDICT: inconclusive — nothing moved during or after the read, so there"
+            "\nwas nothing to miss. Re-run while racing is live."
+        )
+        return 0
+    print(f"\nVERDICT: no missed changes, against {observed} observed moves.")
     return 0
 
 

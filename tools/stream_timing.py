@@ -1,17 +1,20 @@
 #!/usr/bin/env python
-"""Measure how long `/v1/stream` takes to bootstrap, for one filter scope.
+"""Time how long it takes to start following a scope, and how often that fails.
 
-Built for the platform team to re-run against a build before launch and keep as
-a regression check afterwards. It reports the three numbers that matter and, in
-particular, the silence: how long the connection sits with nothing on it before
-the first data frame arrives.
+Measures the path the contract now offers: read `GET /v1/snapshot`, then follow
+the cursor it returned. An earlier version opened `snapshot=full`, which the
+server refuses above an event, meeting or venue — it reported ten drops in ten
+attempts that were really ten `422 filter_required`. That is the shape of tool
+failure worth naming: a confident number measuring something that no longer
+exists.
 
-    fnox exec --profile prod -- uv run tools/stream_timing.py
+`--repeat N` runs N attempts and reports how many survived. In-flight streams on
+this cluster are cut by rolling deployments — pods get a 30s grace period, so a
+deploy severs every open SSE connection — so a drop rate here tracks deploy
+activity rather than server health. Run it during a quiet window for the floor.
+
     fnox exec --profile prod -- uv run tools/stream_timing.py --sport thoroughbred --country au
-    fnox exec --profile prod -- uv run tools/stream_timing.py --json --require-sync 60
-
-Exits non-zero when `--require-sync` is given and the bootstrap does not
-complete inside it, so this works as a CI gate.
+    fnox exec --profile prod -- uv run tools/stream_timing.py --repeat 10 --json
 """
 
 from __future__ import annotations
@@ -23,7 +26,7 @@ from collections import Counter
 from time import monotonic
 from typing import Any
 
-from betwatch import Betwatch, ReadyFrame, StreamProgress, SyncFrame
+from betwatch import APIConnectionError, Betwatch, ReadyFrame, ResyncRequired, StreamProgress
 from betwatch.types.stream import frame_name
 
 
@@ -33,67 +36,62 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     p.add_argument("--sport", action="append", choices=["thoroughbred", "greyhound", "harness"])
     p.add_argument("--country", action="append")
-    p.add_argument("--event", action="append")
-    p.add_argument("--timeout", type=float, default=180.0, help="Give up after this long.")
-    p.add_argument(
-        "--require-sync",
-        type=float,
-        default=None,
-        metavar="SECONDS",
-        help="Exit 1 unless the bootstrap completes within SECONDS.",
-    )
-    p.add_argument("--json", action="store_true", help="Emit one JSON object instead of a report.")
-    p.add_argument("--quiet", action="store_true", help="Suppress the per-interval progress lines.")
-    p.add_argument(
-        "--repeat",
-        type=int,
-        default=1,
-        metavar="N",
-        help="Run N attempts and report how many survived. Use to measure drop rate.",
-    )
+    p.add_argument("--watch", type=float, default=30.0, help="Seconds to follow after attaching.")
+    p.add_argument("--repeat", type=int, default=1, metavar="N", help="Attempts, for a drop rate.")
+    p.add_argument("--require-attach", type=float, default=None, metavar="SECONDS")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--quiet", action="store_true")
     return p.parse_args(argv)
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
-    if args.repeat > 1:
-        return _repeat(args)
-    return _once(args)
+def _measure(args: argparse.Namespace) -> dict[str, Any]:
+    counts: Counter[str] = Counter()
+    pings = 0
+    started = monotonic()
+    t_ready = t_first = None
+    ended_early: str | None = None
 
+    def report(progress: StreamProgress) -> None:
+        nonlocal pings
+        pings = progress.pings
+        if not args.quiet and not args.json:
+            print(progress, file=sys.stderr, flush=True)
 
-def _repeat(args: argparse.Namespace) -> int:
-    """Connections die mid-response sometimes; one run cannot tell you how often."""
-    drops: list[str] = []
-    synced: list[float] = []
-    for attempt in range(1, args.repeat + 1):
-        print(f"--- attempt {attempt}/{args.repeat} ---", file=sys.stderr, flush=True)
+    scope = {k: v for k, v in (("sport", args.sport), ("country", args.country)) if v}
+    with Betwatch() as client:
+        if not args.json and not args.quiet:
+            print(f"host={client.base_url} scope={scope or 'all'}", file=sys.stderr, flush=True)
+        snap = client.snapshot(**scope, limit=200)
+        t_snapshot = monotonic() - started
         try:
-            result = _measure(args)
-        except Exception as exc:  # noqa: BLE001 - a drop is the measurement
-            drops.append(f"{type(exc).__name__}: {exc}")
-            print(f"  DROPPED  {type(exc).__name__}", file=sys.stderr, flush=True)
-            continue
-        if result["sync_s"] is None:
-            drops.append("no sync before timeout")
-            print("  NO SYNC", file=sys.stderr, flush=True)
-        else:
-            synced.append(result["sync_s"])
-            print(f"  synced in {result['sync_s']}s", file=sys.stderr, flush=True)
+            with client.follow(snap, reconnect=False, progress=report) as live:
+                for frame in live:
+                    now = monotonic() - started
+                    if isinstance(frame, ReadyFrame):
+                        t_ready = now
+                        continue
+                    counts[frame_name(frame)] += 1
+                    if t_first is None:
+                        t_first = now
+                    if now - (t_ready or t_snapshot) > args.watch:
+                        break
+        except (APIConnectionError, ResyncRequired) as exc:
+            ended_early = f"{type(exc).__name__}: {exc}"
+        base_url = client.base_url
 
-    survived = len(synced)
-    print(
-        json.dumps(
-            {
-                "attempts": args.repeat,
-                "survived": survived,
-                "dropped": len(drops),
-                "drop_rate": round(len(drops) / args.repeat, 3),
-                "sync_seconds": synced,
-                "failures": drops,
-            }
-        )
-    )
-    return 0 if not drops else 1
+    return {
+        "host": base_url,
+        "scope": scope,
+        "snapshot_s": round(t_snapshot, 2),
+        "races": len(snap.events),
+        "prices": len(snap.odds),
+        "attach_s": t_ready and round(t_ready, 2),
+        "first_frame_s": t_first and round(t_first, 2),
+        "frames": sum(counts.values()),
+        "keepalives": pings,
+        "counts": dict(counts),
+        "ended_early": ended_early,
+    }
 
 
 def _once(args: argparse.Namespace) -> int:
@@ -102,87 +100,58 @@ def _once(args: argparse.Namespace) -> int:
         print(json.dumps(result))
     else:
         print(
-            f"\nready       {result['ready_s']}s"
+            f"\nsnapshot    {result['snapshot_s']}s  "
+            f"({result['races']} races, {result['prices']} prices)"
+            f"\nattach      {result['attach_s']}s  <- ready on the stream"
             f"\nfirst frame {result['first_frame_s']}s"
-            f"\nsilence     {result['silence_s']}s  <- dead air after ready"
-            f"\nsync        {result['sync_s']}s"
-            f"\nframes      {result['frames']} at {result['frames_per_s']}/s  {result['counts']}"
-            f"\nkeepalives  {result['keepalives_during_bootstrap']} during bootstrap"
-            + ("\nTIMED OUT before sync" if result["timed_out"] else "")
+            f"\nframes      {result['frames']}  {result['counts']}"
+            f"\nkeepalives  {result['keepalives']}"
+            + (f"\nENDED EARLY {result['ended_early']}" if result["ended_early"] else "")
         )
-    if args.require_sync is not None and (
-        result["sync_s"] is None or result["sync_s"] > args.require_sync
-    ):
-        got = "no sync" if result["sync_s"] is None else f"{result['sync_s']:.1f}s"
-        print(f"FAIL: bootstrap needed <= {args.require_sync}s, got {got}", file=sys.stderr)
+    attach = result["attach_s"]
+    if args.require_attach is not None and (attach is None or attach > args.require_attach):
+        got = "never attached" if attach is None else f"{attach:.1f}s"
+        print(f"FAIL: attach needed <= {args.require_attach}s, got {got}", file=sys.stderr)
         return 1
     return 0
 
 
-def _measure(args: argparse.Namespace) -> dict[str, Any]:
-    counts: Counter[str] = Counter()
-    pings = 0
-    started = monotonic()
-    t_ready = t_first = t_sync = None
-    timed_out = False
+def _repeat(args: argparse.Namespace) -> int:
+    drops: list[str] = []
+    attached: list[float] = []
+    for attempt in range(1, args.repeat + 1):
+        print(f"--- attempt {attempt}/{args.repeat} ---", file=sys.stderr, flush=True)
+        try:
+            result = _measure(args)
+        except Exception as exc:  # noqa: BLE001 - a failure is the measurement
+            drops.append(f"{type(exc).__name__}: {exc}")
+            print(f"  FAILED  {type(exc).__name__}", file=sys.stderr, flush=True)
+            continue
+        if result["ended_early"]:
+            drops.append(result["ended_early"])
+            print(f"  DROPPED {result['ended_early'][:70]}", file=sys.stderr, flush=True)
+        else:
+            attached.append(result["attach_s"])
+            print(f"  ok, attached in {result['attach_s']}s", file=sys.stderr, flush=True)
 
-    def report(progress: StreamProgress) -> None:
-        nonlocal pings
-        pings = progress.pings
-        if not args.quiet and not args.json:
-            print(progress, file=sys.stderr, flush=True)
+    print(
+        json.dumps(
+            {
+                "attempts": args.repeat,
+                "survived": len(attached),
+                "dropped": len(drops),
+                "drop_rate": round(len(drops) / args.repeat, 3),
+                "attach_seconds": attached,
+                "failures": drops,
+            }
+        )
+    )
+    return 0 if not drops else 1
 
-    with Betwatch() as client:
-        scope = {
-            "sport": args.sport or ["thoroughbred", "greyhound", "harness"],
-            "country": args.country,
-            "event": args.event,
-        }
-        if not args.json:
-            print(
-                f"host={client.base_url} scope={ {k: v for k, v in scope.items() if v} }",
-                file=sys.stderr,
-                flush=True,
-            )
-        with client.stream(
-            **{k: v for k, v in scope.items() if v},
-            snapshot="full",
-            reconnect=False,
-            progress=report,
-        ) as stream:
-            for frame in stream:
-                now = monotonic() - started
-                if isinstance(frame, ReadyFrame):
-                    t_ready = now
-                    continue
-                if isinstance(frame, SyncFrame):
-                    t_sync = now
-                    break
-                counts[frame_name(frame)] += 1
-                if t_first is None:
-                    t_first = now
-                if now > args.timeout:
-                    timed_out = True
-                    break
 
-    frames = sum(counts.values())
-    elapsed = t_sync if t_sync is not None else monotonic() - started
-    result = {
-        "host": client.base_url,
-        "scope": {k: v for k, v in scope.items() if v},
-        "ready_s": t_ready and round(t_ready, 2),
-        "first_frame_s": t_first and round(t_first, 2),
-        # The number to watch: dead air between the connection opening and any data.
-        "silence_s": round((t_first or elapsed) - (t_ready or 0.0), 2),
-        "sync_s": t_sync and round(t_sync, 2),
-        "frames": frames,
-        "frames_per_s": round(frames / elapsed, 1) if elapsed > 0 else None,
-        "keepalives_during_bootstrap": pings,
-        "counts": dict(counts),
-        "timed_out": timed_out,
-    }
-
-    return result
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    return _repeat(args) if args.repeat > 1 else _once(args)
 
 
 if __name__ == "__main__":
