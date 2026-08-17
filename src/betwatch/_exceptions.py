@@ -128,11 +128,22 @@ def _field_errors(body: Any) -> list[FieldError]:
     return errors
 
 
+# Rendered in place of a request id that the contract guarantees but this
+# response did not carry — a proxy 502, or a body that never reached the API.
+# Showing the absence beats hiding it: it says where to look.
+NO_REQUEST_ID = "<none>"
+
+
 class APIStatusError(BetwatchError):
     """An RFC 9457 problem document returned by the API.
 
     Branch on `code` (see `ErrorCodes`), never on `title` or `detail`.
     Quote `request_id` and `trace_id` when contacting support.
+
+    `request_id` is required by the contract — the request-id middleware runs
+    before anything that can fail — so it is rendered unconditionally and is
+    absent only when the failure never reached the API. `trace_id` is optional:
+    it depends on the request having been traced.
     """
 
     def __init__(
@@ -159,7 +170,9 @@ class APIStatusError(BetwatchError):
         self.type = _str_member(body, "type")
         self.instance = _str_member(body, "instance")
         self.errors = _field_errors(body)
-        self.request_id = request_id or _str_member(body, "requestId")
+        # The body is authoritative: the contract requires requestId there,
+        # while the header can be stripped by an intermediary.
+        self.request_id = _str_member(body, "requestId") or request_id
         self.trace_id = trace_id or _str_member(body, "traceId")
 
     def __str__(self) -> str:
@@ -170,8 +183,7 @@ class APIStatusError(BetwatchError):
             parts.append("; ".join(str(err) for err in self.errors))
         if self.code:
             parts.append(f"code={self.code}")
-        if self.request_id:
-            parts.append(f"request_id={self.request_id}")
+        parts.append(f"request_id={self.request_id or NO_REQUEST_ID}")
         if self.trace_id:
             parts.append(f"trace_id={self.trace_id}")
         return " — ".join(parts)
@@ -217,6 +229,19 @@ class NotFoundError(APIStatusError):
 
 class UnprocessableEntityError(APIStatusError):
     """HTTP 422. A required filter is missing or a value is malformed."""
+
+
+class CursorError(APIStatusError):
+    """HTTP 409 `cursor_expired` / `cursor_scope_changed`. The cursor is dead.
+
+    `cursor_expired` means it is older than the plan's replay window;
+    `cursor_scope_changed` means it was minted for different filters, a
+    different entitlement, or a different account. Neither is fixed by
+    retrying: bootstrap again over REST and reconnect with the fresh cursor.
+
+    On a stream this is intercepted and re-raised as `ResyncRequired`, which
+    carries this as its cause.
+    """
 
 
 class MethodNotAllowedError(APIStatusError):
@@ -290,6 +315,7 @@ _STATUS_ERRORS: dict[int, type[APIStatusError]] = {
     401: AuthenticationError,
     403: PermissionDeniedError,
     404: NotFoundError,
+    409: CursorError,
     405: MethodNotAllowedError,
     406: UnsupportedMediaTypeError,
     415: UnsupportedMediaTypeError,
@@ -306,6 +332,8 @@ _CODE_ERRORS: dict[str, type[APIStatusError]] = {
     ErrorCodes.STREAM_LIMIT: StreamLimitError,
     ErrorCodes.ENTITLEMENT_EMPTY: EntitlementEmptyError,
     ErrorCodes.ACCOUNT_DISABLED: AccountDisabledError,
+    ErrorCodes.CURSOR_EXPIRED: CursorError,
+    ErrorCodes.CURSOR_SCOPE_CHANGED: CursorError,
     ErrorCodes.QUOTA_UNAVAILABLE: ServiceUnavailableError,
     ErrorCodes.STREAM_UNAVAILABLE: ServiceUnavailableError,
     ErrorCodes.UNAVAILABLE: ServiceUnavailableError,

@@ -42,9 +42,12 @@ from .types.stream import StreamFrame, SyncFrame
 
 _T = TypeVar("_T")
 
-# The cursor is unusable and reconnecting with it would loop. The status
-# carrying these is not pinned by the contract yet, so branch on the code.
-_RESYNC_CODES = frozenset({ErrorCodes.CURSOR_EXPIRED, ErrorCodes.CURSOR_SCOPE_CHANGED})
+# The cursor is unusable and reconnecting with it would loop forever. Both
+# codes are declared on `streamRacing` as 409, so either signal is sufficient
+# on its own: the status is the contract's, the codes say which of the two
+# happened. `tests/test_contract_spec.py` pins both against openapi.json.
+RESYNC_STATUS = 409
+RESYNC_CODES = frozenset({ErrorCodes.CURSOR_EXPIRED, ErrorCodes.CURSOR_SCOPE_CHANGED})
 
 
 def _stream_backoff(attempt: int) -> float:
@@ -94,7 +97,7 @@ class Stream:
                 retry_after=parse_retry_after(response),
                 rate_limit=RateLimit.from_headers(response.headers),
             )
-            if response.status_code == 409 or err.code in _RESYNC_CODES:
+            if response.status_code == RESYNC_STATUS or err.code in RESYNC_CODES:
                 raise ResyncRequired(self.cursor, err.code or "conflict") from err
             raise err
         self.trace_id = response.headers.get("x-trace-id") or None
@@ -196,7 +199,7 @@ class AsyncStream:
                 retry_after=parse_retry_after(response),
                 rate_limit=RateLimit.from_headers(response.headers),
             )
-            if response.status_code == 409 or err.code in _RESYNC_CODES:
+            if response.status_code == RESYNC_STATUS or err.code in RESYNC_CODES:
                 raise ResyncRequired(self.cursor, err.code or "conflict") from err
             raise err
         self.trace_id = response.headers.get("x-trace-id") or None

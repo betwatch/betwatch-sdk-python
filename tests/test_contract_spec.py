@@ -321,3 +321,114 @@ def test_odds_history_decodes_when_requested() -> None:
     )
     assert odds.history is not None
     assert [item.price for item in odds.history] == [4.0, 3.4]
+
+
+# --- stream recovery, pinned to the contract ------------------------------
+
+
+def test_stream_declares_the_resync_status_the_client_branches_on(
+    spec: dict[str, Any],
+) -> None:
+    """cursor_expired / cursor_scope_changed arrive as 409 on streamRacing."""
+    from betwatch._client import RESYNC_CODES, RESYNC_STATUS
+
+    responses = spec["paths"]["/v1/stream"]["get"]["responses"]
+    assert str(RESYNC_STATUS) in responses, (
+        f"the client treats {RESYNC_STATUS} as resync but the contract does not declare it"
+    )
+    declared_codes = set(
+        spec["components"]["schemas"]["PublicProblem"]["properties"]["code"]["enum"]
+    )
+    assert RESYNC_CODES <= declared_codes
+
+
+def test_stream_declares_every_status_the_client_can_meet(spec: dict[str, Any]) -> None:
+    responses = set(spec["paths"]["/v1/stream"]["get"]["responses"])
+    assert {"401", "403", "409", "422", "429", "503"} <= responses
+
+
+@pytest.mark.parametrize("status", ["400", "405", "406", "415"])
+def test_rest_declares_the_statuses_the_sdk_maps(spec: dict[str, Any], status: str) -> None:
+    """Each of these resolves to an exception type, so it must be reachable."""
+    from betwatch._exceptions import _STATUS_ERRORS
+
+    rest = [
+        op["responses"]
+        for path, item in spec["paths"].items()
+        for method, op in item.items()
+        if method == "get" and path != "/v1/stream"
+    ]
+    assert all(status in responses for responses in rest), status
+    assert int(status) in _STATUS_ERRORS, f"nothing maps {status}"
+
+
+def test_every_declared_status_resolves_to_an_exception(spec: dict[str, Any]) -> None:
+    """No status the contract admits to may fall through to a bare APIStatusError."""
+    from betwatch._exceptions import APIStatusError, error_class_for
+
+    declared = {
+        status
+        for item in spec["paths"].values()
+        for method, op in item.items()
+        if method == "get"
+        for status in op["responses"]
+        if status.isdigit() and int(status) >= 400
+    }
+    unmapped = {
+        status for status in declared if error_class_for(int(status), None) is APIStatusError
+    }
+    assert not unmapped, f"no exception type for: {sorted(unmapped)}"
+
+
+def test_all_error_responses_use_the_one_problem_schema(spec: dict[str, Any]) -> None:
+    """One shape everywhere is what lets a single handler cover the API."""
+    for path, item in spec["paths"].items():
+        for method, op in item.items():
+            if method != "get":
+                continue
+            for status, response in op["responses"].items():
+                if not status.isdigit() or int(status) < 400:
+                    continue
+                content = response.get("content") or {}
+                schema = content.get("application/problem+json", {}).get("schema", {})
+                assert schema.get("$ref", "").endswith("PublicProblem"), (
+                    f"{method.upper()} {path} {status} is not a PublicProblem"
+                )
+
+
+# --- requestId is guaranteed ---------------------------------------------
+
+
+def test_request_id_is_required_by_the_contract(spec: dict[str, Any]) -> None:
+    problem = spec["components"]["schemas"]["PublicProblem"]
+    assert "requestId" in problem["required"], "the SDK renders it unconditionally"
+    assert "traceId" not in problem["required"], "traceId depends on tracing being on"
+
+
+def test_request_id_comes_from_the_body_even_without_the_header() -> None:
+    from betwatch._exceptions import error_for_status
+
+    err = error_for_status(
+        503,
+        path="/v1/odds",
+        body={
+            "type": "x",
+            "title": "t",
+            "status": 503,
+            "detail": "d",
+            "code": ErrorCodes.UNAVAILABLE,
+            "requestId": "01K3F9QW2H7YB4NPX8VJDT6MRC",
+        },
+    )
+    assert err.request_id == "01K3F9QW2H7YB4NPX8VJDT6MRC"
+    assert "01K3F9QW2H7YB4NPX8VJDT6MRC" in str(err)
+    assert "01K3F9QW2H7YB4NPX8VJDT6MRC" in repr(err)
+
+
+def test_a_failure_that_never_reached_the_api_says_so() -> None:
+    """A proxy 502 has no request id; the rendering must not imply one."""
+    from betwatch._exceptions import NO_REQUEST_ID, error_for_status
+
+    err = error_for_status(502, path="/v1/odds", body="<html>bad gateway</html>")
+    assert err.request_id is None
+    assert NO_REQUEST_ID in str(err)

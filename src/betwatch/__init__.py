@@ -31,6 +31,7 @@ from ._exceptions import (
     BadRequestError,
     BetwatchError,
     CredentialInQueryError,
+    CursorError,
     EntitlementEmptyError,
     FieldError,
     FilterRequiredError,
@@ -85,6 +86,7 @@ from .types import (
 )
 
 __all__ = [
+    "CursorError",
     "BudgetHeaders",
     "UnsupportedMediaTypeError",
     "StreamLimitError",

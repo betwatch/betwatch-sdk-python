@@ -397,3 +397,134 @@ def test_resume_reconnects_with_the_last_frame_id_not_the_original_cursor() -> N
 
     assert opens[0] == "cur_start", "first connect uses the bootstrap cursor"
     assert opens[1] == "cur_last", "the resume uses the last frame id, not cur_start"
+
+
+def _snapshot_bytes(cursor: str) -> bytes:
+    return (
+        b'{"stream":{"cursor":"' + cursor.encode() + b'","event":["evt_1"],'
+        b'"source":["sportsbet"]},"event":{"id":"evt_1","sport":"thoroughbred",'
+        b'"name":"R1","startAt":"2026-08-15T04:00:00Z","status":"open"},'
+        b'"entrants":[],"markets":[],"outcomes":[],"odds":[],"coverage":[]}'
+    )
+
+
+def test_409_cursor_expired_recovers_by_re_bootstrapping_over_rest() -> None:
+    """The documented recovery, end to end.
+
+    A dead cursor raises ResyncRequired rather than reconnecting with it; the
+    caller re-snapshots over REST and follows the fresh cursor, which is what
+    goes out as Last-Event-ID.
+    """
+    import httpx
+
+    from betwatch import Betwatch, CursorError, ResyncRequired
+    from betwatch._base_client import decode_model
+    from betwatch.types.snapshot import EventSnapshot
+
+    stale = decode_model("/v1/events/evt_1/snapshot", _snapshot_bytes("cur_stale"), EventSnapshot)
+    fresh = decode_model("/v1/events/evt_1/snapshot", _snapshot_bytes("cur_fresh"), EventSnapshot)
+
+    sent: list[dict[str, str]] = []
+
+    class Raw:
+        def __init__(self) -> None:
+            self.opens = 0
+
+        def build_request(self, method, url, *, params, headers, timeout):
+            return httpx.Request(
+                method, "http://localhost:8888" + url, params=params, headers=headers
+            )
+
+        def send(self, request, *, stream):
+            self.opens += 1
+            sent.append(dict(request.headers))
+            if self.opens == 1:
+                return httpx.Response(
+                    409,
+                    request=request,
+                    json={
+                        "type": "x",
+                        "title": "Conflict",
+                        "status": 409,
+                        "detail": "cursor is older than your replay window",
+                        "code": "cursor_expired",
+                        "requestId": "01K3F9QW2H",
+                    },
+                )
+            return httpx.Response(200, request=request, content=b"")
+
+        def close(self) -> None:
+            return None
+
+    raw = Raw()
+    client = Betwatch(api_key="bw_test", base_url="http://localhost:8888")
+    object.__setattr__(client, "_raw", raw)
+    try:
+        with pytest.raises(ResyncRequired) as caught:
+            with client.follow(stale, reconnect=False):
+                pass
+
+        assert caught.value.reason == "cursor_expired"
+        assert caught.value.cursor == "cur_stale"
+        cause = caught.value.__cause__
+        assert isinstance(cause, CursorError), type(cause)
+        assert cause.status_code == 409
+        assert cause.request_id == "01K3F9QW2H"
+
+        # the documented recovery: bootstrap again, follow the cursor it returned
+        with client.follow(fresh, reconnect=False):
+            pass
+    finally:
+        client.close()
+
+    assert raw.opens == 2
+    assert sent[0]["last-event-id"] == "cur_stale"
+    assert sent[1]["last-event-id"] == "cur_fresh", "must reconnect with the fresh cursor"
+    assert all("bw_test" not in str(h.get("last-event-id", "")) for h in sent)
+
+
+def test_a_dead_cursor_is_never_retried_with_itself() -> None:
+    """Reconnecting with an expired cursor is an infinite loop, so it must not happen."""
+    import httpx
+
+    from betwatch import Betwatch, ResyncRequired
+
+    class Raw:
+        def __init__(self) -> None:
+            self.opens = 0
+
+        def build_request(self, method, url, *, params, headers, timeout):
+            return httpx.Request(
+                method, "http://localhost:8888" + url, params=params, headers=headers
+            )
+
+        def send(self, request, *, stream):
+            self.opens += 1
+            return httpx.Response(
+                409,
+                request=request,
+                json={
+                    "type": "x",
+                    "title": "Conflict",
+                    "status": 409,
+                    "detail": "cursor was minted for a different filter set",
+                    "code": "cursor_scope_changed",
+                    "requestId": "01K3F9QW2H",
+                },
+            )
+
+        def close(self) -> None:
+            return None
+
+    raw = Raw()
+    client = Betwatch(api_key="bw_test", base_url="http://localhost:8888")
+    object.__setattr__(client, "_raw", raw)
+    stream = client.stream(event="evt_1", cursor="cur_wrong_scope", reconnect=True)
+    try:
+        with pytest.raises(ResyncRequired):
+            with stream:
+                pass
+    finally:
+        client.close()
+
+    assert raw.opens == 1, "reconnect=True must not retry a cursor the server rejected"
