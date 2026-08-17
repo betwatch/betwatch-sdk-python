@@ -122,24 +122,29 @@ def main(argv: list[str] | None = None) -> None:
         while True:
             try:
                 print(_ts(), "open", "resume" if last else "rest-bootstrap", flush=True)
-                # A saved cursor resumes directly; otherwise bootstrap the scope
-                # over REST rather than waiting out a server-built snapshot, which
-                # on the widest scope can take minutes and may not survive it.
-                stream = (
-                    client.stream(
-                        sport=args.sport or ["thoroughbred", "greyhound", "harness"],
+                sports = args.sport or ["thoroughbred", "greyhound", "harness"]
+                if last:
+                    stream = client.stream(
+                        sport=sports,
                         country=args.country,
                         snapshot="none",
                         cursor=last,
                         progress=print_progress,
                     )
-                    if last
-                    else client.watch_scope(
-                        sport=args.sport or ["thoroughbred", "greyhound", "harness"],
-                        country=args.country,
-                        progress=print_progress,
+                else:
+                    # One call returns the card, the prices and the cursor to
+                    # follow them. `snapshot="full"` is refused at this scope.
+                    snap = client.snapshot(sport=sports, country=args.country)
+                    print(
+                        _ts(),
+                        "snapshot",
+                        len(snap.events),
+                        "races",
+                        len(snap.odds),
+                        "prices",
+                        flush=True,
                     )
-                )
+                    stream = client.follow(snap, progress=print_progress)
                 with stream:
                     for frame in stream:
                         ts = _ts()

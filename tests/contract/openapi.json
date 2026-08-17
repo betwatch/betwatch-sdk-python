@@ -1334,6 +1334,93 @@
         ],
         "type": "object"
       },
+      "PublicScopeSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "http://localhost:8888/schemas/PublicScopeSnapshot.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "coverage": {
+            "items": {
+              "$ref": "#/components/schemas/PublicCoverage"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "entrants": {
+            "items": {
+              "$ref": "#/components/schemas/PublicEntrant"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/PublicEvent"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "markets": {
+            "items": {
+              "$ref": "#/components/schemas/PublicMarket"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "next": {
+            "type": "string"
+          },
+          "odds": {
+            "items": {
+              "$ref": "#/components/schemas/PublicOdds"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/PublicOutcome"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "previous": {
+            "type": "string"
+          },
+          "stream": {
+            "$ref": "#/components/schemas/PublicStreamContinuation"
+          }
+        },
+        "required": [
+          "stream",
+          "events",
+          "entrants",
+          "markets",
+          "outcomes",
+          "odds",
+          "coverage"
+        ],
+        "type": "object"
+      },
       "PublicSettlementParameters": {
         "additionalProperties": false,
         "properties": {
@@ -1375,6 +1462,15 @@
       "PublicStreamContinuation": {
         "additionalProperties": false,
         "properties": {
+          "country": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "cursor": {
             "type": "string"
           },
@@ -1387,7 +1483,40 @@
               "null"
             ]
           },
+          "meeting": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "source": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "sport": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "startFrom": {
+            "type": "string"
+          },
+          "startTo": {
+            "type": "string"
+          },
+          "venue": {
             "items": {
               "type": "string"
             },
@@ -12797,6 +12926,928 @@
         ]
       }
     },
+    "/v1/snapshot": {
+      "get": {
+        "description": "Current state for a page of races matching your filters — field, markets, outcomes, prices, coverage — plus the `stream` handoff to follow the whole scope live.\n\nThis is how you start: one call per page, then follow `stream.cursor`. Every page returns the same cursor, captured before the first page was read, so paging to the end and then following cannot miss a change to a race you read earlier.",
+        "operationId": "getSnapshot",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "sport",
+            "schema": {
+              "items": {
+                "enum": [
+                  "thoroughbred",
+                  "greyhound",
+                  "harness"
+                ],
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "items": {
+                "enum": [
+                  "scheduled",
+                  "open",
+                  "in_progress",
+                  "closed",
+                  "interim",
+                  "final",
+                  "abandoned",
+                  "cancelled",
+                  "postponed",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "country",
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "meeting",
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "event",
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "venue",
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "market",
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "outcome",
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "entrant",
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "source",
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "startFrom",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "startTo",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "after",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "before",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "include",
+            "schema": {
+              "items": {
+                "enum": [
+                  "coverage",
+                  "history",
+                  "racing"
+                ],
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "competitor",
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicScopeSnapshot"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "406": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Not Acceptable",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying. Present on rate_limited; on quota_exceeded it points at the monthly reset and retrying will not help.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying. Present on rate_limited; on quota_exceeded it points at the monthly reset and retrying will not help.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyHeader": []
+          }
+        ],
+        "summary": "Bootstrap a scope",
+        "tags": [
+          "Racing"
+        ]
+      }
+    },
     "/v1/sources": {
       "get": {
         "description": "Every bookmaker, tote, and exchange this API can price, with the ids the `source` filter accepts.",
@@ -13721,7 +14772,7 @@
     },
     "/v1/stream": {
       "get": {
-        "description": "A resumable stream of everything changing in the races you filter for.\n\nA fresh connection defaults to `snapshot=full`: a `ready` frame, the current state as `event`, `entrant`, `odds_set`, and `coverage` frames, a `sync` frame, then live deltas. Pass `snapshot=none` when you have already bootstrapped over REST.\n\nEvery frame's SSE id is a cursor. Reconnect with it in `Last-Event-ID` (or the `cursor` parameter) to resume exactly where you stopped. On a `resync` frame, bootstrap again over REST and reconnect with the `cursor` that response returned. Frames are not metered.",
+        "description": "A resumable stream of everything changing in the races you filter for.\n\nStart by bootstrapping over REST — `GET /v1/snapshot` for a scope, or `GET /v1/events/{id}/snapshot` for one race — then connect with `snapshot=none` and the `cursor` that response returned. That is the fast, resumable path and the one to build on.\n\n`snapshot=full` streams the current state as frames before going live, so one connection needs no REST call. It requires an `event`, `meeting`, or `venue` filter: on a broader scope it takes minutes, has no resumable position until `sync`, and starts over on any drop, so it is refused rather than offered as a trap.\n\nEvery frame's SSE id is a cursor. Reconnect with it in `Last-Event-ID` (or the `cursor` parameter) to resume exactly where you stopped. `ping` frames arrive throughout, including while a bootstrap is still building. On a `resync` frame, bootstrap again over REST and reconnect with the `cursor` that response returned. Frames are not metered.",
         "operationId": "streamRacing",
         "parameters": [
           {
@@ -13733,7 +14784,7 @@
             }
           },
           {
-            "description": "Fresh-connection bootstrap: 'full' (default) streams current state then a sync frame; 'none' emits only a ready frame for REST-bootstrapped clients.",
+            "description": "Fresh-connection bootstrap: 'full' (default) streams current state then a sync frame, and requires an event, meeting, or venue filter; 'none' emits only a ready frame for clients that bootstrapped over REST.",
             "in": "query",
             "name": "snapshot",
             "schema": {

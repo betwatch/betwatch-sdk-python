@@ -34,7 +34,7 @@ from .meeting import Meeting, MeetingPage
 from .odds import Exchange, Odds, OddsHistoryItem, OddsPage
 from .outcome import Outcome, OutcomePage
 from .page import Page
-from .snapshot import EventSnapshot, StreamContinuation
+from .snapshot import EventSnapshot, ScopeSnapshot, StreamContinuation
 from .source import Source, SourcePage
 from .stream import (
     CoverageFrame,
@@ -76,6 +76,7 @@ __all__ = [
     "EventRacing",
     "EventResult",
     "EventSnapshot",
+    "ScopeSnapshot",
     "EventStatus",
     "EventStatuses",
     "IncludeFlag",

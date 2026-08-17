@@ -66,20 +66,22 @@ fails `pyright` (`reportUnnecessaryComparison`).
 
 ## Starting a stream
 
-Two correct ways, and the difference is time, not correctness:
+Bootstrap over REST, then follow the cursor it returns. One shape, any scope:
 
-- `client.watch_scope(sport=..., country=...)` — REST bootstrap, then attach the
-  stream at the cursor that read returned. Starts in seconds. **Prefer this for
-  anything broader than one event.**
-- `client.watch(event_id)` — the same thing for a single event.
-- `client.stream(snapshot="full")` — the server builds the snapshot first, which
-  on a broad scope sends *nothing* for 20s to 3 minutes.
+```python
+snap = client.snapshot(sport="thoroughbred", country="au")  # card + prices + cursor
+with client.follow(snap) as live:
+    ...
+```
 
-`snapshot="full"` is not a staleness trap: its cursor is anchored before
-hydration and everything published while it built is delivered after `sync`.
-The reason to avoid it on a broad scope is that a connection lost before `sync`
-restarts the whole snapshot, and it may not survive long enough to finish.
-`BootstrapFailedError` is raised rather than looping forever.
+`client.watch(event_id)` is the same thing for a single race. Every snapshot
+page returns the same `stream.cursor`, so follow from any page and page the
+rest with `after=snap.next`.
+
+`snapshot="full"` on the stream is only accepted for an event, meeting or
+venue; anything broader is `422 filter_required` pointing at `/v1/snapshot`.
+Do not reach for it — `follow()` sends `snapshot="none"` and the cursor, which
+is what you want.
 
 A `resync` is routine — an ingestion worker restarting broadcasts one to every
 client — so re-bootstrap cheaply and do not treat it as exceptional.

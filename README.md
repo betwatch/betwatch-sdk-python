@@ -76,6 +76,21 @@ connection covers a whole raceday — `client.stream(sport="thoroughbred",
 country="au")` — and a connection per race is the shape to avoid, which your
 plan's concurrent-stream cap will enforce with `StreamLimitError`.
 
+### Following a whole scope
+
+One call returns the card, the prices and the cursor to follow them:
+
+```python
+snap = client.snapshot(sport="thoroughbred", country="au")
+with client.follow(snap) as live:
+    for frame in live:
+        ...
+```
+
+Every page returns the same `stream.cursor`, captured before the first page was
+read, so paging to the end and then following cannot miss a change to a race you
+read earlier. Follow from any page; page the rest with `after=snap.next`.
+
 ### Paging a collection
 
 Every collection has `iter()`, which follows `next` until it stops coming:

@@ -268,4 +268,4 @@ def test_bootstrap_restarts_are_bounded() -> None:
     assert MAX_BOOTSTRAP_RESTARTS >= 1
     err = BootstrapFailedError(4, ["thoroughbred"])
     assert "restarted 4 times" in str(err)
-    assert "client.follow(page)" in str(err), "must name the way out"
+    assert "client.snapshot(" in str(err), "must name the way out"

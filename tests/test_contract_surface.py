@@ -39,6 +39,7 @@ OPERATIONS = {
     "listEvents": ("events", "list"),
     "getEvent": ("events", "retrieve"),
     "getEventSnapshot": ("events", "snapshot"),
+    "getSnapshot": ("__client__", "snapshot"),
     "listEntrants": ("entrants", "list"),
     "getEntrant": ("entrants", "retrieve"),
     "getCompetitor": ("competitors", "retrieve"),
@@ -60,7 +61,8 @@ OPERATIONS = {
 def test_every_operation_is_implemented(operation: str) -> None:
     resource, method = OPERATIONS[operation]
     for client in (Betwatch(api_key="bw_test"), AsyncBetwatch(api_key="bw_test")):
-        assert callable(getattr(getattr(client, resource), method)), operation
+        target = client if resource == "__client__" else getattr(client, resource)
+        assert callable(getattr(target, method)), operation
 
 
 def test_stream_racing_is_implemented() -> None:
@@ -71,7 +73,7 @@ def test_stream_racing_is_implemented() -> None:
 
 
 def test_operation_count_matches_the_contract() -> None:
-    assert len(OPERATIONS) + 1 == 18, "18 operations: 17 REST plus streamRacing"
+    assert len(OPERATIONS) + 1 == 19, "19 operations: 18 REST plus streamRacing"
 
 
 def test_every_collection_can_be_paged() -> None:

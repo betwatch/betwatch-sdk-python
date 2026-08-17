@@ -20,7 +20,7 @@ There is no `get_races`. Events are races; entrants are runners.
 
 from .__about__ import __version__
 from ._changes import ChangeTracker
-from ._client import AsyncBetwatch, AsyncWatch, Betwatch, ScopeWatch, Watch
+from ._client import AsyncBetwatch, AsyncWatch, Betwatch, Watch
 from ._exceptions import (
     AccountDisabledError,
     APIConnectionError,
@@ -76,6 +76,7 @@ from .types import (
     OddsSetFrame,
     Outcome,
     ReadyFrame,
+    ScopeSnapshot,
     Source,
     Sport,
     Sports,
@@ -90,7 +91,7 @@ from .types import (
 
 __all__ = [
     "BootstrapFailedError",
-    "ScopeWatch",
+    "ScopeSnapshot",
     "ChangeTracker",
     "print_progress",
     "StreamProgress",

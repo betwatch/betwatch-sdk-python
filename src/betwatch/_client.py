@@ -14,6 +14,7 @@ from ._base_client import (
     decode_model,
     default_headers,
     flatten,
+    list_query,
     parse_retry_after,
     raise_if_error,
     require_key,
@@ -48,8 +49,7 @@ from .resources.sources import AsyncSources, Sources
 from .resources.venues import AsyncVenues, Venues
 from .types.common import as_sequence
 from .types.enums import ErrorCodes, IncludeFlag, SnapshotMode, Sport
-from .types.event import Event
-from .types.snapshot import EventSnapshot
+from .types.snapshot import EventSnapshot, ScopeSnapshot, StreamContinuation
 from .types.stream import ReadyFrame, StreamFrame, SyncFrame, frame_name
 
 _T = TypeVar("_T")
@@ -452,126 +452,6 @@ class Watch:
                 self._open()
 
 
-class ScopeWatch:
-    """Bootstrap a whole filter scope over REST, then attach the stream to it.
-
-    The contract's preferred way to start anything real, and for a broad scope
-    the only practical one. Both start paths are *correct* — `snapshot=full`
-    anchors its cursor before hydrating and replays everything published while
-    it built, so it has no staleness window — but it can send nothing for 20s to
-    3 minutes first, and a connection lost in that window restarts the whole
-    snapshot. This starts in seconds and re-bootstraps just as cheaply, which
-    matters because a `resync` is routine: an ingestion worker restarting
-    broadcasts one to every connected client.
-
-    The list response carries a stream cursor captured before it read anything,
-    so the two halves meet exactly: everything at or before it is in the page,
-    everything after it replays on the stream.
-
-    **This bootstraps the race card, not prices.** `/v1/odds` requires an
-    event-shaped filter, so there is no single call that returns current prices
-    for a filter scope — only `/v1/events/{id}/snapshot`, one event at a time.
-    Prices therefore arrive here as sources move them, and a runner nobody
-    reprices stays absent until it does. If you need prices at attach time,
-    either snapshot the events you care about individually, or use
-    `stream(snapshot="full")` and accept its bootstrap cost.
-
-    A scope-level snapshot endpoint would collapse this whole class into one
-    call; its absence is why this method exists in the shape it does.
-
-    ```python
-    with client.watch_scope(sport="thoroughbred", country="au") as live:
-        print(len(live.events), "races in scope")
-        for frame in live:
-            ...
-    ```
-
-    The same filters bootstrap and subscribe, so the cursor's scope cannot
-    drift out of step with what was read. On `resync` it bootstraps again.
-    """
-
-    def __init__(
-        self,
-        client: Betwatch,
-        *,
-        sport: Sequence[Sport] | Sport | None = None,
-        country: Sequence[str] | str | None = None,
-        meeting: Sequence[str] | str | None = None,
-        venue: Sequence[str] | str | None = None,
-        source: Sequence[str] | str | None = None,
-        start_from: str | None = None,
-        start_to: str | None = None,
-        max_events: int = 1000,
-        reconnect: bool = True,
-        progress: ProgressCallback | None = None,
-    ) -> None:
-        self._client = client
-        self._filters: dict[str, Any] = {
-            "sport": sport,
-            "country": country,
-            "meeting": meeting,
-            "venue": venue,
-            "start_from": start_from,
-            "start_to": start_to,
-        }
-        self._source = source
-        self._max_events = max_events
-        self._reconnect = reconnect
-        self._progress = progress
-        self.events: list[Event] = []
-        self.cursor: str | None = None
-        self._stream: Stream | None = None
-        self._resyncs = 0
-
-    def _open(self) -> None:
-        if self._stream is not None:
-            self._stream.close()
-        first = self._client.events.list(**self._filters, limit=200)
-        if not first.cursor:
-            raise ResyncRequired(None, "list response carried no stream cursor")
-        # The first page's cursor is the earliest position, so later pages can
-        # only duplicate what the stream replays — never leave a gap.
-        self.cursor = first.cursor
-        self.events = list(first)
-        after = first.next
-        while after and len(self.events) < self._max_events:
-            page = self._client.events.list(**self._filters, after=after, limit=200)
-            self.events.extend(page)
-            after = page.next
-        self._stream = self._client.stream(
-            **self._filters,
-            source=self._source,
-            snapshot="none",
-            cursor=self.cursor,
-            reconnect=self._reconnect,
-            progress=self._progress,
-        )
-        self._stream.__enter__()
-
-    def __enter__(self) -> ScopeWatch:
-        self._open()
-        return self
-
-    def __exit__(self, *exc: object) -> None:
-        if self._stream is not None:
-            self._stream.__exit__(*exc)
-
-    def __iter__(self) -> Iterator[StreamFrame]:
-        if self._stream is None:
-            raise RuntimeError("ScopeWatch must be used as a context manager")
-        while True:
-            try:
-                for frame in self._stream:
-                    self._resyncs = 0
-                    yield frame
-                return
-            except ResyncRequired:
-                self._resyncs += 1
-                if not self._reconnect or self._resyncs > MAX_CONSECUTIVE_RESYNCS:
-                    raise
-                self._open()
-
-
 class AsyncWatch:
     def __init__(
         self,
@@ -624,6 +504,24 @@ class AsyncWatch:
                 if not self._reconnect or self._resyncs > MAX_CONSECUTIVE_RESYNCS:
                     raise
                 await self._open()
+
+
+def _continuation_params(stream: StreamContinuation) -> dict[str, Any]:
+    """The filters a snapshot's cursor was minted under, replayed verbatim.
+
+    Sent as given rather than reconstructed: filters are part of the cursor's
+    identity, and widening the scope invalidates it.
+    """
+    return {
+        "event": stream.event,
+        "source": stream.source,
+        "sport": stream.sport,
+        "country": stream.country,
+        "meeting": stream.meeting,
+        "venue": stream.venue,
+        "start_from": stream.start_from,
+        "start_to": stream.start_to,
+    }
 
 
 def _stream_params(
@@ -733,11 +631,74 @@ class Betwatch:
             return decode_model(path, response.content, model)
         raise AssertionError("unreachable request loop")
 
-    def follow(self, snapshot: EventSnapshot, *, reconnect: bool = True) -> Stream:
-        """Subscribe after a REST snapshot. Sends the snapshot cursor as Last-Event-ID."""
+    def snapshot(
+        self,
+        *,
+        sport: Sequence[Sport] | Sport | None = None,
+        country: Sequence[str] | str | None = None,
+        meeting: Sequence[str] | str | None = None,
+        event: Sequence[str] | str | None = None,
+        venue: Sequence[str] | str | None = None,
+        source: Sequence[str] | str | None = None,
+        status: Sequence[str] | str | None = None,
+        start_from: str | None = None,
+        start_to: str | None = None,
+        after: str | None = None,
+        limit: int | None = None,
+        include: Sequence[IncludeFlag] | IncludeFlag | None = None,
+    ) -> ScopeSnapshot:
+        """Current state for a page of races, plus the handoff to follow them.
+
+        The way to start anything broader than one race:
+
+        ```python
+        snap = client.snapshot(sport="thoroughbred", country="au")
+        with client.follow(snap) as live:
+            ...
+        ```
+
+        Every page returns the same `stream.cursor`, captured before the first
+        page was read, so paging to the end and then following cannot miss a
+        change to a race read earlier — follow from any page. Page with
+        `after=snap.next`.
+
+        `include="history"` is refused here: fluctuations stay event-scoped, so
+        ask `/v1/odds` for them.
+        """
+        return self._get(
+            "/v1/snapshot",
+            list_query(
+                sport=sport,
+                country=country,
+                meeting=meeting,
+                event=event,
+                venue=venue,
+                source=source,
+                status=status,
+                start_from=start_from,
+                start_to=start_to,
+                after=after,
+                limit=limit,
+                include=include,
+            ),
+            ScopeSnapshot,
+        )
+
+    def follow(
+        self,
+        snapshot: EventSnapshot | ScopeSnapshot,
+        *,
+        reconnect: bool = True,
+        progress: ProgressCallback | None = None,
+    ) -> Stream:
+        """Subscribe after a REST snapshot, from either kind.
+
+        The snapshot carries the cursor and the filters that produced it, so
+        the scope cannot drift between the read and the subscription.
+        """
         return self.stream(
-            event=snapshot.stream.event,
-            source=snapshot.stream.source,
+            **_continuation_params(snapshot.stream),
+            progress=progress,
             cursor=snapshot.stream.cursor,
             snapshot="none",
             reconnect=reconnect,
@@ -758,40 +719,6 @@ class Betwatch:
             source=source,
             include=include,
             reconnect=reconnect,
-        )
-
-    def watch_scope(
-        self,
-        *,
-        sport: Sequence[Sport] | Sport | None = None,
-        country: Sequence[str] | str | None = None,
-        meeting: Sequence[str] | str | None = None,
-        venue: Sequence[str] | str | None = None,
-        source: Sequence[str] | str | None = None,
-        start_from: str | None = None,
-        start_to: str | None = None,
-        max_events: int = 1000,
-        reconnect: bool = True,
-        progress: ProgressCallback | None = None,
-    ) -> ScopeWatch:
-        """Bootstrap a filter scope over REST, then follow it live.
-
-        Prefer this to `stream(snapshot="full")` for anything broader than one
-        event: it starts immediately instead of waiting out a snapshot the
-        server may take minutes to build.
-        """
-        return ScopeWatch(
-            self,
-            sport=sport,
-            country=country,
-            meeting=meeting,
-            venue=venue,
-            source=source,
-            start_from=start_from,
-            start_to=start_to,
-            max_events=max_events,
-            reconnect=reconnect,
-            progress=progress,
         )
 
     def stream(
@@ -908,10 +835,70 @@ class AsyncBetwatch:
             return decode_model(path, response.content, model)
         raise AssertionError("unreachable request loop")
 
-    def follow(self, snapshot: EventSnapshot, *, reconnect: bool = True) -> AsyncStream:
+    async def snapshot(
+        self,
+        *,
+        sport: Sequence[Sport] | Sport | None = None,
+        country: Sequence[str] | str | None = None,
+        meeting: Sequence[str] | str | None = None,
+        event: Sequence[str] | str | None = None,
+        venue: Sequence[str] | str | None = None,
+        source: Sequence[str] | str | None = None,
+        status: Sequence[str] | str | None = None,
+        start_from: str | None = None,
+        start_to: str | None = None,
+        after: str | None = None,
+        limit: int | None = None,
+        include: Sequence[IncludeFlag] | IncludeFlag | None = None,
+    ) -> ScopeSnapshot:
+        """Current state for a page of races, plus the handoff to follow them.
+
+        The way to start anything broader than one race:
+
+        ```python
+        snap = client.snapshot(sport="thoroughbred", country="au")
+        with client.follow(snap) as live:
+            ...
+        ```
+
+        Every page returns the same `stream.cursor`, captured before the first
+        page was read, so paging to the end and then following cannot miss a
+        change to a race read earlier — follow from any page. Page with
+        `after=snap.next`.
+
+        `include="history"` is refused here: fluctuations stay event-scoped, so
+        ask `/v1/odds` for them.
+        """
+        return await self._aget(
+            "/v1/snapshot",
+            list_query(
+                sport=sport,
+                country=country,
+                meeting=meeting,
+                event=event,
+                venue=venue,
+                source=source,
+                status=status,
+                start_from=start_from,
+                start_to=start_to,
+                after=after,
+                limit=limit,
+                include=include,
+            ),
+            ScopeSnapshot,
+        )
+
+    def follow(
+        self,
+        snapshot: EventSnapshot | ScopeSnapshot,
+        *,
+        reconnect: bool = True,
+        progress: ProgressCallback | None = None,
+    ) -> AsyncStream:
+        """Subscribe after a REST snapshot, from either kind."""
         return self.stream(
-            event=snapshot.stream.event,
-            source=snapshot.stream.source,
+            **_continuation_params(snapshot.stream),
+            progress=progress,
             cursor=snapshot.stream.cursor,
             snapshot="none",
             reconnect=reconnect,
