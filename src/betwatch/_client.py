@@ -197,7 +197,13 @@ class Stream:
                     if not self._reconnect:
                         raise APIConnectionError("/v1/stream", exc) from exc
                     if not self._synced and self._params.get("snapshot") == "full":
+                        # No resumable position exists until `sync`, so the whole
+                        # snapshot starts again and every frame so far is lost.
+                        # Say so: a silent restart is indistinguishable from a
+                        # bootstrap that is merely slow.
                         self.cursor = None
+                        if self._reporter is not None:
+                            self._reporter.record_restart()
                     continue
         except KeyboardInterrupt:
             raise
@@ -334,7 +340,13 @@ class AsyncStream:
                     if not self._reconnect:
                         raise APIConnectionError("/v1/stream", exc) from exc
                     if not self._synced and self._params.get("snapshot") == "full":
+                        # No resumable position exists until `sync`, so the whole
+                        # snapshot starts again and every frame so far is lost.
+                        # Say so: a silent restart is indistinguishable from a
+                        # bootstrap that is merely slow.
                         self.cursor = None
+                        if self._reporter is not None:
+                            self._reporter.record_restart()
                     continue
         except (KeyboardInterrupt, asyncio.CancelledError):
             raise

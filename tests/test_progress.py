@@ -209,3 +209,33 @@ def test_odds_rows_can_be_filtered_individually() -> None:
     tracker = ChangeTracker()
     assert [tracker.changed(q) for q in iter_odds(price_set([3.2, 4.0]))] == [True, True]
     assert [tracker.changed(q) for q in iter_odds(price_set([3.2, 4.5]))] == [False, True]
+
+
+def test_a_lost_bootstrap_is_reported_not_silent() -> None:
+    """A dropped connection before sync discards everything; say so.
+
+    Silently restarting is indistinguishable from a slow bootstrap, which is
+    how a stream that can never finish looks like one that is merely taking
+    its time.
+    """
+    from betwatch._progress import BootstrapReporter
+
+    seen: list[StreamProgress] = []
+    reporter = BootstrapReporter(seen.append, interval=30.0)
+    reporter.start()
+    reporter.record("coverage")
+    reporter.record("coverage")
+    reporter.record_restart()
+
+    assert seen, "the restart itself must produce a report"
+    assert seen[-1].restarts == 1
+    assert seen[-1].frames == 0, "counts reset — those frames are gone"
+    assert "restarted 1x" in str(seen[-1])
+    reporter.stop()
+
+
+def test_read_timeout_outlasts_the_silent_bootstrap_window() -> None:
+    """Measured silences reached 46s; a 45s timeout aborted healthy streams."""
+    from betwatch._base_client import STREAM_READ_TIMEOUT
+
+    assert STREAM_READ_TIMEOUT > 60, "must survive a snapshot that sends nothing for ~46s"

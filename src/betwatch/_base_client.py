@@ -27,7 +27,12 @@ _T = TypeVar("_T")
 
 DEFAULT_BASE_URL = "https://api-beta.betwatch.com"
 DEFAULT_MAX_RETRIES = 2
-STREAM_READ_TIMEOUT = 45.0
+# A `snapshot=full` bootstrap can send nothing for 45s or more while the server
+# hydrates — measured 23s, 35s and 46s of complete silence on a broad scope — so
+# a 45s read timeout aborted healthy streams and restarted them from zero. This
+# only has to outlast the silent window; keepalives arrive every ~15s once the
+# server is emitting them.
+STREAM_READ_TIMEOUT = 120.0
 _MAX_RETRY_DELAY = 8.0
 _MAX_RETRY_AFTER = 60.0
 _RETRYABLE_STATUS = frozenset({408, 429, 500, 502, 503, 504})

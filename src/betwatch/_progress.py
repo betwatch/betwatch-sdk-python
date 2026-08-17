@@ -39,22 +39,31 @@ class StreamProgress:
     """Keepalives seen. Non-zero during a silent bootstrap means the connection
     is alive and the server is still building — not that it has hung."""
 
+    restarts: int = 0
+    """Times the bootstrap started over after losing the connection.
+
+    A dropped connection before `sync` discards every frame received so far —
+    there is no resumable position until the snapshot completes — so the counts
+    above reset with it. A number climbing here means the snapshot is taking
+    longer to build than the connection is surviving."""
+
     synced: bool = False
     """True on the final report, once `sync` has arrived and live ticks begin."""
 
     def __str__(self) -> str:
+        restarted = f" (restarted {self.restarts}x)" if self.restarts else ""
         if self.synced:
             detail = " ".join(f"{name}={n}" for name, n in sorted(self.counts.items()) if n)
-            return f"bootstrap complete in {self.elapsed:.0f}s — {self.frames} frames {detail}"
+            return f"bootstrap complete in {self.elapsed:.0f}s{restarted} — {self.frames} frames {detail}"
         if not self.frames:
             plural = "" if self.pings == 1 else "s"
             alive = f", {self.pings} keepalive{plural} — connection is alive" if self.pings else ""
             return (
-                f"bootstrap +{self.elapsed:.0f}s waiting for the first frame"
+                f"bootstrap +{self.elapsed:.0f}s{restarted} waiting for the first frame"
                 f"{alive} (the server is building the snapshot; narrower filters are faster)"
             )
         detail = " ".join(f"{name}={n}" for name, n in sorted(self.counts.items()) if n)
-        return f"bootstrap +{self.elapsed:.0f}s {self.frames} frames {detail}"
+        return f"bootstrap +{self.elapsed:.0f}s{restarted} {self.frames} frames {detail}"
 
 
 ProgressCallback = Callable[[StreamProgress], None]
@@ -70,6 +79,7 @@ class _State:
     started: float = field(default_factory=monotonic)
     counts: Counter[str] = field(default_factory=Counter)
     pings: int = 0
+    restarts: int = 0
 
     def record(self, name: str) -> None:
         self.counts[name] += 1
@@ -80,6 +90,7 @@ class _State:
             frames=sum(self.counts.values()),
             counts=dict(self.counts),
             pings=self.pings,
+            restarts=self.restarts,
             synced=synced,
         )
 
@@ -109,6 +120,12 @@ class BootstrapReporter:
 
     def record_ping(self) -> None:
         self._state.pings += 1
+
+    def record_restart(self) -> None:
+        """The connection dropped before `sync`; everything counted is gone."""
+        self._state.restarts += 1
+        self._state.counts.clear()
+        self._emit(self._state.snapshot())
 
     def stop(self, *, synced: bool = False) -> None:
         """Idempotent. On `synced`, emits one final report."""
