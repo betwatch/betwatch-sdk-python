@@ -64,6 +64,14 @@ fails `pyright` (`reportUnnecessaryComparison`).
 - Do not treat `ping` frames as data — the SDK swallows them and still advances the cursor.
 - Do not publish from `main` as `2.0.0` until this contract is promoted.
 
+## Out of the box
+
+Reach for the SDK before writing it in an example. `client.stream(progress=
+print_progress)` reports a `snapshot=full` bootstrap, which otherwise looks
+hung for 20-45s. `ChangeTracker().changed(frame_or_odds_row)` drops
+republished state that has not moved. `tools/stream_timing.py` measures a
+scope's bootstrap. Examples demonstrate the client; they do not reimplement it.
+
 ## Errors
 
 Every failure is an RFC 9457 problem document. **Branch on `.code`, never on

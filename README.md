@@ -197,6 +197,22 @@ uv run pytest tests/test_contract_spec.py
 A failure there names exactly what moved — a new error code with no retry
 decision, a budget header nothing parses, an operation with no method.
 
+### Measuring the stream
+
+`tools/stream_timing.py` reports how long `/v1/stream` takes to bootstrap for a
+given filter scope: time to `ready`, time to the first data frame, the silence
+between them, and time to `sync`. A broad `snapshot=full` sends nothing for
+tens of seconds while the server builds the snapshot, so the silence is the
+number worth watching.
+
+```console
+fnox exec --profile prod -- uv run tools/stream_timing.py --sport thoroughbred --country au
+fnox exec --profile prod -- uv run tools/stream_timing.py --json --require-sync 60
+```
+
+`--require-sync` exits non-zero if the bootstrap takes longer than that, so it
+works as a regression gate.
+
 Live check against a local API:
 
 ```console
