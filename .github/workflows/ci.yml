@@ -43,5 +43,17 @@ jobs:
       - name: Build and import wheel
         run: |
           uv build
-          uv pip install --python "${{ matrix.python-version }}" dist/*.whl
-          python -c "import betwatch, inspect; assert not hasattr(betwatch, 'get_races'); assert betwatch.__version__.endswith('b1') or True; print(betwatch.Betwatch)"
+          # Install into the interpreter `python` actually resolves to. Passing
+          # a bare version lets uv pick a different 3.x than setup-python put on
+          # PATH, and the import below then runs somewhere the wheel is not.
+          uv pip install --python "$(which python)" dist/*.whl
+          python - <<'EOF'
+          import betwatch
+
+          assert not hasattr(betwatch, "get_races"), "GraphQL 1.x surface leaked into the wheel"
+          assert betwatch.__version__.endswith("b1"), betwatch.__version__
+          # the public surface a consumer actually imports
+          for name in ("Betwatch", "AsyncBetwatch", "ErrorCodes", "QuotaExceededError"):
+              assert hasattr(betwatch, name), name
+          print(betwatch.Betwatch, betwatch.__version__)
+          EOF
