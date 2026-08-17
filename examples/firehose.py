@@ -127,7 +127,11 @@ def main(argv: list[str] | None = None) -> None:
                             live = True
                             if last:
                                 cursor_file.write_text(last)
-                            parts = [f"{name}={snap_counts[name]}" for name in ("event", "entrant", "odds", "coverage") if snap_counts[name]]
+                            parts = [
+                                f"{name}={snap_counts[name]}"
+                                for name in ("event", "entrant", "odds", "coverage")
+                                if snap_counts[name]
+                            ]
                             sources = len(snap_sources)
                             print(
                                 ts,
@@ -180,7 +184,10 @@ def main(argv: list[str] | None = None) -> None:
                                 snap_counts["entrant"] += 1
                                 if not args.verbose:
                                     continue
-                            elif not args.verbose and prev_mark == (runner.scratched, runner.entry_state):
+                            elif not args.verbose and prev_mark == (
+                                runner.scratched,
+                                runner.entry_state,
+                            ):
                                 continue
                             print(
                                 ts,
