@@ -1,14 +1,22 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.1
+  # Run ruff from the project's own lockfile so the hook can never disagree
+  # with CI, which runs `uv run ruff` against the same pinned version.
+  - repo: local
     hooks:
-      # Run the linter with fixes
       - id: ruff
-        args: [--fix]
-      # Run the formatter
+        name: ruff
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
       - id: ruff-format
+        name: ruff-format
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.1.0
+    rev: v4.9.1
     hooks:
       - id: commitizen
         stages: [commit-msg]
