@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Iterator, Sequence
 from typing import TYPE_CHECKING
 
-from .._base_client import default_event_window, list_query
+from .._base_client import list_query
 from ..types.enums import EventStatus, IncludeFlag, Sport
 from ..types.event import Event, EventPage
 from ..types.snapshot import EventSnapshot
@@ -28,8 +28,6 @@ def _event_list_query(
     limit: int | None,
     include: Sequence[str] | str | None,
 ) -> dict[str, object]:
-    if start_from is None and start_to is None and after is None and before is None:
-        start_from, start_to = default_event_window()
     return list_query(
         sport=sport,
         status=status,
@@ -68,9 +66,9 @@ class Events:
     ) -> EventPage:
         """List events. `include` accepts `coverage` and/or `racing`.
 
-        When neither `start_from` nor `start_to` is set, the client asks for
-        the last 12 hours through the next 24 so a bare `limit=5` is today's
-        card — not the oldest race in the entitlement window.
+        Sends exactly the filters you pass. With no window the API starts five
+        minutes ago, so a bare `limit=5` is the next few races; ask for history
+        with `start_from`.
 
         `status` is the public lifecycle word (`open`, `final`, …). There is
         no default: omitting it returns every status in the window.

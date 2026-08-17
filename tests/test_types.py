@@ -124,13 +124,19 @@ def test_ty_rejects_impossible_status_compare() -> None:
     )
 
 
-def test_snapshot_treats_null_collections_as_empty() -> None:
+def test_empty_collections_decode_as_empty_lists() -> None:
+    """The contract guarantees `[]` rather than null, so the models take it plainly.
+
+    This used to arrive as null and be rewritten by a walk over every payload.
+    `test_contract_spec.py` pins the guarantee at its source.
+    """
     from betwatch._base_client import decode_model
 
     raw = (
-        b'{"stream":{"cursor":"cur_1","event":["evt_1"],"source":[]},"event":{"id":"evt_1","sport":"thoroughbred","name":"R1",'
+        b'{"stream":{"cursor":"cur_1","event":["evt_1"],"source":[]},'
+        b'"event":{"id":"evt_1","sport":"thoroughbred","name":"R1",'
         b'"startAt":"2026-08-14T04:00:00Z","status":"open","racing":{}},'
-        b'"entrants":null,"markets":null,"outcomes":null,"odds":null,"coverage":null}'
+        b'"entrants":[],"markets":[],"outcomes":[],"odds":[],"coverage":[]}'
     )
     card = decode_model("/v1/events/evt_1/snapshot", raw, EventSnapshot)
     assert card.entrants == []

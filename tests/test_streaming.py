@@ -165,19 +165,6 @@ def test_fresh_stream_keeps_snapshot_full_without_cursor() -> None:
     assert query["snapshot"] == "full"
 
 
-def test_default_event_window_is_around_now() -> None:
-    from datetime import UTC, datetime, timedelta
-
-    from betwatch._base_client import default_event_window
-
-    start, end = default_event_window()
-    now = datetime.now(UTC)
-    start_at = datetime.fromisoformat(start.replace("Z", "+00:00"))
-    end_at = datetime.fromisoformat(end.replace("Z", "+00:00"))
-    assert start_at < now < end_at
-    assert end_at - start_at <= timedelta(hours=28)
-
-
 def test_stream_enter_retries_connect_error_when_reconnect() -> None:
     import httpx
 

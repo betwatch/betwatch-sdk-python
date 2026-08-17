@@ -119,10 +119,7 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "observedAt": {
             "format": "date-time",
@@ -273,10 +270,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicCoverage"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "id": {
             "type": "string"
@@ -353,10 +347,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicDividend"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "placesPaid": {
             "format": "int64",
@@ -404,10 +395,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicResultPosition"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "state": {
             "enum": [
@@ -444,19 +432,13 @@
             "items": {
               "$ref": "#/components/schemas/PublicCoverage"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "entrants": {
             "items": {
               "$ref": "#/components/schemas/PublicEntrant"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "event": {
             "$ref": "#/components/schemas/PublicEvent"
@@ -465,28 +447,19 @@
             "items": {
               "$ref": "#/components/schemas/PublicMarket"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "odds": {
             "items": {
               "$ref": "#/components/schemas/PublicOdds"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "outcomes": {
             "items": {
               "$ref": "#/components/schemas/PublicOutcome"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "stream": {
             "$ref": "#/components/schemas/PublicStreamContinuation"
@@ -510,10 +483,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicPriceLevel"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "inPlay": {
             "type": "boolean"
@@ -526,10 +496,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicPriceLevel"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "marketState": {
             "enum": [
@@ -579,10 +546,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicEntrant"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "next": {
             "type": "string"
@@ -615,10 +579,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicEvent"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "next": {
             "type": "string"
@@ -651,10 +612,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicMarket"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "next": {
             "type": "string"
@@ -687,10 +645,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicMeeting"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "next": {
             "type": "string"
@@ -723,10 +678,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicOutcome"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "next": {
             "type": "string"
@@ -759,10 +711,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicSource"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "next": {
             "type": "string"
@@ -795,10 +744,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicVenue"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "next": {
             "type": "string"
@@ -973,10 +919,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicOddsHistoryItem"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "id": {
             "type": "string"
@@ -1070,10 +1013,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicCoverage"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "cursor": {
             "type": "string"
@@ -1082,10 +1022,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicOdds"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "next": {
             "type": "string"
@@ -1110,10 +1047,7 @@
             "items": {
               "$ref": "#/components/schemas/PublicOdds"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "marketId": {
             "type": "string"
@@ -1270,10 +1204,7 @@
             "items": {
               "$ref": "#/components/schemas/ProblemFieldError"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "instance": {
             "description": "Path of the request that failed.",
@@ -1318,10 +1249,7 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "place": {
             "format": "int64",
@@ -1350,37 +1278,25 @@
             "items": {
               "$ref": "#/components/schemas/PublicCoverage"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "entrants": {
             "items": {
               "$ref": "#/components/schemas/PublicEntrant"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "events": {
             "items": {
               "$ref": "#/components/schemas/PublicEvent"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "markets": {
             "items": {
               "$ref": "#/components/schemas/PublicMarket"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "next": {
             "type": "string"
@@ -1389,19 +1305,13 @@
             "items": {
               "$ref": "#/components/schemas/PublicOdds"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "outcomes": {
             "items": {
               "$ref": "#/components/schemas/PublicOutcome"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "previous": {
             "type": "string"
@@ -1466,10 +1376,7 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "cursor": {
             "type": "string"
@@ -1478,37 +1385,25 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "meeting": {
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "source": {
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "sport": {
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "startFrom": {
             "type": "string"
@@ -1520,10 +1415,7 @@
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           }
         },
         "required": [
@@ -1670,7 +1562,7 @@
     }
   },
   "info": {
-    "description": "Australian racing odds, prices, and results.\n\nAll endpoints live under `/v1` and require an API key in the `X-API-Key` header. Errors are RFC 9457 problem documents carrying a\nstable `code` you can branch on. Collections are cursor-paginated:\nfollow `next` rather than constructing page parameters.\n\nThe intended workflow is discover, then price: list events with\n`GET /v1/events`, request their prices with `GET /v1/odds`,\nthen follow changes on `GET /v1/stream` using the `cursor`\nthe list response returned.\n\nThis contract only grows. New fields and new endpoints can appear at any time,\nso ignore fields you do not recognise; existing fields will not be removed,\nretyped, or moved, and a breaking change would ship as a new path prefix.",
+    "description": "Australian racing odds, prices, and results.\n\nAll endpoints live under `/v1` and require an API key in the `X-API-Key` header. Errors are RFC 9457 problem documents carrying a\nstable `code` you can branch on. Collections are cursor-paginated:\nfollow `next` rather than constructing page parameters.\n\nThe intended workflow is bootstrap, then follow: take a snapshot of the scope you\ncare about with `GET /v1/snapshot` (or one race with\n`GET /v1/events/{id}/snapshot`), then connect `GET /v1/stream`\nwith `snapshot=none` and the `cursor` it returned. Stream\nframes are unmetered, so following is cheaper and faster than polling.\n\nEmpty collections are always `[]`, never `null`.\n\nThis contract only grows. New fields and new endpoints can appear at any time,\nso ignore fields you do not recognise; existing fields will not be removed,\nretyped, or moved, and a breaking change would ship as a new path prefix.",
     "title": "Betwatch Racing API",
     "version": "1.0.0"
   },
@@ -1697,10 +1589,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -2407,10 +2296,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -2433,10 +2319,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -2447,10 +2330,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -2461,10 +2341,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -2475,10 +2352,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -2489,10 +2363,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -2503,10 +2374,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -2517,10 +2385,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -2531,10 +2396,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -2545,10 +2407,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -2605,10 +2464,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -2619,10 +2475,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -3332,10 +3185,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -4042,10 +3892,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -4068,10 +3915,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -4082,10 +3926,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -4096,10 +3937,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -4110,10 +3948,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -4124,10 +3959,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -4138,10 +3970,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -4152,10 +3981,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -4166,10 +3992,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -4180,10 +4003,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -4240,10 +4060,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -4254,10 +4071,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -4967,10 +4781,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -5680,10 +5491,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -5694,10 +5502,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -6404,10 +6209,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -6430,10 +6232,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -6444,10 +6243,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -6458,10 +6254,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -6472,10 +6265,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -6486,10 +6276,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -6500,10 +6287,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -6514,10 +6298,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -6528,10 +6309,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -6542,10 +6320,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -6602,10 +6377,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -6616,10 +6388,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -7329,10 +7098,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -8039,10 +7805,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -8065,10 +7828,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -8079,10 +7839,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -8093,10 +7850,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -8107,10 +7861,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -8121,10 +7872,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -8135,10 +7883,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -8149,10 +7894,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -8163,10 +7905,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -8177,10 +7916,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -8237,10 +7973,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -8251,10 +7984,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -8964,10 +8694,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -9674,10 +9401,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -9700,10 +9424,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -9714,10 +9435,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -9728,10 +9446,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -9742,10 +9457,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -9756,10 +9468,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -9770,10 +9479,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -9784,10 +9490,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -9798,10 +9501,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -9812,10 +9512,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -9872,10 +9569,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -9886,10 +9580,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -10599,10 +10290,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -11309,10 +10997,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -11335,10 +11020,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -11349,10 +11031,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -11363,10 +11042,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -11377,10 +11053,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -11391,10 +11064,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -11405,10 +11075,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -11419,10 +11086,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -11433,10 +11097,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -11447,10 +11108,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -11507,10 +11165,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -11521,10 +11176,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -12234,10 +11886,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -12944,10 +12593,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -12970,10 +12616,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -12984,10 +12627,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -12998,10 +12638,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13012,10 +12649,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13026,10 +12660,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13040,10 +12671,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13054,10 +12682,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13068,10 +12693,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13082,10 +12704,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13142,10 +12761,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13156,10 +12772,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -13866,10 +13479,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13892,10 +13502,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13906,10 +13513,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13920,10 +13524,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13934,10 +13535,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13948,10 +13546,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13962,10 +13557,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13976,10 +13568,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -13990,10 +13579,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -14004,10 +13590,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -14064,10 +13647,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -14078,10 +13658,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -15471,10 +15048,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -15497,10 +15071,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -15511,10 +15082,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -15525,10 +15093,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -15539,10 +15104,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -15553,10 +15115,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -15567,10 +15126,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -15581,10 +15137,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -15595,10 +15148,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -15609,10 +15159,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -15669,10 +15216,7 @@
                 ],
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           },
           {
@@ -15683,10 +15227,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],
@@ -16396,10 +15937,7 @@
               "items": {
                 "type": "string"
               },
-              "type": [
-                "array",
-                "null"
-              ]
+              "type": "array"
             }
           }
         ],

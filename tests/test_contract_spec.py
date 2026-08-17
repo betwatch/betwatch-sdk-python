@@ -479,3 +479,33 @@ def test_snapshot_full_is_no_longer_offered_at_scope(spec: dict[str, Any]) -> No
     """The mode that could not complete is gone; the SDK must not suggest it."""
     description = spec["paths"]["/v1/stream"]["get"].get("description", "")
     assert "/v1/snapshot" in description, "streamRacing should point at the bootstrap"
+
+
+def test_no_response_array_is_nullable(spec: dict[str, Any]) -> None:
+    """Empty collections are `[]`, never null.
+
+    While 36 arrays were declared nullable the SDK walked every decoded payload
+    rewriting nulls to empty lists — 0.11ms against msgspec's 0.03ms, 3.5x the
+    decode it was protecting. That walk is deleted; this keeps it deleted.
+    """
+    nullable = [
+        f"{name}.{prop}"
+        for name, schema in spec["components"]["schemas"].items()
+        for prop, definition in (schema.get("properties") or {}).items()
+        if isinstance(definition.get("type"), list)
+        and "array" in definition["type"]
+        and "null" in definition["type"]
+    ]
+    assert not nullable, f"nullable arrays are back: {nullable}"
+
+
+def test_the_sdk_no_longer_rewrites_responses_or_queries(spec: dict[str, Any]) -> None:
+    """Both compensations are gone; neither should creep back."""
+    import inspect
+
+    from betwatch import _base_client
+    from betwatch.resources import events
+
+    source = inspect.getsource(_base_client) + inspect.getsource(events)
+    assert "_null_lists_to_empty" not in source, "the response walk is back"
+    assert "default_event_window" not in source, "the SDK is rewriting queries again"
