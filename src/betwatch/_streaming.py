@@ -8,8 +8,8 @@ from typing import Any
 
 import msgspec
 
-from ._exceptions import APIStatusError, ResyncRequired
-from .types.stream import StreamFrame, StreamResync, UnknownFrame, frame_for_event
+from ._exceptions import APIStatusError, ResyncRequired, StreamDecodeError
+from .types.stream import StreamCursor, StreamError, StreamFrame, StreamResync, frame_for_event
 
 
 class ServerSentEvent:
@@ -145,39 +145,53 @@ def frame_from_sse(sse: ServerSentEvent) -> StreamFrame | None:
     `ping` is consumed (cursor still advances via sse.id) and never yielded.
     `resync` stops automatic retry.
     """
-    if sse.event == "ping" or sse.event is None:
+    if sse.event is None:
         return None
-    payload = sse.json()
+    if not sse.id:
+        raise StreamDecodeError(sse.event, sse.id, "named frames require a non-empty SSE id")
+    try:
+        payload = sse.json()
+    except (TypeError, ValueError) as exc:
+        raise StreamDecodeError(sse.event, sse.id, exc) from exc
+    if sse.event == "ping":
+        try:
+            ping = msgspec.convert(payload, type=StreamCursor)
+        except (TypeError, msgspec.ValidationError) as exc:
+            raise StreamDecodeError(sse.event, sse.id, exc) from exc
+        if ping.cursor != sse.id:
+            raise StreamDecodeError(sse.event, sse.id, "payload cursor does not match SSE id")
+        return None
+    if sse.event in {"ready", "sync"}:
+        try:
+            control = msgspec.convert(payload, type=StreamCursor)
+        except (TypeError, msgspec.ValidationError) as exc:
+            raise StreamDecodeError(sse.event, sse.id, exc) from exc
+        if control.cursor != sse.id:
+            raise StreamDecodeError(sse.event, sse.id, "payload cursor does not match SSE id")
     if sse.event == "resync":
-        reason = None
-        if isinstance(payload, dict):
+        try:
             parsed = msgspec.convert(payload, type=StreamResync)
-            reason = parsed.reason
-        raise ResyncRequired(sse.id, reason)
+        except (TypeError, msgspec.ValidationError) as exc:
+            raise StreamDecodeError(sse.event, sse.id, exc) from exc
+        raise ResyncRequired(sse.id, parsed.reason)
     if sse.event == "error":
-        code = "stream_error"
-        detail = "stream error"
-        trace_id = None
-        if isinstance(payload, dict):
-            if isinstance(payload.get("code"), str):
-                code = payload["code"]
-            if isinstance(payload.get("detail"), str):
-                detail = payload["detail"]
-            if isinstance(payload.get("traceId"), str):
-                trace_id = payload["traceId"]
-        if code == "incomplete_snapshot":
-            raise ResyncRequired(sse.id, code)
+        try:
+            stream_error = msgspec.convert(payload, type=StreamError)
+        except (TypeError, msgspec.ValidationError) as exc:
+            raise StreamDecodeError(sse.event, sse.id, exc) from exc
+        if stream_error.code == "incomplete_snapshot":
+            raise ResyncRequired(sse.id, stream_error.code)
         raise APIStatusError(
-            f"/v1/stream failed: {detail}",
+            f"/v1/stream failed: {stream_error.detail}",
             status_code=503,
             body=payload,
             path="/v1/stream",
-            trace_id=trace_id,
+            trace_id=stream_error.trace_id,
         )
     try:
         return frame_for_event(sse.event, sse.id, payload)
-    except (TypeError, msgspec.DecodeError, msgspec.ValidationError):
-        return UnknownFrame(data=payload, cursor=sse.id, name=sse.event or "unknown")
+    except (TypeError, msgspec.DecodeError, msgspec.ValidationError) as exc:
+        raise StreamDecodeError(sse.event, sse.id, exc) from exc
 
 
 def iter_sse(chunks: Iterator[bytes]) -> Iterator[ServerSentEvent]:

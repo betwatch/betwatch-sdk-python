@@ -12,11 +12,25 @@ from .odds import Odds
 from .outcome import Outcome
 
 
-class EventSnapshot(Model):
-    """REST bootstrap for one event. Pass `cursor` to `client.follow(this)`."""
+class StreamContinuation(Model):
+    """Exact server-issued scope for following a REST snapshot."""
 
+    cursor: str
+    event: list[str]
+    source: list[str] = []
+
+    def __post_init__(self) -> None:
+        if not self.cursor.strip():
+            raise ValueError("stream.cursor must be non-empty")
+        if not self.event or any(not item.strip() for item in self.event):
+            raise ValueError("stream.event must contain at least one public event id")
+
+
+class EventSnapshot(Model):
+    """REST bootstrap for one event. Pass this object to `client.follow()`."""
+
+    stream: StreamContinuation
     event: Event
-    cursor: str | None = None
     entrants: list[Entrant] = []
     markets: list[Market] = []
     outcomes: list[Outcome] = []
@@ -54,7 +68,9 @@ class EventSnapshot(Model):
         prices = [quote.price for quote in self.quotes(entrant, market=market) if quote.price]
         return min(prices) if prices else None
 
-    def price(self, entrant: Entrant | str, source: str, *, market: MarketKey = "win") -> float | None:
+    def price(
+        self, entrant: Entrant | str, source: str, *, market: MarketKey = "win"
+    ) -> float | None:
         quotes = self.quotes(entrant, market=market, source=source)
         return quotes[0].price if quotes else None
 

@@ -30,7 +30,8 @@ def run(label: str) -> None:
         card = client.events.snapshot(event_id)
         print(
             f"{label} snapshot event={card.event.id} entrants={len(card.entrants)} "
-            f"odds={len(card.odds)} coverage={len(card.coverage)} cursor={card.cursor!r}"
+            f"odds={len(card.odds)} coverage={len(card.coverage)} "
+            f"cursor={card.stream.cursor!r}"
         )
         if not card.event.id:
             raise SystemExit(f"{label}: snapshot missing event id")

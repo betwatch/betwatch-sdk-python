@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Iterator, Sequence
 from typing import TYPE_CHECKING
 
 from .._base_client import list_query
 from .._exceptions import FilterRequiredError
 from ..types.entrant import Entrant, EntrantPage
+from ._pagination import awalk, walk
 
 if TYPE_CHECKING:
     from .._client import AsyncBetwatch, Betwatch
@@ -48,6 +49,31 @@ class Entrants:
             EntrantPage,
         )
 
+    def iter(
+        self,
+        *,
+        event: Sequence[str] | str | None = None,
+        competitor: Sequence[str] | str | None = None,
+        limit: int | None = None,
+        include: Sequence[str] | str | None = None,
+    ) -> Iterator[Entrant]:
+        """Walk every page of matching entrant rows.
+
+        The cursor goes back to `/v1/entrants` and nowhere else — a cursor
+        is only valid on the collection that issued it.
+        """
+
+        def fetch(after: str | None) -> EntrantPage:
+            return self.list(
+                event=event,
+                competitor=competitor,
+                limit=limit,
+                include=include,
+                after=after,
+            )
+
+        return walk(fetch)
+
     def retrieve(self, id: str, *, include: Sequence[str] | str | None = None) -> Entrant:
         return self._client._get("/v1/entrants/" + id, list_query(include=include), Entrant)
 
@@ -84,6 +110,32 @@ class AsyncEntrants:
             ),
             EntrantPage,
         )
+
+    async def iter(
+        self,
+        *,
+        event: Sequence[str] | str | None = None,
+        competitor: Sequence[str] | str | None = None,
+        limit: int | None = None,
+        include: Sequence[str] | str | None = None,
+    ) -> AsyncIterator[Entrant]:
+        """Walk every page of matching entrant rows.
+
+        The cursor goes back to `/v1/entrants` and nowhere else — a cursor
+        is only valid on the collection that issued it.
+        """
+
+        async def fetch(after: str | None) -> EntrantPage:
+            return await self.list(
+                event=event,
+                competitor=competitor,
+                limit=limit,
+                include=include,
+                after=after,
+            )
+
+        async for row in awalk(fetch):
+            yield row
 
     async def retrieve(self, id: str, *, include: Sequence[str] | str | None = None) -> Entrant:
         return await self._client._aget("/v1/entrants/" + id, list_query(include=include), Entrant)

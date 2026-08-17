@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Iterator, Sequence
 from typing import TYPE_CHECKING
 
 from .._base_client import list_query
 from .._exceptions import FilterRequiredError
 from ..types.market import Market, MarketPage
+from ._pagination import awalk, walk
 
 if TYPE_CHECKING:
     from .._client import AsyncBetwatch, Betwatch
@@ -32,6 +33,27 @@ class Markets:
             MarketPage,
         )
 
+    def iter(
+        self,
+        *,
+        event: Sequence[str] | str,
+        limit: int | None = None,
+    ) -> Iterator[Market]:
+        """Walk every page of matching market rows.
+
+        The cursor goes back to `/v1/markets` and nowhere else — a cursor
+        is only valid on the collection that issued it.
+        """
+
+        def fetch(after: str | None) -> MarketPage:
+            return self.list(
+                event=event,
+                limit=limit,
+                after=after,
+            )
+
+        return walk(fetch)
+
     def retrieve(self, id: str) -> Market:
         return self._client._get("/v1/markets/" + id, None, Market)
 
@@ -55,6 +77,28 @@ class AsyncMarkets:
             list_query(event=event, after=after, before=before, limit=limit),
             MarketPage,
         )
+
+    async def iter(
+        self,
+        *,
+        event: Sequence[str] | str,
+        limit: int | None = None,
+    ) -> AsyncIterator[Market]:
+        """Walk every page of matching market rows.
+
+        The cursor goes back to `/v1/markets` and nowhere else — a cursor
+        is only valid on the collection that issued it.
+        """
+
+        async def fetch(after: str | None) -> MarketPage:
+            return await self.list(
+                event=event,
+                limit=limit,
+                after=after,
+            )
+
+        async for row in awalk(fetch):
+            yield row
 
     async def retrieve(self, id: str) -> Market:
         return await self._client._aget("/v1/markets/" + id, None, Market)

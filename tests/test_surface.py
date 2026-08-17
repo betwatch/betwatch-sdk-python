@@ -12,8 +12,8 @@ def test_no_graphql_get_races_surface() -> None:
     assert not hasattr(betwatch, "get_races")
     assert not hasattr(Betwatch, "get_races")
     assert not hasattr(Betwatch, "get_race")
-    assert callable(betwatch.connect)
-    assert callable(betwatch.connect_async)
+    assert not hasattr(betwatch, "connect")
+    assert not hasattr(betwatch, "connect_async")
 
 
 def test_odds_list_requires_narrowing_filter() -> None:

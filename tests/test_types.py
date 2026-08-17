@@ -29,14 +29,14 @@ def test_event_round_trips_camel_json_and_dumps_for_pandas() -> None:
 
 def test_snapshot_and_page_decode_nested_collections() -> None:
     raw = (
-        b'{"cursor":"cur_1","event":{"id":"evt_1","sport":"thoroughbred","name":"R1",'
+        b'{"stream":{"cursor":"cur_1","event":["evt_1"],"source":[]},"event":{"id":"evt_1","sport":"thoroughbred","name":"R1",'
         b'"startAt":"2026-08-14T04:00:00Z","status":"open","racing":{"raceNumber":1}},'
         b'"entrants":[{"id":"ent_1","eventId":"evt_1","competitorId":"cmp_1","name":"A",'
         b'"entryState":"listed","racing":{"number":1}}],'
         b'"markets":[],"outcomes":[],"odds":[],"coverage":[]}'
     )
     card = msgspec.json.decode(raw, type=EventSnapshot)
-    assert card.cursor == "cur_1"
+    assert card.stream.cursor == "cur_1"
     assert card.event.id == "evt_1"
     assert card.entrants[0].competitor_id == "cmp_1"
     assert card.entrants[0].racing.number == 1
@@ -117,14 +117,18 @@ def test_ty_rejects_impossible_status_compare() -> None:
     )
     assert bad.returncode != 0, "ty must reject event.status == 'resulted'"
     combined = bad.stdout + bad.stderr
-    assert "resulted" in combined.lower() or "literal" in combined.lower() or "invalid" in combined.lower()
+    assert (
+        "resulted" in combined.lower()
+        or "literal" in combined.lower()
+        or "invalid" in combined.lower()
+    )
 
 
 def test_snapshot_treats_null_collections_as_empty() -> None:
     from betwatch._base_client import decode_model
 
     raw = (
-        b'{"cursor":"cur_1","event":{"id":"evt_1","sport":"thoroughbred","name":"R1",'
+        b'{"stream":{"cursor":"cur_1","event":["evt_1"],"source":[]},"event":{"id":"evt_1","sport":"thoroughbred","name":"R1",'
         b'"startAt":"2026-08-14T04:00:00Z","status":"open","racing":{}},'
         b'"entrants":null,"markets":null,"outcomes":null,"odds":null,"coverage":null}'
     )
@@ -136,7 +140,8 @@ def test_snapshot_treats_null_collections_as_empty() -> None:
 
 def test_snapshot_price_helpers() -> None:
     card = msgspec.json.decode(
-        b'{"event":{"id":"evt_1","sport":"thoroughbred","name":"R1",'
+        b'{"stream":{"cursor":"cur_1","event":["evt_1"],"source":[]},'
+        b'"event":{"id":"evt_1","sport":"thoroughbred","name":"R1",'
         b'"startAt":"2026-08-14T04:00:00Z","status":"open","racing":{}},'
         b'"entrants":[{"id":"ent_1","eventId":"evt_1","competitorId":"cmp_1","name":"A",'
         b'"entryState":"listed","racing":{"number":4}}],'

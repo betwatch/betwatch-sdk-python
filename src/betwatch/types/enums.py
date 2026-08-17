@@ -9,13 +9,14 @@ from __future__ import annotations
 
 from typing import Final, Literal, TypeAlias
 
-Sport: TypeAlias = Literal["thoroughbred", "greyhound", "harness"]
+Sport: TypeAlias = Literal["thoroughbred", "greyhound", "harness", "unknown"]
 
 
 class Sports:
     THOROUGHBRED: Final[Sport] = "thoroughbred"
     GREYHOUND: Final[Sport] = "greyhound"
     HARNESS: Final[Sport] = "harness"
+    UNKNOWN: Final[Sport] = "unknown"
 
 
 EventStatus: TypeAlias = Literal[
@@ -65,44 +66,49 @@ SETTLED_EVENT_STATUSES: frozenset[EventStatus] = frozenset(
     }
 )
 
-ResultState: TypeAlias = Literal["provisional", "final"]
+ResultState: TypeAlias = Literal["provisional", "final", "unknown"]
 
 
 class ResultStates:
     PROVISIONAL: Final[ResultState] = "provisional"
     FINAL: Final[ResultState] = "final"
+    UNKNOWN: Final[ResultState] = "unknown"
 
 
-EntryState: TypeAlias = Literal["listed", "omitted"]
+EntryState: TypeAlias = Literal["listed", "omitted", "unknown"]
 
 
 class EntryStates:
     LISTED: Final[EntryState] = "listed"
     OMITTED: Final[EntryState] = "omitted"
+    UNKNOWN: Final[EntryState] = "unknown"
 
 
-SourceKind: TypeAlias = Literal["bookmaker", "tote", "exchange"]
+SourceKind: TypeAlias = Literal["bookmaker", "tote", "exchange", "unknown"]
 
 
 class SourceKinds:
     BOOKMAKER: Final[SourceKind] = "bookmaker"
     TOTE: Final[SourceKind] = "tote"
     EXCHANGE: Final[SourceKind] = "exchange"
+    UNKNOWN: Final[SourceKind] = "unknown"
 
 
-CompetitorKind: TypeAlias = Literal["animal"]
+CompetitorKind: TypeAlias = Literal["animal", "unknown"]
 
 
 class CompetitorKinds:
     ANIMAL: Final[CompetitorKind] = "animal"
+    UNKNOWN: Final[CompetitorKind] = "unknown"
 
 
-MarketKey: TypeAlias = Literal["win", "place"]
+MarketKey: TypeAlias = Literal["win", "place", "unknown"]
 
 
 class MarketKeys:
     WIN: Final[MarketKey] = "win"
     PLACE: Final[MarketKey] = "place"
+    UNKNOWN: Final[MarketKey] = "unknown"
 
 
 MarketState: TypeAlias = Literal["unsettled", "settled", "void", "unknown"]
@@ -115,18 +121,20 @@ class MarketStates:
     UNKNOWN: Final[MarketState] = "unknown"
 
 
-MarketPeriod: TypeAlias = Literal["full"]
+MarketPeriod: TypeAlias = Literal["full", "unknown"]
 
 
 class MarketPeriods:
     FULL: Final[MarketPeriod] = "full"
+    UNKNOWN: Final[MarketPeriod] = "unknown"
 
 
-OutcomeKey: TypeAlias = Literal["entrant"]
+OutcomeKey: TypeAlias = Literal["entrant", "unknown"]
 
 
 class OutcomeKeys:
     ENTRANT: Final[OutcomeKey] = "entrant"
+    UNKNOWN: Final[OutcomeKey] = "unknown"
 
 
 OutcomeState: TypeAlias = Literal["unsettled", "winner", "loser", "void", "unknown"]
@@ -171,7 +179,9 @@ class ExchangeMarketStates:
     UNKNOWN: Final[ExchangeMarketState] = "unknown"
 
 
-ExchangeOutcomeState: TypeAlias = Literal["active", "removed", "winner", "loser", "closed", "unknown"]
+ExchangeOutcomeState: TypeAlias = Literal[
+    "active", "removed", "winner", "loser", "closed", "unknown"
+]
 
 
 class ExchangeOutcomeStates:
@@ -183,7 +193,7 @@ class ExchangeOutcomeStates:
     UNKNOWN: Final[ExchangeOutcomeState] = "unknown"
 
 
-Surface: TypeAlias = Literal["turf", "all_weather", "dirt", "sand", "synthetic"]
+Surface: TypeAlias = Literal["turf", "all_weather", "dirt", "sand", "synthetic", "unknown"]
 
 
 class Surfaces:
@@ -192,10 +202,11 @@ class Surfaces:
     DIRT: Final[Surface] = "dirt"
     SAND: Final[Surface] = "sand"
     SYNTHETIC: Final[Surface] = "synthetic"
+    UNKNOWN: Final[Surface] = "unknown"
 
 
 DividendPool: TypeAlias = Literal[
-    "win", "place", "quinella", "exacta", "duet", "trifecta", "first4"
+    "win", "place", "quinella", "exacta", "duet", "trifecta", "first4", "unknown"
 ]
 
 
@@ -207,6 +218,7 @@ class DividendPools:
     DUET: Final[DividendPool] = "duet"
     TRIFECTA: Final[DividendPool] = "trifecta"
     FIRST4: Final[DividendPool] = "first4"
+    UNKNOWN: Final[DividendPool] = "unknown"
 
 
 IncludeFlag: TypeAlias = Literal["coverage", "history", "racing"]
@@ -224,3 +236,55 @@ SnapshotMode: TypeAlias = Literal["full", "none"]
 class SnapshotModes:
     FULL: Final[SnapshotMode] = "full"
     NONE: Final[SnapshotMode] = "none"
+
+
+class BudgetHeaders:
+    """Response headers carrying the two budgets, as declared by the contract.
+
+    Every `/v1` response declares all seven; `RETRY_AFTER` is additionally
+    declared on 429 and 503. `MONTHLY_RESET` is an RFC 3339 instant — the rest
+    are integers, and `RESET` is *seconds remaining*, not a timestamp.
+
+    Names live here rather than inline so there is one place to reconcile with
+    `openapi.json`, which `tests/test_contract_spec.py` does.
+    """
+
+    LIMIT: Final[str] = "X-RateLimit-Limit"
+    REMAINING: Final[str] = "X-RateLimit-Remaining"
+    RESET: Final[str] = "X-RateLimit-Reset"
+    MONTHLY_LIMIT: Final[str] = "X-RateLimit-Monthly-Limit"
+    MONTHLY_USED: Final[str] = "X-RateLimit-Monthly-Used"
+    MONTHLY_REMAINING: Final[str] = "X-RateLimit-Monthly-Remaining"
+    MONTHLY_RESET: Final[str] = "X-RateLimit-Monthly-Reset"
+    RETRY_AFTER: Final[str] = "Retry-After"
+
+
+class ErrorCodes:
+    """Stable `code` members of an RFC 9457 problem document.
+
+    Branch on these, never on `title` or `detail`. Unlike the other
+    vocabularies here this one is deliberately not a Literal: the contract only
+    grows, so `APIStatusError.code` stays `str` and an unrecognised code reaches
+    you intact rather than failing to decode.
+    """
+
+    AUTHENTICATION_REQUIRED: Final[str] = "authentication_required"
+    SCOPE_REQUIRED: Final[str] = "scope_required"
+    PLAN_REQUIRED: Final[str] = "plan_required"
+    ENTITLEMENT_EMPTY: Final[str] = "entitlement_empty"
+    ACCOUNT_DISABLED: Final[str] = "account_disabled"
+    RATE_LIMITED: Final[str] = "rate_limited"
+    QUOTA_EXCEEDED: Final[str] = "quota_exceeded"
+    QUOTA_UNAVAILABLE: Final[str] = "quota_unavailable"
+    INVALID_REQUEST: Final[str] = "invalid_request"
+    INVALID_FILTER: Final[str] = "invalid_filter"
+    FILTER_REQUIRED: Final[str] = "filter_required"
+    NOT_FOUND: Final[str] = "not_found"
+    METHOD_NOT_ALLOWED: Final[str] = "method_not_allowed"
+    UNSUPPORTED_MEDIA_TYPE: Final[str] = "unsupported_media_type"
+    STREAM_UNAVAILABLE: Final[str] = "stream_unavailable"
+    STREAM_LIMIT: Final[str] = "stream_limit"
+    CURSOR_EXPIRED: Final[str] = "cursor_expired"
+    CURSOR_SCOPE_CHANGED: Final[str] = "cursor_scope_changed"
+    INTERNAL_ERROR: Final[str] = "internal_error"
+    UNAVAILABLE: Final[str] = "unavailable"

@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 from datetime import datetime, timedelta
+from typing import cast
 
 from rich.text import Text
 from textual import on, work
@@ -44,7 +45,7 @@ from _tui_format import (
     track_name,
     utcnow,
 )
-from betwatch import APIKeyNotSetError, AsyncBetwatch, BetwatchError, ResyncRequired
+from betwatch import APIKeyNotSetError, AsyncBetwatch, BetwatchError, ResyncRequired, Sport
 from betwatch.types.event import Event
 from betwatch.types.snapshot import EventSnapshot
 from betwatch.types.stream import EventFrame, OddsFrame, StreamEvent, StreamFrame
@@ -58,6 +59,7 @@ def _list_window() -> tuple[str, str]:
     start = (now - timedelta(hours=2)).isoformat().replace("+00:00", "Z")
     end = (now + timedelta(hours=24)).isoformat().replace("+00:00", "Z")
     return start, end
+
 
 _HELP = """\
 [b]Betwatch[/b]  —  racing odds, in the terminal.
@@ -627,7 +629,7 @@ class BetwatchApp(App[None]):
         while True:
             try:
                 page = await client.events.list(
-                    sport=self.sport,
+                    sport=cast(Sport | None, self.sport),
                     country=self.country,
                     start_from=self._start_from,
                     start_to=self._start_to,
@@ -666,7 +668,10 @@ class BetwatchApp(App[None]):
         while True:
             try:
                 page = await client.venues.list(
-                    sport=self.sport, country=self.country, after=after, limit=200
+                    sport=cast(Sport | None, self.sport),
+                    country=self.country,
+                    after=after,
+                    limit=200,
                 )
             except BetwatchError:
                 return

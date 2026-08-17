@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal, cast
+from typing import Any, Literal, TypeVar, cast
 
 import msgspec
 
+from .._compat import unknown_value_coercer
 from .common import Model
 from .coverage import Coverage
 from .entrant import Entrant
@@ -12,6 +13,8 @@ from .enums import EventStatus
 from .market import Market
 from .odds import Odds
 from .outcome import Outcome
+
+_M = TypeVar("_M")
 
 
 class StreamEvent(Model):
@@ -24,52 +27,58 @@ class StreamEvent(Model):
 
 
 class StreamCursor(Model):
-    cursor: str | None = None
+    cursor: str
 
 
 class StreamResync(Model):
-    reason: str | None = None
+    reason: str
+
+
+class StreamError(Model):
+    code: str
+    detail: str
+    trace_id: str | None = None
 
 
 class ReadyFrame(Model):
-    data: StreamCursor | None = None
-    cursor: str | None = None
+    data: StreamCursor
+    cursor: str
     type: Literal["ready"] = "ready"
 
 
 class SyncFrame(Model):
-    data: StreamCursor | None = None
-    cursor: str | None = None
+    data: StreamCursor
+    cursor: str
     type: Literal["sync"] = "sync"
 
 
 class EventFrame(Model):
     data: StreamEvent
-    cursor: str | None = None
+    cursor: str
     type: Literal["event"] = "event"
 
 
 class EntrantFrame(Model):
     data: Entrant
-    cursor: str | None = None
+    cursor: str
     type: Literal["entrant"] = "entrant"
 
 
 class MarketFrame(Model):
     data: Market
-    cursor: str | None = None
+    cursor: str
     type: Literal["market"] = "market"
 
 
 class OutcomeFrame(Model):
     data: Outcome
-    cursor: str | None = None
+    cursor: str
     type: Literal["outcome"] = "outcome"
 
 
 class OddsFrame(Model):
     data: Odds
-    cursor: str | None = None
+    cursor: str
     type: Literal["odds"] = "odds"
 
 
@@ -83,22 +92,22 @@ class OddsSet(Model):
 
 class OddsSetFrame(Model):
     data: OddsSet
-    cursor: str | None = None
+    cursor: str
     type: Literal["odds_set"] = "odds_set"
 
 
 class CoverageFrame(Model):
     data: Coverage
-    cursor: str | None = None
+    cursor: str
     type: Literal["coverage"] = "coverage"
 
 
 class UnknownFrame(Model):
     """Forward-compatible frame the SDK does not yet type."""
 
+    cursor: str
     type: Literal["unknown"] = "unknown"
     data: Any = None
-    cursor: str | None = None
     name: str = "unknown"
 
 
@@ -116,26 +125,36 @@ StreamFrame = (
 )
 
 
-def frame_for_event(event: str, cursor: str | None, payload: Any) -> StreamFrame:
+def _convert(raw: Any, model: type[_M]) -> _M:
+    """Same forward-compat coercion the REST decoder applies.
+
+    A frame carrying a vocabulary value newer than this SDK must not kill
+    a live stream.
+    """
+    coerce = unknown_value_coercer(model)
+    return msgspec.convert(coerce(raw) if coerce else raw, type=model)
+
+
+def frame_for_event(event: str, cursor: str, payload: Any) -> StreamFrame:
     raw = payload or {}
     if event == "ready":
-        return ReadyFrame(data=msgspec.convert(raw, type=StreamCursor), cursor=cursor)
+        return ReadyFrame(data=_convert(raw, StreamCursor), cursor=cursor)
     if event == "sync":
-        return SyncFrame(data=msgspec.convert(raw, type=StreamCursor), cursor=cursor)
+        return SyncFrame(data=_convert(raw, StreamCursor), cursor=cursor)
     if event == "event":
-        return EventFrame(data=msgspec.convert(raw, type=StreamEvent), cursor=cursor)
+        return EventFrame(data=_convert(raw, StreamEvent), cursor=cursor)
     if event == "entrant":
-        return EntrantFrame(data=msgspec.convert(raw, type=Entrant), cursor=cursor)
+        return EntrantFrame(data=_convert(raw, Entrant), cursor=cursor)
     if event == "market":
-        return MarketFrame(data=msgspec.convert(raw, type=Market), cursor=cursor)
+        return MarketFrame(data=_convert(raw, Market), cursor=cursor)
     if event == "outcome":
-        return OutcomeFrame(data=msgspec.convert(raw, type=Outcome), cursor=cursor)
+        return OutcomeFrame(data=_convert(raw, Outcome), cursor=cursor)
     if event == "odds":
-        return OddsFrame(data=msgspec.convert(raw, type=Odds), cursor=cursor)
+        return OddsFrame(data=_convert(raw, Odds), cursor=cursor)
     if event == "odds_set":
-        return OddsSetFrame(data=msgspec.convert(raw, type=OddsSet), cursor=cursor)
+        return OddsSetFrame(data=_convert(raw, OddsSet), cursor=cursor)
     if event == "coverage":
-        return CoverageFrame(data=msgspec.convert(raw, type=Coverage), cursor=cursor)
+        return CoverageFrame(data=_convert(raw, Coverage), cursor=cursor)
     return UnknownFrame(data=payload, cursor=cursor, name=event)
 
 

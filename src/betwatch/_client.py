@@ -9,18 +9,22 @@ from typing import Any, TypeVar
 import httpx
 
 from ._base_client import (
+    DEFAULT_MAX_RETRIES,
     STREAM_READ_TIMEOUT,
     decode_model,
     default_headers,
     flatten,
+    parse_retry_after,
     raise_if_error,
     require_key,
     resolve_base_url,
     retry_after_seconds,
     safe_json,
+    should_retry_status,
     stream_headers_and_query,
 )
-from ._exceptions import APIStatusError, ResyncRequired
+from ._exceptions import APIConnectionError, APITimeoutError, ResyncRequired
+from ._ratelimit import RateLimit
 from ._streaming import aiter_sse, frame_from_sse, iter_sse
 from .resources.competitors import AsyncCompetitors, Competitors
 from .resources.entrants import AsyncEntrants, Entrants
@@ -32,12 +36,15 @@ from .resources.outcomes import AsyncOutcomes, Outcomes
 from .resources.sources import AsyncSources, Sources
 from .resources.venues import AsyncVenues, Venues
 from .types.common import as_sequence
+from .types.enums import ErrorCodes, IncludeFlag, SnapshotMode, Sport
 from .types.snapshot import EventSnapshot
-from .types.enums import IncludeFlag, SnapshotMode, Sport
 from .types.stream import StreamFrame, SyncFrame
 
 _T = TypeVar("_T")
-_RETRYABLE_STATUS = frozenset({429, 502, 503, 504})
+
+# The cursor is unusable and reconnecting with it would loop. The status
+# carrying these is not pinned by the contract yet, so branch on the code.
+_RESYNC_CODES = frozenset({ErrorCodes.CURSOR_EXPIRED, ErrorCodes.CURSOR_SCOPE_CHANGED})
 
 
 def _stream_backoff(attempt: int) -> float:
@@ -45,16 +52,11 @@ def _stream_backoff(attempt: int) -> float:
     return random.random() * min(8.0, 0.5 * (2**attempt))
 
 
-def _retryable_status(exc: APIStatusError) -> bool:
-    return exc.status_code in _RETRYABLE_STATUS
-
-
 class Stream:
     """Live `/v1/stream`. Use as a context manager.
 
-    On transient disconnects (and on first connect if the server is down),
-    retries with backoff, then `Last-Event-ID` + `snapshot=none`.
-    `resync` raises `ResyncRequired` — snapshot again.
+    Transport disconnects reconnect with backoff and `Last-Event-ID`.
+    HTTP, decode, and `resync` failures surface immediately.
     """
 
     def __init__(self, client: Betwatch, params: dict[str, Any], *, reconnect: bool) -> None:
@@ -89,8 +91,10 @@ class Stream:
                 body=safe_json(httpx.Response(response.status_code, content=raw)),
                 request_id=response.headers.get("x-request-id") or None,
                 trace_id=response.headers.get("x-trace-id") or None,
+                retry_after=parse_retry_after(response),
+                rate_limit=RateLimit.from_headers(response.headers),
             )
-            if response.status_code == 409:
+            if response.status_code == 409 or err.code in _RESYNC_CODES:
                 raise ResyncRequired(self.cursor, err.code or "conflict") from err
             raise err
         self.trace_id = response.headers.get("x-trace-id") or None
@@ -100,12 +104,9 @@ class Stream:
         while True:
             try:
                 return self._open()
-            except httpx.TransportError:
+            except httpx.TransportError as exc:
                 if not self._reconnect:
-                    raise
-            except APIStatusError as exc:
-                if not self._reconnect or not _retryable_status(exc):
-                    raise
+                    raise APIConnectionError("/v1/stream", exc) from exc
             wait = _stream_backoff(self._attempt)
             self._attempt += 1
             time.sleep(wait)
@@ -129,7 +130,7 @@ class Stream:
                     self._response = self._open_with_retry()
                 try:
                     for sse in iter_sse(self._response.iter_bytes()):
-                        if sse.id:
+                        if sse.id is not None:
                             self.cursor = sse.id
                         frame = frame_from_sse(sse)
                         if frame is not None:
@@ -146,10 +147,10 @@ class Stream:
                 except ResyncRequired:
                     self.close()
                     raise
-                except httpx.TransportError:
+                except httpx.TransportError as exc:
                     self.close()
                     if not self._reconnect:
-                        raise
+                        raise APIConnectionError("/v1/stream", exc) from exc
                     if not self._synced and self._params.get("snapshot") == "full":
                         self.cursor = None
                     continue
@@ -192,8 +193,10 @@ class AsyncStream:
                 body=safe_json(httpx.Response(response.status_code, content=raw)),
                 request_id=response.headers.get("x-request-id") or None,
                 trace_id=response.headers.get("x-trace-id") or None,
+                retry_after=parse_retry_after(response),
+                rate_limit=RateLimit.from_headers(response.headers),
             )
-            if response.status_code == 409:
+            if response.status_code == 409 or err.code in _RESYNC_CODES:
                 raise ResyncRequired(self.cursor, err.code or "conflict") from err
             raise err
         self.trace_id = response.headers.get("x-trace-id") or None
@@ -203,12 +206,9 @@ class AsyncStream:
         while True:
             try:
                 return await self._open()
-            except httpx.TransportError:
+            except httpx.TransportError as exc:
                 if not self._reconnect:
-                    raise
-            except APIStatusError as exc:
-                if not self._reconnect or not _retryable_status(exc):
-                    raise
+                    raise APIConnectionError("/v1/stream", exc) from exc
             wait = _stream_backoff(self._attempt)
             self._attempt += 1
             await asyncio.sleep(wait)
@@ -232,7 +232,7 @@ class AsyncStream:
                     self._response = await self._open_with_retry()
                 try:
                     async for sse in aiter_sse(self._response.aiter_bytes()):
-                        if sse.id:
+                        if sse.id is not None:
                             self.cursor = sse.id
                         frame = frame_from_sse(sse)
                         if frame is not None:
@@ -249,10 +249,10 @@ class AsyncStream:
                 except ResyncRequired:
                     await self.close()
                     raise
-                except httpx.TransportError:
+                except httpx.TransportError as exc:
                     await self.close()
                     if not self._reconnect:
-                        raise
+                        raise APIConnectionError("/v1/stream", exc) from exc
                     if not self._synced and self._params.get("snapshot") == "full":
                         self.cursor = None
                     continue
@@ -285,7 +285,7 @@ class Watch:
         self._client = client
         self._event_id = event_id
         self._source = source
-        self._include = include
+        self._include: Sequence[IncludeFlag] | IncludeFlag | None = include
         self._reconnect = reconnect
         self.snapshot: EventSnapshot | None = None
         self._stream: Stream | None = None
@@ -295,7 +295,9 @@ class Watch:
         if self._stream is not None:
             self._stream.close()
         self.snapshot = self._client.events.snapshot(
-            self._event_id, source=self._source, include=self._include
+            self._event_id,
+            source=self._source,
+            include=self._include,
         )
         self._stream = self._client.follow(self.snapshot, reconnect=self._reconnect)
         self._stream.__enter__()
@@ -335,7 +337,7 @@ class AsyncWatch:
         self._client = client
         self._event_id = event_id
         self._source = source
-        self._include = include
+        self._include: Sequence[IncludeFlag] | IncludeFlag | None = include
         self._reconnect = reconnect
         self.snapshot: EventSnapshot | None = None
         self._stream: AsyncStream | None = None
@@ -345,7 +347,9 @@ class AsyncWatch:
         if self._stream is not None:
             await self._stream.close()
         self.snapshot = await self._client.events.snapshot(
-            self._event_id, source=self._source, include=self._include
+            self._event_id,
+            source=self._source,
+            include=self._include,
         )
         self._stream = self._client.follow(self.snapshot, reconnect=self._reconnect)
         await self._stream.__aenter__()
@@ -406,26 +410,6 @@ def _stream_params(
     }
 
 
-def connect(
-    api_key: str | None = None,
-    *,
-    base_url: str | None = None,
-    timeout: httpx.Timeout | None = None,
-) -> Betwatch:
-    """Same as `Betwatch(...)`. Kept so 1.x-style examples keep working."""
-    return Betwatch(api_key, base_url=base_url, timeout=timeout)
-
-
-def connect_async(
-    api_key: str | None = None,
-    *,
-    base_url: str | None = None,
-    timeout: httpx.Timeout | None = None,
-) -> AsyncBetwatch:
-    """Same as `AsyncBetwatch(...)`."""
-    return AsyncBetwatch(api_key, base_url=base_url, timeout=timeout)
-
-
 class Betwatch:
     """Sync client for the public `/v1` REST + SSE API.
 
@@ -444,9 +428,14 @@ class Betwatch:
         *,
         base_url: str | None = None,
         timeout: httpx.Timeout | None = None,
+        max_retries: int = DEFAULT_MAX_RETRIES,
     ) -> None:
+        if not isinstance(max_retries, int) or isinstance(max_retries, bool) or max_retries < 0:
+            raise ValueError("max_retries must be a non-negative integer")
         self.api_key = require_key(api_key)
         self.base_url = resolve_base_url(base_url)
+        self.max_retries = max_retries
+        self.rate_limit: RateLimit | None = None
         self._headers = default_headers(self.api_key)
         self._raw = httpx.Client(
             base_url=self.base_url,
@@ -474,23 +463,33 @@ class Betwatch:
 
     def _get(self, path: str, params: Mapping[str, Any] | None, model: type[_T]) -> _T:
         query = flatten(params or {})
-        last: httpx.Response | None = None
-        for attempt in range(6):
-            last = self._raw.get(path, params=query)
-            if last.status_code == 429 and attempt < 5:
-                time.sleep(retry_after_seconds(last, attempt))
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = self._raw.get(path, params=query)
+            except httpx.TimeoutException as exc:
+                if attempt >= self.max_retries:
+                    raise APITimeoutError(path, exc) from exc
+                time.sleep(min(0.5 * (2**attempt), 8.0))
                 continue
-            raise_if_error(last, path)
-            return decode_model(path, last.content, model)
-        assert last is not None
-        raise_if_error(last, path)
-        return decode_model(path, last.content, model)
+            except httpx.TransportError as exc:
+                if attempt >= self.max_retries:
+                    raise APIConnectionError(path, exc) from exc
+                time.sleep(min(0.5 * (2**attempt), 8.0))
+                continue
+            if attempt < self.max_retries and should_retry_status(response):
+                time.sleep(retry_after_seconds(response, attempt))
+                continue
+            self.rate_limit = RateLimit.from_headers(response.headers) or self.rate_limit
+            raise_if_error(response, path)
+            return decode_model(path, response.content, model)
+        raise AssertionError("unreachable request loop")
 
     def follow(self, snapshot: EventSnapshot, *, reconnect: bool = True) -> Stream:
         """Subscribe after a REST snapshot. Sends the snapshot cursor as Last-Event-ID."""
         return self.stream(
-            event=snapshot.event.id,
-            cursor=snapshot.cursor,
+            event=snapshot.stream.event,
+            source=snapshot.stream.source,
+            cursor=snapshot.stream.cursor,
             snapshot="none",
             reconnect=reconnect,
         )
@@ -561,9 +560,14 @@ class AsyncBetwatch:
         *,
         base_url: str | None = None,
         timeout: httpx.Timeout | None = None,
+        max_retries: int = DEFAULT_MAX_RETRIES,
     ) -> None:
+        if not isinstance(max_retries, int) or isinstance(max_retries, bool) or max_retries < 0:
+            raise ValueError("max_retries must be a non-negative integer")
         self.api_key = require_key(api_key)
         self.base_url = resolve_base_url(base_url)
+        self.max_retries = max_retries
+        self.rate_limit: RateLimit | None = None
         self._headers = default_headers(self.api_key)
         self._raw = httpx.AsyncClient(
             base_url=self.base_url,
@@ -591,22 +595,32 @@ class AsyncBetwatch:
 
     async def _aget(self, path: str, params: Mapping[str, Any] | None, model: type[_T]) -> _T:
         query = flatten(params or {})
-        last: httpx.Response | None = None
-        for attempt in range(6):
-            last = await self._raw.get(path, params=query)
-            if last.status_code == 429 and attempt < 5:
-                await asyncio.sleep(retry_after_seconds(last, attempt))
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = await self._raw.get(path, params=query)
+            except httpx.TimeoutException as exc:
+                if attempt >= self.max_retries:
+                    raise APITimeoutError(path, exc) from exc
+                await asyncio.sleep(min(0.5 * (2**attempt), 8.0))
                 continue
-            raise_if_error(last, path)
-            return decode_model(path, last.content, model)
-        assert last is not None
-        raise_if_error(last, path)
-        return decode_model(path, last.content, model)
+            except httpx.TransportError as exc:
+                if attempt >= self.max_retries:
+                    raise APIConnectionError(path, exc) from exc
+                await asyncio.sleep(min(0.5 * (2**attempt), 8.0))
+                continue
+            if attempt < self.max_retries and should_retry_status(response):
+                await asyncio.sleep(retry_after_seconds(response, attempt))
+                continue
+            self.rate_limit = RateLimit.from_headers(response.headers) or self.rate_limit
+            raise_if_error(response, path)
+            return decode_model(path, response.content, model)
+        raise AssertionError("unreachable request loop")
 
     def follow(self, snapshot: EventSnapshot, *, reconnect: bool = True) -> AsyncStream:
         return self.stream(
-            event=snapshot.event.id,
-            cursor=snapshot.cursor,
+            event=snapshot.stream.event,
+            source=snapshot.stream.source,
+            cursor=snapshot.stream.cursor,
             snapshot="none",
             reconnect=reconnect,
         )

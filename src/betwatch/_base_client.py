@@ -3,18 +3,34 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
+from random import random
+from time import time
 from typing import Any, TypeVar
 
 import httpx
 import msgspec
 
 from .__about__ import __version__
-from ._exceptions import APIDecodeError, APIKeyNotSetError, error_for_status
+from ._compat import unknown_value_coercer
+from ._exceptions import (
+    APIDecodeError,
+    APIKeyNotSetError,
+    CredentialInQueryError,
+    error_for_status,
+    is_retryable_code,
+)
+from ._ratelimit import RateLimit
+from .types.enums import BudgetHeaders
 
 _T = TypeVar("_T")
 
 DEFAULT_BASE_URL = "https://api-beta.betwatch.com"
+DEFAULT_MAX_RETRIES = 2
 STREAM_READ_TIMEOUT = 45.0
+_MAX_RETRY_DELAY = 8.0
+_MAX_RETRY_AFTER = 60.0
+_RETRYABLE_STATUS = frozenset({408, 429, 500, 502, 503, 504})
 
 
 def require_key(api_key: str | None) -> str:
@@ -29,6 +45,7 @@ def resolve_base_url(base_url: str | None) -> str:
 
 
 def flatten(params: Mapping[str, Any]) -> list[tuple[str, str | float | None]]:
+    reject_credential_params(params)
     items: list[tuple[str, str | float | None]] = []
     for key, value in params.items():
         if value is None:
@@ -82,8 +99,11 @@ def _null_lists_to_empty(value: Any) -> Any:
 
 def decode_model(path: str, content: bytes, model: type[_T]) -> _T:
     try:
-        raw = msgspec.json.decode(content)
-        return msgspec.convert(_null_lists_to_empty(raw), type=model)
+        raw = _null_lists_to_empty(msgspec.json.decode(content))
+        coerce = unknown_value_coercer(model)
+        if coerce is not None:
+            raw = coerce(raw)
+        return msgspec.convert(raw, type=model)
     except (msgspec.DecodeError, msgspec.ValidationError) as exc:
         raise APIDecodeError(path, exc) from exc
 
@@ -126,16 +146,74 @@ def default_event_window() -> tuple[str, str]:
     return start, end
 
 
-def retry_after_seconds(response: httpx.Response, attempt: int) -> float:
-    raw = response.headers.get("Retry-After")
-    if raw:
+def parse_retry_after(response: httpx.Response) -> float | None:
+    """The server's Retry-After in seconds, exactly as sent.
+
+    Deliberately unbounded. On `quota_exceeded` the contract points this at the
+    monthly reset, which can be weeks out — that is worth reporting to a caller
+    deciding when to resume, even though nothing should ever sleep on it.
+    """
+    raw = response.headers.get(BudgetHeaders.RETRY_AFTER)
+    if not raw:
+        return None
+    try:
+        value = float(raw)
+    except ValueError:
         try:
-            value = float(raw)
-            if 0 < value <= 10:
-                return value
-        except ValueError:
-            pass
-    return min(0.4 * (2**attempt), 4.0)
+            value = parsedate_to_datetime(raw).timestamp() - time()
+        except (TypeError, ValueError, OverflowError):
+            return None
+    return value if value > 0 else None
+
+
+def retry_after_seconds(response: httpx.Response, attempt: int) -> float:
+    """How long to actually wait before the next attempt, always bounded."""
+    value = parse_retry_after(response)
+    if value is not None and value <= _MAX_RETRY_AFTER:
+        return value
+    delay = min(0.5 * (2**attempt), _MAX_RETRY_DELAY)
+    return delay * (1 - 0.25 * random())
+
+
+def problem_code(response: httpx.Response) -> str | None:
+    body = safe_json(response)
+    if isinstance(body, dict):
+        code = body.get("code")
+        if isinstance(code, str):
+            return code
+    return None
+
+
+def should_retry_status(response: httpx.Response) -> bool:
+    """Retry on the problem `code`, falling back to the status.
+
+    The status alone cannot decide this. 429 is `rate_limited` (wait it out),
+    `quota_exceeded` (weeks away — fail fast) and `stream_limit` (close a
+    connection instead); 409 is a cursor that needs a REST re-bootstrap rather
+    than the same request again.
+    """
+    directive = response.headers.get("x-should-retry")
+    if directive == "true":
+        return True
+    if directive == "false":
+        return False
+    by_code = is_retryable_code(problem_code(response))
+    if by_code is not None:
+        return by_code
+    return response.status_code in _RETRYABLE_STATUS or response.status_code >= 500
+
+
+# Anything the server would read as a credential in the query string. It
+# refuses these with 401 even when the header is also present, so the SDK
+# refuses to build such a URL at all rather than emitting a request that
+# cannot succeed.
+_CREDENTIAL_PARAMS = frozenset({"apikey", "api_key", "key", "token", "access_token"})
+
+
+def reject_credential_params(params: Mapping[str, Any]) -> None:
+    offending = sorted(name for name in params if name.lower() in _CREDENTIAL_PARAMS)
+    if offending:
+        raise CredentialInQueryError(offending)
 
 
 def _header(response: httpx.Response, name: str) -> str | None:
@@ -151,6 +229,8 @@ def raise_if_error(response: httpx.Response, path: str) -> None:
             body=safe_json(response),
             request_id=_header(response, "x-request-id"),
             trace_id=_header(response, "x-trace-id"),
+            retry_after=parse_retry_after(response),
+            rate_limit=RateLimit.from_headers(response.headers),
         )
 
 

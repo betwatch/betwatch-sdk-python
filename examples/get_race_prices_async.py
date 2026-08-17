@@ -5,9 +5,11 @@ import betwatch
 
 async def main() -> None:
     api_key = None
-    async with betwatch.connect_async(api_key) as client:
+    async with betwatch.AsyncBetwatch(api_key) as client:
         races = await client.events.list(sport="thoroughbred", country="au", limit=20)
-        race = races.next_open or races[0]
+        race = races.next_open or (races[0] if races else None)
+        if race is None:
+            raise SystemExit("No races found in the current event window")
         card = await client.events.snapshot(race.id)
         print(card.event.name)
         for runner in card.entrants:

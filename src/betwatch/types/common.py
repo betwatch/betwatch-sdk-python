@@ -47,7 +47,7 @@ def as_sequence(value: Sequence[str] | str | None) -> list[str] | None:
         return None
     if isinstance(value, str):
         return [value]
-    return [item for item in value if item is not None]
+    return list(value)
 
 
 class Money(Model):

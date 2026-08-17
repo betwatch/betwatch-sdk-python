@@ -1,12 +1,16 @@
 from .common import Money, NamedPerson, Parent, Pool, PriceLevel, to_dict, to_json, to_records
 from .competitor import Competitor
+from .coverage import Coverage
+from .entrant import Entrant, EntrantPage, EntrantRacing
 from .enums import (
     LIVE_EVENT_STATUSES,
     SETTLED_EVENT_STATUSES,
+    BudgetHeaders,
     CoverageState,
     CoverageStates,
     EntryState,
     EntryStates,
+    ErrorCodes,
     EventStatus,
     EventStatuses,
     IncludeFlag,
@@ -24,15 +28,13 @@ from .enums import (
     Sport,
     Sports,
 )
-from .coverage import Coverage
-from .entrant import Entrant, EntrantPage, EntrantRacing
 from .event import Dividend, Event, EventPage, EventRacing, EventResult
 from .market import Market, MarketPage, MarketScope
 from .meeting import Meeting, MeetingPage
 from .odds import Exchange, Odds, OddsHistoryItem, OddsPage
 from .outcome import Outcome, OutcomePage
 from .page import Page
-from .snapshot import EventSnapshot
+from .snapshot import EventSnapshot, StreamContinuation
 from .source import Source, SourcePage
 from .stream import (
     CoverageFrame,
@@ -54,6 +56,8 @@ from .stream import (
 from .venue import Venue, VenuePage
 
 __all__ = [
+    "BudgetHeaders",
+    "ErrorCodes",
     "Competitor",
     "Coverage",
     "CoverageFrame",
@@ -116,6 +120,7 @@ __all__ = [
     "Sport",
     "Sports",
     "StreamCursor",
+    "StreamContinuation",
     "StreamEvent",
     "StreamFrame",
     "StreamResync",

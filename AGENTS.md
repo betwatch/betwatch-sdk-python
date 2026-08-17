@@ -66,10 +66,43 @@ fails `pyright` (`reportUnnecessaryComparison`).
 
 ## Errors
 
-Typed exceptions: `NotFoundError` (404), `AuthenticationError` (401),
-`PermissionDeniedError` (403 — missing `stream` scope), `UnprocessableEntityError`
-(422), `RateLimitError` (429), `FilterRequiredError` (local, no HTTP),
-`ResyncRequired` (stream recovery). Read `.detail` and `.code` on HTTP errors.
+Every failure is an RFC 9457 problem document. **Branch on `.code`, never on
+`.title` or `.detail`** — `ErrorCodes` has the vocabulary. The exception type is
+selected from the code, falling back to the HTTP class for a code this release
+has never seen. Read `.code`, `.detail`, `.errors`, `.request_id`, `.trace_id`.
+
+`AuthenticationError` (401) · `PermissionDeniedError` (403) with subclasses
+`EntitlementEmptyError` and `AccountDisabledError` · `NotFoundError` (404) ·
+`MethodNotAllowedError` (405) · `UnsupportedMediaTypeError` (406/415) ·
+`UnprocessableEntityError` (422) · `RateLimitError` (429 `rate_limited`) ·
+`QuotaExceededError` (429 `quota_exceeded`) · `StreamLimitError` (429
+`stream_limit`) · `ServiceUnavailableError` (503) · `InternalServerError` (5xx).
+Local, before any HTTP: `FilterRequiredError`, `CredentialInQueryError`.
+Stream recovery: `ResyncRequired`.
+
+`QuotaExceededError` and `StreamLimitError` are **not** subclasses of
+`RateLimitError`. All three are 429 and only one is worth waiting out, so
+`except RateLimitError` must not catch the other two.
+
+Retries follow the code, not the status: `rate_limited` (after `Retry-After`),
+`quota_unavailable`, `stream_unavailable`, `unavailable`, `internal_error`.
+Everything else fails fast. `cursor_expired` / `cursor_scope_changed` (409) mean
+re-bootstrap over REST, not retry.
+
+## Paging
+
+Every collection has `iter()` alongside `list()`. A cursor belongs to the
+collection that issued it — `iter()` feeds each one back to the same endpoint,
+which is the only thing that makes this safe. Never move a `next` between
+endpoints, and never decode, build, or edit a cursor.
+
+## Forward compatibility
+
+The contract only grows, so nothing here may fail on something new. Unknown
+response fields (including `$schema`) are ignored, unknown SSE frame names
+become `UnknownFrame`, and an unrecognised vocabulary value decodes as
+`"unknown"` (see `_compat.py`). Do not add `forbid_unknown_fields` to a model,
+and when widening a response vocabulary keep its `"unknown"` member.
 
 ## Public nouns
 

@@ -33,20 +33,104 @@ See [examples](examples) — the same use cases as 1.x (`get_races`,
 `get_race_prices`, `subscriptions`), plus `firehose.py` for every
 code with a resumable cursor, and `tui.py` for a Textual raceday grid.
 
+### Discover, then price, then follow
+
+The API is built around one workflow, and so is this client. Find races, ask
+for their prices, then attach a stream at exactly the position the price read
+returned.
+
 ```python
 from betwatch import Betwatch, OddsFrame
 
 with Betwatch() as client:
+    # 1. Discover. /v1/odds and friends refuse an unscoped read, so start here.
     page = client.events.list(sport="thoroughbred", country="au", limit=5)
     event = page[0]
     print(event.name, event.start_at, event.racing.race_number)
 
-    with client.watch(event.id) as live:
-        print(live.snapshot.event.name, "runners", len(live.snapshot.entrants))
+    # 2. Price. The snapshot carries a stream cursor captured *before* it read,
+    #    so nothing changes in the gap between pricing and following.
+    card = client.events.snapshot(event.id)
+    print(card.best_price(card.entrants[0]))
+
+    # 3. Follow. follow() sends that cursor as Last-Event-ID with snapshot=none.
+    with client.follow(card) as live:
         for frame in live:
             if isinstance(frame, OddsFrame):
                 print(frame.data.source.id, frame.data.price)
 ```
+
+`client.watch(event_id)` does all three in one call when you do not need the
+snapshot yourself.
+
+`snapshot(..., include="history")` fills `Odds.history` with each source's
+fluctuations. It is honoured as of contract 1.0.0 and doubles the call's quota
+cost, so ask for it only when you use it.
+
+### Stream instead of polling
+
+**Stream frames are not metered.** Polling `/v1/odds` on a timer is the
+expensive way to stay current and the slowest to see a move; bootstrapping once
+and following costs nothing beyond that first read. A single filtered
+connection covers a whole raceday — `client.stream(sport="thoroughbred",
+country="au")` — and a connection per race is the shape to avoid, which your
+plan's concurrent-stream cap will enforce with `StreamLimitError`.
+
+### Paging a collection
+
+Every collection has `iter()`, which follows `next` until it stops coming:
+
+```python
+for venue in client.venues.iter(country="au"):
+    print(venue.name)
+```
+
+A cursor belongs to the collection that issued it — a `next` from `/v1/venues`
+is not valid on `/v1/meetings`. `iter()` feeds each cursor back to the endpoint
+that produced it, so this cannot go wrong by accident. Cursors are opaque: do
+not decode, build, or edit one.
+
+### Handling failures
+
+Every failure is an RFC 9457 problem document with a stable `code`. Branch on
+the code (or on the exception type, which is selected from it), never on prose:
+
+```python
+import time
+
+from betwatch import QuotaExceededError, RateLimitError
+
+try:
+    page = client.odds.list(event=event.id)
+except RateLimitError as err:
+    time.sleep(err.retry_after or 1)      # short window; worth waiting out
+except QuotaExceededError as err:
+    alert(f"monthly quota spent, resets {err.rate_limit.monthly_reset}")
+```
+
+`QuotaExceededError` is deliberately **not** a subclass of `RateLimitError`:
+one resets in seconds, the other in weeks. The client retries `rate_limited`
+and the 5xx codes for you, and fails fast on everything the docs mark as
+non-retryable. Every exception carries `code`, `detail`, `errors`,
+`request_id`, and `trace_id` — quote the last two to support.
+
+### Operations
+
+The client groups operations by resource, which is the Python idiom. The
+mapping to the contract's `operationId`s is one-to-one:
+
+| operationId | SDK |
+|---|---|
+| `listEvents` / `getEvent` / `getEventSnapshot` | `client.events.list` / `.retrieve` / `.snapshot` |
+| `listEntrants` / `getEntrant` | `client.entrants.list` / `.retrieve` |
+| `getCompetitor` | `client.competitors.retrieve` |
+| `listMarkets` / `getMarket` | `client.markets.list` / `.retrieve` |
+| `listOutcomes` / `getOutcome` | `client.outcomes.list` / `.retrieve` |
+| `listOdds` / `getOdds` | `client.odds.list` / `.retrieve` |
+| `listMeetings` / `getMeeting` | `client.meetings.list` / `.retrieve` |
+| `listVenues` / `getVenue` | `client.venues.list` / `.retrieve` |
+| `listSources` | `client.sources.list` |
+| `streamRacing` | `client.stream` / `.watch` / `.follow` |
 
 Dump to pandas without caring that the backend is msgspec:
 
@@ -58,6 +142,24 @@ df = pd.DataFrame.from_records(card.to_records())
 ```
 
 Sync and async clients share one resource tree (`AsyncBetwatch`).
+
+Reads retry twice by default, driven by the problem `code` rather than the HTTP
+status — the status cannot tell `rate_limited` from `quota_exceeded`, and both
+are `429`. Set `max_retries=0` to disable retries or another non-negative value
+to change the budget. Stream reconnect is separate: SSE reconnects only after
+transport interruption, while HTTP, cursor, server frame, and decode failures
+surface immediately.
+
+`client.rate_limit` holds the budget headers from the last response — both the
+per-minute window and the monthly quota, including when the quota resets.
+
+The contract only grows. Unknown response fields (including `$schema`) are
+ignored, unknown SSE frame names are no-ops, and a vocabulary value newer than
+this release reads as `"unknown"` rather than failing to decode.
+
+An event snapshot carries a required server-issued `stream` continuation. Pass
+the complete snapshot to `client.follow(card)`; do not copy its cursor into a
+new stream with reconstructed filters.
 
 ## TUI
 
@@ -82,6 +184,18 @@ uv run ruff check
 uv run ty check
 uv run pytest
 ```
+
+The SDK's error codes, budget-header names, and operation coverage are pinned
+against a committed copy of the published contract at
+`tests/contract/openapi.json`. When the API ships a new spec:
+
+```console
+uv run tests/contract/sync_openapi.py     # or: BETWATCH_OPENAPI=/path/to/openapi.json
+uv run pytest tests/test_contract_spec.py
+```
+
+A failure there names exactly what moved — a new error code with no retry
+decision, a budget header nothing parses, an operation with no method.
 
 Live check against a local API:
 

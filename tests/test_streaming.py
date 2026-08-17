@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from betwatch import OddsFrame, ResyncRequired
+from betwatch import OddsFrame, ResyncRequired, StreamDecodeError
 from betwatch._base_client import stream_headers_and_query
 from betwatch._streaming import SSEDecoder, frame_from_sse, iter_sse
 
@@ -77,6 +77,13 @@ def test_iter_sse_skips_comments_and_frame_policy_skips_ping() -> None:
     assert frames[1].cursor == "cur_event"
 
 
+def test_ping_payload_cursor_must_match_sse_id() -> None:
+    raw = b'id: cur_1\nevent: ping\ndata: {"cursor":"cur_2"}\n\n'
+    event = list(SSEDecoder().iter_bytes(iter([raw])))[0]
+    with pytest.raises(StreamDecodeError, match="does not match"):
+        frame_from_sse(event)
+
+
 def test_error_frame_incomplete_snapshot_is_resync() -> None:
     raw = b'id: cur_err\nevent: error\ndata: {"code":"incomplete_snapshot","detail":"hydrate failed","traceId":"abc"}\n\n'
     events = list(SSEDecoder().iter_bytes(iter([raw])))
@@ -105,8 +112,35 @@ def test_frame_from_sse_raises_resync_and_stops_retry() -> None:
     assert raised.value.reason == "canonical_merge"
 
 
+def test_malformed_known_frame_is_not_downgraded_to_unknown() -> None:
+    raw = b'id: cur_bad\nevent: odds\ndata: {"id":"odd_1"}\n\n'
+    event = list(SSEDecoder().iter_bytes(iter([raw])))[0]
+    with pytest.raises(StreamDecodeError) as raised:
+        frame_from_sse(event)
+    assert raised.value.event == "odds"
+    assert raised.value.cursor == "cur_bad"
+
+
+def test_valid_future_frame_remains_forward_compatible() -> None:
+    from betwatch import UnknownFrame
+
+    raw = b'id: cur_future\nevent: dividend\ndata: {"amountCents":123}\n\n'
+    event = list(SSEDecoder().iter_bytes(iter([raw])))[0]
+    frame = frame_from_sse(event)
+    assert isinstance(frame, UnknownFrame)
+    assert frame.name == "dividend"
+
+
+def test_empty_event_id_fails_closed_instead_of_reusing_stale_cursor() -> None:
+    raw = b'id:\nevent: ping\ndata: {"cursor":""}\n\n'
+    event = list(SSEDecoder().iter_bytes(iter([raw])))[0]
+    assert event.id == ""
+    with pytest.raises(StreamDecodeError):
+        frame_from_sse(event)
+
+
 def test_decoder_handles_crlf_and_multiline_data() -> None:
-    raw = b'event: coverage\r\ndata: {"eventId":"evt_1","marketId":"mkt_1",\r\ndata: "sourceId":"sportsbet","state":"priced","complete":true}\r\n\r\n'
+    raw = b'id: cur_coverage\r\nevent: coverage\r\ndata: {"eventId":"evt_1","marketId":"mkt_1",\r\ndata: "sourceId":"sportsbet","state":"priced","complete":true}\r\n\r\n'
     events = list(SSEDecoder().iter_bytes(iter([raw])))
     assert len(events) == 1
     frame = frame_from_sse(events[0])
@@ -244,6 +278,28 @@ def test_stream_enter_does_not_retry_auth_errors() -> None:
         client.close()
 
 
+def test_stream_enter_does_not_retry_server_status() -> None:
+    from betwatch import Betwatch, InternalServerError
+    from betwatch._client import Stream
+
+    client = Betwatch(api_key="bw_test", base_url="http://127.0.0.1:9")
+    stream = Stream(client, {"snapshot": "none"}, reconnect=True)
+    calls = {"n": 0}
+
+    def fake_open() -> object:
+        calls["n"] += 1
+        raise InternalServerError("down", status_code=503, path="/v1/stream")
+
+    object.__setattr__(stream, "_open", fake_open)
+    try:
+        with pytest.raises(InternalServerError):
+            with stream:
+                pass
+        assert calls["n"] == 1
+    finally:
+        client.close()
+
+
 def test_stream_clean_close_before_sync_is_resync() -> None:
     from betwatch import Betwatch, ResyncRequired
     from betwatch._client import Stream
@@ -255,8 +311,8 @@ def test_stream_clean_close_before_sync_is_resync() -> None:
         def iter_bytes(self):
             return iter(
                 (
-                    b"id: cur_ready\nevent: ready\ndata: {\"cursor\":\"cur_ready\"}\n\n",
-                    b"id: cur_ready\nevent: event\ndata: {\"id\":\"evt_1\",\"status\":\"open\"}\n\n",
+                    b'id: cur_ready\nevent: ready\ndata: {"cursor":"cur_ready"}\n\n',
+                    b'id: cur_ready\nevent: event\ndata: {"id":"evt_1","status":"open"}\n\n',
                 )
             )
 
@@ -292,3 +348,52 @@ def test_stream_keyboard_interrupt_closes_and_raises() -> None:
         list(stream)
     assert closed["n"] >= 1
     client.close()
+
+
+def test_resume_reconnects_with_the_last_frame_id_not_the_original_cursor() -> None:
+    """A drop mid-stream resumes at the last frame applied, not where we started."""
+    import httpx
+
+    from betwatch import Betwatch, OddsFrame
+    from betwatch._client import Stream
+
+    client = Betwatch(api_key="bw_test", base_url="http://127.0.0.1:9")
+    stream = Stream(client, {"snapshot": "none", "cursor": "cur_start"}, reconnect=True)
+
+    row = (
+        b'{"id":"odd_1.a","eventId":"evt_1","marketId":"mkt_1.a","outcomeId":"out_1.a",'
+        b'"source":{"id":"sportsbet","name":"Sportsbet","kind":"bookmaker"},'
+        b'"state":"available","price":3.4}'
+    )
+    first = b'event: sync\nid: cur_sync\ndata: {"cursor":"cur_sync"}\n\n'
+    first += b"event: odds\nid: cur_last\ndata: " + row + b"\n\n"
+
+    opens: list[str | None] = []
+
+    class FakeResponse:
+        def __init__(self, chunks: bytes) -> None:
+            self._chunks = chunks
+
+        def iter_bytes(self):
+            yield self._chunks
+            raise httpx.ReadError("dropped")
+
+        def close(self) -> None:
+            return None
+
+    def fake_open() -> FakeResponse:
+        opens.append(stream.cursor)
+        if len(opens) == 1:
+            return FakeResponse(first)
+        raise KeyboardInterrupt  # stop the test once we have seen the resume cursor
+
+    object.__setattr__(stream, "_open", fake_open)
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            for frame in stream:
+                assert isinstance(frame, (OddsFrame, type(frame)))
+    finally:
+        client.close()
+
+    assert opens[0] == "cur_start", "first connect uses the bootstrap cursor"
+    assert opens[1] == "cur_last", "the resume uses the last frame id, not cur_start"

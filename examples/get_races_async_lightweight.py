@@ -7,7 +7,7 @@ import betwatch
 
 async def main() -> None:
     api_key = None
-    async with betwatch.connect_async(api_key) as client:
+    async with betwatch.AsyncBetwatch(api_key) as client:
         races = await client.events.list(sport="thoroughbred", country="au", limit=50)
         rows = races.to_records()
         print(f"{len(races)} races as models, {len(rows)} dict rows")
