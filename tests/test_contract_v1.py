@@ -337,3 +337,46 @@ async def test_async_iter_feeds_the_cursor_back_to_the_same_collection() -> None
     assert [path for path, _ in raw.calls] == ["/v1/events", "/v1/events"]
     second = dict(raw.calls[1][1])
     assert second["after"] == "cur_page2"
+
+
+# --- redirects the contract does not declare ------------------------------
+
+
+def test_an_undeclared_redirect_is_named_not_decoded() -> None:
+    """Merged entities write a PublicRedirect; /v1 declares no 3xx.
+
+    Before this, a redirect reached the decoder and surfaced as "Input data was
+    truncated" — an error that says nothing about what happened. The SDK does
+    not follow it: httpx strips `Authorization` across origins but not custom
+    headers, so following would forward `X-API-Key` wherever Location points.
+    """
+    from betwatch import UnexpectedRedirectError
+
+    redirecting = FakeRaw(httpx.Response(308, headers={"Location": "/v1/entrants/ent_new"}))
+    client = _client(redirecting, max_retries=0)
+    try:
+        with pytest.raises(UnexpectedRedirectError) as caught:
+            client.entrants.retrieve("ent_old")
+    finally:
+        client.close()
+    assert caught.value.status_code == 308
+    assert caught.value.location == "/v1/entrants/ent_new"
+    assert "does not follow" in str(caught.value)
+
+
+def test_the_contract_still_declares_no_redirect() -> None:
+    """If a 3xx appears in the contract, the SDK needs a decision, not an error."""
+    import json
+    from pathlib import Path
+
+    spec = json.loads((Path(__file__).parent / "contract" / "openapi.json").read_text())
+    declared = {
+        status
+        for item in spec["paths"].values()
+        for method, op in item.items()
+        if method == "get"
+        for status in op["responses"]
+    }
+    assert not [s for s in declared if s.startswith("3")], (
+        "the contract now declares a redirect — decide whether to follow it"
+    )

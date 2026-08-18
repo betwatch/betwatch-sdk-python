@@ -47,6 +47,7 @@ from ._exceptions import (
     ServiceUnavailableError,
     StreamDecodeError,
     StreamLimitError,
+    UnexpectedRedirectError,
     UnprocessableEntityError,
     UnsupportedMediaTypeError,
 )
@@ -90,6 +91,7 @@ from .types import (
 )
 
 __all__ = [
+    "UnexpectedRedirectError",
     "BootstrapFailedError",
     "ScopeSnapshot",
     "ChangeTracker",

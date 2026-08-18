@@ -16,6 +16,7 @@ from ._exceptions import (
     APIDecodeError,
     APIKeyNotSetError,
     CredentialInQueryError,
+    UnexpectedRedirectError,
     error_for_status,
     is_retryable_code,
 )
@@ -185,6 +186,10 @@ def _header(response: httpx.Response, name: str) -> str | None:
 
 
 def raise_if_error(response: httpx.Response, path: str) -> None:
+    if 300 <= response.status_code < 400:
+        # Without this the redirect body reaches the decoder and surfaces as
+        # "Input data was truncated", which says nothing about what happened.
+        raise UnexpectedRedirectError(path, response.status_code, response.headers.get("location"))
     if response.status_code >= 400:
         raise error_for_status(
             response.status_code,

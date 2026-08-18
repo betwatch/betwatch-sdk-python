@@ -86,6 +86,28 @@ class BootstrapFailedError(BetwatchError):
         )
 
 
+class UnexpectedRedirectError(BetwatchError):
+    """The API answered with a redirect, which `/v1` does not declare.
+
+    Raised rather than followed. Following would send `X-API-Key` to whatever
+    host `Location` names — httpx only strips `Authorization` across origins,
+    not custom headers — and a credential is not something to forward on a
+    server's say-so.
+
+    If you see this, the SDK needs to learn about a response shape the contract
+    does not describe. Report it with the path and location below.
+    """
+
+    def __init__(self, path: str, status_code: int, location: str | None) -> None:
+        self.path = path
+        self.status_code = status_code
+        self.location = location
+        super().__init__(
+            f"{path}: unexpected {status_code} redirect to {location or 'an unstated location'}. "
+            "The /v1 contract declares no 3xx responses, so the SDK does not follow one."
+        )
+
+
 class APIDecodeError(BetwatchError):
     """The HTTP body was not the expected public schema."""
 
