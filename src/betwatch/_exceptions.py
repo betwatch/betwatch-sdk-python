@@ -87,15 +87,17 @@ class BootstrapFailedError(BetwatchError):
 
 
 class UnexpectedRedirectError(BetwatchError):
-    """The API answered with a redirect, which `/v1` does not declare.
+    """Something answered with a redirect. `/v1` never does.
+
+    Betwatch resolves a merged id server-side and returns the surviving resource
+    as 200, so a 3xx did not come from the API — it came from something between
+    you and it: an ingress, a proxy, a captive portal, a misconfigured CDN.
+    That is what this error is for, and why it names the location.
 
     Raised rather than followed. Following would send `X-API-Key` to whatever
-    host `Location` names — httpx only strips `Authorization` across origins,
-    not custom headers — and a credential is not something to forward on a
-    server's say-so.
-
-    If you see this, the SDK needs to learn about a response shape the contract
-    does not describe. Report it with the path and location below.
+    host `Location` names — httpx strips `Authorization` across origins but not
+    custom headers — and a credential is not something to forward on the say-so
+    of a hop you did not expect to be there.
     """
 
     def __init__(self, path: str, status_code: int, location: str | None) -> None:

@@ -128,6 +128,11 @@ except QuotaExceededError as err:
     alert(f"monthly quota spent, resets {err.rate_limit.monthly_reset}")
 ```
 
+Ids are opaque, and merges are the reason that matters: a stored id (`evt_`,
+`ent_`, `cmp_`, `mtg_`, `ven_`) resolves to the surviving record after a merge,
+while a derived id (`mkt_`, `out_`, `odd_`) gets a `NotFoundError` because the
+resource genuinely has a new identity. Re-read the event and take the new ids.
+
 `QuotaExceededError` is deliberately **not** a subclass of `RateLimitError`:
 one resets in seconds, the other in weeks. The client retries `rate_limited`
 and the 5xx codes for you, and fails fast on everything the docs mark as

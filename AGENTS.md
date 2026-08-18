@@ -138,3 +138,11 @@ and when widening a response vocabulary keep its `"unknown"` member.
 
 `evt_` event · `ent_` entrant · `cmp_` competitor · `mtg_` meeting · `ven_` venue ·
 `mkt_` market · `out_` outcome · `odd_` odds
+
+Stored ids (`evt_`, `ent_`, `cmp_`, `mtg_`, `ven_`) survive an entity merge: the
+server resolves them to the surviving record and returns it as 200, never a
+redirect. Derived ids (`mkt_`, `out_`, `odd_`) do not — they embed their owning
+event, so after a merge the same market has a different id and the old one 404s.
+
+That is not data loss. Re-read the event and take the new ids. A `NotFoundError`
+on a derived id held across a merge is the expected answer, not a bug.

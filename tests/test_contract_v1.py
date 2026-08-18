@@ -380,3 +380,22 @@ def test_the_contract_still_declares_no_redirect() -> None:
     assert not [s for s in declared if s.startswith("3")], (
         "the contract now declares a redirect — decide whether to follow it"
     )
+
+
+def test_a_derived_id_lost_to_a_merge_is_a_plain_not_found() -> None:
+    """Stored ids survive a merge; derived ids do not, and that is not a bug.
+
+    `mkt_`, `out_` and `odd_` embed their owning event, so after a merge the
+    same market has a different id. The correct client response is to re-read
+    the event, so this must surface as an ordinary NotFoundError rather than
+    anything that invites special handling.
+    """
+    from betwatch import NotFoundError
+
+    client = _client(FakeRaw(_problem(404, ErrorCodes.NOT_FOUND)), max_retries=0)
+    try:
+        with pytest.raises(NotFoundError) as caught:
+            client.odds.retrieve("odd_7Yz.4mQ")
+    finally:
+        client.close()
+    assert caught.value.code == ErrorCodes.NOT_FOUND
