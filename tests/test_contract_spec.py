@@ -440,13 +440,13 @@ def test_a_failure_that_never_reached_the_api_says_so() -> None:
 
 def test_scope_snapshot_carries_state_and_the_handoff(spec: dict[str, Any]) -> None:
     """One call must return the card, the prices, and the cursor to follow them."""
-    ref = spec["paths"]["/events/snapshot"]["get"]["responses"]["200"]["content"]["application/json"][
-        "schema"
-    ]["$ref"].split("/")[-1]
+    ref = spec["paths"]["/events/snapshot"]["get"]["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"]["$ref"].split("/")[-1]
     schema = spec["components"]["schemas"][ref]
-    assert {"events", "entrants", "odds", "coverage", "stream"} <= set(
-        schema["required"]
-    ), "a bootstrap missing prices is what made watch_scope wrong"
+    assert {"events", "entrants", "odds", "coverage", "stream"} <= set(schema["required"]), (
+        "a bootstrap missing prices is what made watch_scope wrong"
+    )
 
 
 def test_sdk_reads_every_filter_the_continuation_carries(spec: dict[str, Any]) -> None:

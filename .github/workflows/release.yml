@@ -31,7 +31,7 @@ jobs:
         run: |
           TAG="${{ inputs.tag || github.ref_name }}"
           TAG="${TAG#v}"
-          VERSION=$(python -c "import pathlib; t=pathlib.Path('src/betwatch/__about__.py').read_text(); print([l.split('=')[1].strip().strip(chr(34).join(chr(39))) for l in t.splitlines() if l.startswith('__version__')][0])")
+          VERSION=$(python -c "import ast, pathlib; t=pathlib.Path('src/betwatch/__about__.py').read_text(); print(ast.literal_eval(next(l.split('=',1)[1] for l in t.splitlines() if l.startswith('__version__')).strip()))")
           test "$TAG" = "$VERSION"
       - name: Test
         run: |
