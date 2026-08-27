@@ -79,7 +79,7 @@ page returns the same `stream.cursor`, so follow from any page and page the
 rest with `after=snap.next`.
 
 `snapshot="full"` on the stream is only accepted for an event, meeting or
-venue; anything broader is `422 filter_required` pointing at `/v2/snapshot`.
+venue; anything broader is `422 filter_required` pointing at `/v2/events/snapshot`.
 Do not reach for it — `follow()` sends `snapshot="none"` and the cursor, which
 is what you want.
 

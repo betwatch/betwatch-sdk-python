@@ -678,7 +678,7 @@ class Betwatch:
         ask `/v2/odds` for them.
         """
         return self._get(
-            "/v2/snapshot",
+            "/v2/events/snapshot",
             list_query(
                 sport=sport,
                 country=country,
@@ -894,7 +894,7 @@ class AsyncBetwatch:
         ask `/v2/odds` for them.
         """
         return await self._aget(
-            "/v2/snapshot",
+            "/v2/events/snapshot",
             list_query(
                 sport=sport,
                 country=country,

@@ -43,7 +43,7 @@ def test_the_timer_measures_the_path_that_exists() -> None:
     """It opened snapshot=full, which is now refused above an event/meeting/venue.
 
     Ten attempts reported ten drops that were really ten 422s — a confident
-    number measuring something gone. It reads /v2/snapshot and follows now.
+    number measuring something gone. It reads /v2/events/snapshot and follows now.
     """
     from pathlib import Path
 
