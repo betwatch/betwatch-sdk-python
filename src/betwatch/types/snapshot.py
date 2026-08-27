@@ -7,9 +7,7 @@ from .coverage import Coverage
 from .entrant import Entrant
 from .enums import MarketKey
 from .event import Event
-from .market import Market
 from .odds import Odds
-from .outcome import Outcome
 
 
 class StreamContinuation(Model):
@@ -32,7 +30,6 @@ class StreamContinuation(Model):
     meeting: list[str] = []
     venue: list[str] = []
     market: list[str] = []
-    outcome: list[str] = []
     entrant: list[str] = []
     start_from: str | None = None
     start_to: str | None = None
@@ -61,8 +58,6 @@ class ScopeSnapshot(Model):
     stream: StreamContinuation
     events: list[Event] = []
     entrants: list[Entrant] = []
-    markets: list[Market] = []
-    outcomes: list[Outcome] = []
     odds: list[Odds] = []
     coverage: list[Coverage] = []
     next: str | None = None
@@ -84,8 +79,6 @@ class EventSnapshot(Model):
     stream: StreamContinuation
     event: Event
     entrants: list[Entrant] = []
-    markets: list[Market] = []
-    outcomes: list[Outcome] = []
     odds: list[Odds] = []
     coverage: list[Coverage] = []
 
@@ -97,13 +90,12 @@ class EventSnapshot(Model):
         source: str | None = None,
     ) -> list[Odds]:
         """Current priced quotes. Defaults to the win market."""
-        market_ids = {row.id for row in self.markets if row.key == market}
         entrant_id = entrant.id if isinstance(entrant, Entrant) else entrant
         out: list[Odds] = []
         for quote in self.odds:
             if quote.price is None:
                 continue
-            if market_ids and quote.market_id not in market_ids:
+            if quote.key != market:
                 continue
             if entrant_id and quote.entrant_id != entrant_id:
                 continue

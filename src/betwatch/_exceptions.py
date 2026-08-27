@@ -87,7 +87,7 @@ class BootstrapFailedError(BetwatchError):
 
 
 class UnexpectedRedirectError(BetwatchError):
-    """Something answered with a redirect. `/v1` never does.
+    """Something answered with a redirect. `/v2` never does.
 
     Betwatch resolves a merged id server-side and returns the surviving resource
     as 200, so a 3xx did not come from the API — it came from something between
@@ -106,7 +106,7 @@ class UnexpectedRedirectError(BetwatchError):
         self.location = location
         super().__init__(
             f"{path}: unexpected {status_code} redirect to {location or 'an unstated location'}. "
-            "The /v1 contract declares no 3xx responses, so the SDK does not follow one."
+            "The /v2 contract declares no 3xx responses, so the SDK does not follow one."
         )
 
 
@@ -138,7 +138,7 @@ class StreamDecodeError(BetwatchError):
         self.cursor = cursor
         self.detail = str(exc)
         super().__init__(
-            f"/v1/stream: invalid {event or 'unnamed'} frame at {cursor or 'no cursor'}: {exc}"
+            f"/v2/stream: invalid {event or 'unnamed'} frame at {cursor or 'no cursor'}: {exc}"
         )
 
 

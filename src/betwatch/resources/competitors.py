@@ -13,7 +13,7 @@ class Competitors:
         self._client = client
 
     def retrieve(self, id: str) -> Competitor:
-        return self._client._get("/v1/competitors/" + id, None, Competitor)
+        return self._client._get("/v2/competitors/" + id, None, Competitor)
 
 
 class AsyncCompetitors:
@@ -21,4 +21,4 @@ class AsyncCompetitors:
         self._client = client
 
     async def retrieve(self, id: str) -> Competitor:
-        return await self._client._aget("/v1/competitors/" + id, None, Competitor)
+        return await self._client._aget("/v2/competitors/" + id, None, Competitor)

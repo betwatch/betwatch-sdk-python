@@ -1,4 +1,4 @@
-"""The frozen /v1 contract, checked against the SDK surface.
+"""The frozen /v2 contract, checked against the SDK surface.
 
 Operation coverage, header-only auth, the full retry table, cursor scoping,
 and forward compatibility with values this SDK has never seen.
@@ -43,10 +43,6 @@ OPERATIONS = {
     "listEntrants": ("entrants", "list"),
     "getEntrant": ("entrants", "retrieve"),
     "getCompetitor": ("competitors", "retrieve"),
-    "listMarkets": ("markets", "list"),
-    "getMarket": ("markets", "retrieve"),
-    "listOutcomes": ("outcomes", "list"),
-    "getOutcome": ("outcomes", "retrieve"),
     "listOdds": ("odds", "list"),
     "getOdds": ("odds", "retrieve"),
     "listMeetings": ("meetings", "list"),
@@ -73,7 +69,7 @@ def test_stream_racing_is_implemented() -> None:
 
 
 def test_operation_count_matches_the_contract() -> None:
-    assert len(OPERATIONS) + 1 == 19, "19 operations: 18 REST plus streamRacing"
+    assert len(OPERATIONS) + 1 == 15, "15 operations: 14 REST plus streamRacing"
 
 
 def test_every_collection_can_be_paged() -> None:
@@ -82,8 +78,6 @@ def test_every_collection_can_be_paged() -> None:
         "events",
         "odds",
         "entrants",
-        "markets",
-        "outcomes",
         "meetings",
         "venues",
         "sources",
@@ -99,7 +93,7 @@ def test_key_travels_in_the_header_only() -> None:
     client = Betwatch(api_key="bw_secret", base_url="http://localhost:8888")
     try:
         assert client._headers["X-API-Key"] == "bw_secret"
-        request = client._raw.build_request("GET", "/v1/events", params=[("sport", "harness")])
+        request = client._raw.build_request("GET", "/v2/events", params=[("sport", "harness")])
         assert "bw_secret" not in str(request.url)
         assert request.headers["X-API-Key"] == "bw_secret"
     finally:
@@ -192,7 +186,7 @@ def test_unknown_vocabulary_values_read_as_unknown() -> None:
     from betwatch.types.event import Event
 
     event = decode_model(
-        "/v1/events/evt_1",
+        "/v2/events/evt_1",
         b'{"id":"evt_1","sport":"camel","name":"R1",'
         b'"startAt":"2026-08-15T04:00:00Z","status":"photo_finish"}',
         Event,
@@ -206,7 +200,7 @@ def test_known_vocabulary_values_are_untouched() -> None:
     from betwatch.types.event import Event
 
     event = decode_model(
-        "/v1/events/evt_1",
+        "/v2/events/evt_1",
         b'{"id":"evt_1","sport":"harness","name":"R1",'
         b'"startAt":"2026-08-15T04:00:00Z","status":"final"}',
         Event,
@@ -232,8 +226,7 @@ def test_stream_frame_with_a_new_vocabulary_value_still_decodes() -> None:
         {
             "id": "odd_7Yz.4mQ",
             "eventId": "evt_1",
-            "marketId": "mkt_7Yz.1aB",
-            "outcomeId": "out_7Yz.9kL",
+            "key": "win",
             "source": {"id": "sportsbet", "name": "Sportsbet", "kind": "spread_betting"},
             "state": "cashed_out",
             "price": 3.4,
@@ -310,7 +303,7 @@ def test_pagination_keeps_each_cursor_on_its_own_collection() -> None:
         client.close()
 
     assert names == ["Flemington", "Randwick"]
-    assert {path for path, _ in raw.calls} == {"/v1/venues"}
+    assert {path for path, _ in raw.calls} == {"/v2/venues"}
     assert dict(raw.calls[1][1])["after"] == "lst_venues_p2"
 
 

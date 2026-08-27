@@ -1,4 +1,4 @@
-"""Public `/v1` REST + SSE client. This is 2.0.0b1 — not the GraphQL 1.x SDK.
+"""Public `/v2` REST + SSE client. This is 2.0.0b2 — not the GraphQL 1.x SDK.
 
 Preferred workflow for agents and humans:
 
@@ -68,14 +68,11 @@ from .types import (
     EventSnapshot,
     EventStatus,
     EventStatuses,
-    Market,
-    MarketFrame,
     Meeting,
     Odds,
     OddsFrame,
     OddsPage,
     OddsSetFrame,
-    Outcome,
     ReadyFrame,
     ScopeSnapshot,
     Source,
@@ -135,15 +132,12 @@ __all__ = [
     "EventStatuses",
     "FilterRequiredError",
     "InternalServerError",
-    "Market",
-    "MarketFrame",
     "Meeting",
     "NotFoundError",
     "Odds",
     "OddsFrame",
     "OddsPage",
     "OddsSetFrame",
-    "Outcome",
     "PermissionDeniedError",
     "RateLimitError",
     "ReadyFrame",

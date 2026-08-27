@@ -66,7 +66,7 @@ def _reset_cursors(target: Path | None, *, all_hosts: bool) -> None:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Betwatch public /v1 stream firehose")
+    parser = argparse.ArgumentParser(description="Betwatch public /v2 stream firehose")
     parser.add_argument(
         "--reset-cursor",
         action="store_true",
@@ -203,7 +203,7 @@ def main(argv: list[str] | None = None) -> None:
                                 "coverage",
                                 c.source_id,
                                 c.event_id,
-                                c.market_id,
+                                c.key,
                                 c.state,
                                 "complete" if c.complete else "partial",
                                 flush=True,

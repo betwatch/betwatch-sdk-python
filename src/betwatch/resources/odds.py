@@ -42,7 +42,7 @@ class OddsResource:
                 "client.odds.list(event=event_id)",
             )
         return self._client._get(
-            "/v1/odds",
+            "/v2/odds",
             list_query(
                 event=event,
                 entrant=entrant,
@@ -74,7 +74,7 @@ class OddsResource:
     ) -> Iterator[Odds]:
         """Walk every page of matching odds rows.
 
-        The cursor goes back to `/v1/odds` and nowhere else — a cursor
+        The cursor goes back to `/v2/odds` and nowhere else — a cursor
         is only valid on the collection that issued it.
         """
 
@@ -95,7 +95,7 @@ class OddsResource:
         return walk(fetch)
 
     def retrieve(self, id: str) -> Odds:
-        return self._client._get("/v1/odds/" + id, None, Odds)
+        return self._client._get("/v2/odds/" + id, None, Odds)
 
 
 class AsyncOddsResource:
@@ -124,7 +124,7 @@ class AsyncOddsResource:
                 "client.odds.list(event=event_id)",
             )
         return await self._client._aget(
-            "/v1/odds",
+            "/v2/odds",
             list_query(
                 event=event,
                 entrant=entrant,
@@ -156,7 +156,7 @@ class AsyncOddsResource:
     ) -> AsyncIterator[Odds]:
         """Walk every page of matching odds rows.
 
-        The cursor goes back to `/v1/odds` and nowhere else — a cursor
+        The cursor goes back to `/v2/odds` and nowhere else — a cursor
         is only valid on the collection that issued it.
         """
 
@@ -178,4 +178,4 @@ class AsyncOddsResource:
             yield row
 
     async def retrieve(self, id: str) -> Odds:
-        return await self._client._aget("/v1/odds/" + id, None, Odds)
+        return await self._client._aget("/v2/odds/" + id, None, Odds)

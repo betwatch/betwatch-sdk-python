@@ -170,7 +170,7 @@ def test_every_declared_header_reaches_a_rate_limit_field(spec: dict[str, Any]) 
 
 def test_header_types_match_the_contract(spec: dict[str, Any]) -> None:
     """Monthly-Reset is an RFC 3339 instant; the rest are integers."""
-    headers = spec["paths"]["/v1/odds"]["get"]["responses"]["429"]["headers"]
+    headers = spec["paths"]["/odds"]["get"]["responses"]["429"]["headers"]
     assert headers["X-RateLimit-Monthly-Reset"]["schema"]["format"] == "date-time"
     for name in ("X-RateLimit-Limit", "X-RateLimit-Reset", "X-RateLimit-Monthly-Used"):
         assert headers[name]["schema"]["type"] == "integer", name
@@ -215,6 +215,15 @@ def test_quota_exceeded_retry_after_is_surfaced_but_never_slept_on() -> None:
 # --- operation coverage ---------------------------------------------------
 
 
+def test_published_servers_url_is_the_v2_origin(spec: dict[str, Any]) -> None:
+    urls = [server.get("url", "") for server in spec.get("servers") or []]
+    assert any(url.rstrip("/").endswith("/v2") for url in urls), urls
+    assert "/events" in spec["paths"]
+    assert "/v2/events" not in spec["paths"]
+    assert "/markets" not in spec["paths"]
+    assert "/outcomes" not in spec["paths"]
+
+
 def test_sdk_covers_every_operation_in_the_contract(spec: dict[str, Any]) -> None:
     from test_contract_surface import OPERATIONS
 
@@ -231,21 +240,13 @@ def test_sdk_covers_every_operation_in_the_contract(spec: dict[str, Any]) -> Non
 
 
 def test_no_collection_can_be_read_unscoped(spec: dict[str, Any]) -> None:
-    """The four filter_required collections refuse locally, before any request.
-
-    Two of them accept several alternative filters, so the guard is a runtime
-    `FilterRequiredError`; the other two need exactly one filter, so it is a
-    required keyword and the mistake never compiles.
-    """
+    """The scoped collections refuse locally, before any request."""
     from betwatch import Betwatch, FilterRequiredError
 
     client = Betwatch(api_key="bw_test")
     try:
         for resource in ("odds", "entrants"):
             with pytest.raises(FilterRequiredError):
-                getattr(client, resource).list()
-        for resource, required in (("markets", "event"), ("outcomes", "market")):
-            with pytest.raises(TypeError, match=required):
                 getattr(client, resource).list()
     finally:
         client.close()
@@ -273,7 +274,7 @@ def test_vendored_spec_matches_the_published_one() -> None:
 def test_snapshot_forwards_include_history(spec: dict[str, Any]) -> None:
     """include=history is honoured by the snapshot as of 1.0.0, so it must reach the wire."""
     declared = {
-        p["name"] for p in spec["paths"]["/v1/events/{id}/snapshot"]["get"].get("parameters", [])
+        p["name"] for p in spec["paths"]["/events/{id}/snapshot"]["get"].get("parameters", [])
     }
     assert "include" in declared
 
@@ -290,7 +291,7 @@ def test_snapshot_forwards_include_history(spec: dict[str, Any]) -> None:
                 content=b'{"stream":{"cursor":"cur_1","event":["evt_1"],"source":[]},'
                 b'"event":{"id":"evt_1","sport":"thoroughbred","name":"R1",'
                 b'"startAt":"2026-08-15T04:00:00Z","status":"open"},"entrants":[],'
-                b'"markets":[],"outcomes":[],"odds":[],"coverage":[]}',
+                b'"odds":[],"coverage":[]}',
             )
 
         def close(self) -> None:
@@ -311,8 +312,8 @@ def test_odds_history_decodes_when_requested() -> None:
     from betwatch.types.odds import Odds
 
     odds = decode_model(
-        "/v1/odds/odd_1.a",
-        b'{"id":"odd_1.a","eventId":"evt_1","marketId":"mkt_1.a","outcomeId":"out_1.a",'
+        "/v2/odds/odd_1.a",
+        b'{"id":"odd_1.a","eventId":"evt_1","key":"win",'
         b'"source":{"id":"sportsbet","name":"Sportsbet","kind":"bookmaker"},'
         b'"state":"available","price":3.4,"history":['
         b'{"price":4.0,"updatedAt":"2026-08-17T03:00:00Z"},'
@@ -332,7 +333,7 @@ def test_stream_declares_the_resync_status_the_client_branches_on(
     """cursor_expired / cursor_scope_changed arrive as 409 on streamRacing."""
     from betwatch._client import RESYNC_CODES, RESYNC_STATUS
 
-    responses = spec["paths"]["/v1/stream"]["get"]["responses"]
+    responses = spec["paths"]["/stream"]["get"]["responses"]
     assert str(RESYNC_STATUS) in responses, (
         f"the client treats {RESYNC_STATUS} as resync but the contract does not declare it"
     )
@@ -343,7 +344,7 @@ def test_stream_declares_the_resync_status_the_client_branches_on(
 
 
 def test_stream_declares_every_status_the_client_can_meet(spec: dict[str, Any]) -> None:
-    responses = set(spec["paths"]["/v1/stream"]["get"]["responses"])
+    responses = set(spec["paths"]["/stream"]["get"]["responses"])
     assert {"401", "403", "409", "422", "429", "503"} <= responses
 
 
@@ -356,7 +357,7 @@ def test_rest_declares_the_statuses_the_sdk_maps(spec: dict[str, Any], status: s
         op["responses"]
         for path, item in spec["paths"].items()
         for method, op in item.items()
-        if method == "get" and path != "/v1/stream"
+        if method == "get" and path != "/stream"
     ]
     assert all(status in responses for responses in rest), status
     assert int(status) in _STATUS_ERRORS, f"nothing maps {status}"
@@ -410,7 +411,7 @@ def test_request_id_comes_from_the_body_even_without_the_header() -> None:
 
     err = error_for_status(
         503,
-        path="/v1/odds",
+        path="/v2/odds",
         body={
             "type": "x",
             "title": "t",
@@ -429,7 +430,7 @@ def test_a_failure_that_never_reached_the_api_says_so() -> None:
     """A proxy 502 has no request id; the rendering must not imply one."""
     from betwatch._exceptions import NO_REQUEST_ID, error_for_status
 
-    err = error_for_status(502, path="/v1/odds", body="<html>bad gateway</html>")
+    err = error_for_status(502, path="/v2/odds", body="<html>bad gateway</html>")
     assert err.request_id is None
     assert NO_REQUEST_ID in str(err)
 
@@ -439,11 +440,11 @@ def test_a_failure_that_never_reached_the_api_says_so() -> None:
 
 def test_scope_snapshot_carries_state_and_the_handoff(spec: dict[str, Any]) -> None:
     """One call must return the card, the prices, and the cursor to follow them."""
-    ref = spec["paths"]["/v1/snapshot"]["get"]["responses"]["200"]["content"]["application/json"][
+    ref = spec["paths"]["/snapshot"]["get"]["responses"]["200"]["content"]["application/json"][
         "schema"
     ]["$ref"].split("/")[-1]
     schema = spec["components"]["schemas"][ref]
-    assert {"events", "entrants", "markets", "outcomes", "odds", "coverage", "stream"} <= set(
+    assert {"events", "entrants", "odds", "coverage", "stream"} <= set(
         schema["required"]
     ), "a bootstrap missing prices is what made watch_scope wrong"
 
@@ -477,8 +478,8 @@ def test_a_scope_continuation_needs_no_event_filter() -> None:
 
 def test_snapshot_full_is_no_longer_offered_at_scope(spec: dict[str, Any]) -> None:
     """The mode that could not complete is gone; the SDK must not suggest it."""
-    description = spec["paths"]["/v1/stream"]["get"].get("description", "")
-    assert "/v1/snapshot" in description, "streamRacing should point at the bootstrap"
+    description = spec["paths"]["/stream"]["get"].get("description", "")
+    assert "/snapshot" in description, "streamRacing should point at the bootstrap"
 
 
 def test_no_response_array_is_nullable(spec: dict[str, Any]) -> None:

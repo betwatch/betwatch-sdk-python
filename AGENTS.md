@@ -1,11 +1,11 @@
 # Betwatch Python SDK — agent guide
 
-This is the **public `/v1` REST + SSE** client (`2.0.0b1` on branch `beta`).
+This is the **public `/v2` REST + SSE** client (`2.0.0b2` on branch `beta`).
 It is **not** the GraphQL 1.x SDK. There is no `get_races`.
 
 ## Load this first
 
-- Events are races. Entrants are runners. Odds are one source's price on one outcome.
+- Events are races. Entrants are runners. Odds are one source's win or place price on one runner.
 - Session `/racing/*` is a private frontend BFF. Never call it from this package.
 - Auth: header `X-API-Key`. Env: `BETWATCH_API_KEY`. Optional `BETWATCH_API_URL`.
 - Load them with fnox, do not paste keys into the shell:
@@ -58,7 +58,7 @@ fails `pyright` (`reportUnnecessaryComparison`).
 
 ## Do not
 
-- Do not invent nested paths (`/v1/events/{id}/odds`). They were deleted.
+- Do not invent nested paths (`/v2/events/{id}/odds`). They were deleted.
 - Do not pass `**params`. Every argument is an explicit keyword.
 - Do not use GraphQL, WebSockets, or `include=card`.
 - Do not treat `ping` frames as data — the SDK swallows them and still advances the cursor.
@@ -79,7 +79,7 @@ page returns the same `stream.cursor`, so follow from any page and page the
 rest with `after=snap.next`.
 
 `snapshot="full"` on the stream is only accepted for an event, meeting or
-venue; anything broader is `422 filter_required` pointing at `/v1/snapshot`.
+venue; anything broader is `422 filter_required` pointing at `/v2/snapshot`.
 Do not reach for it — `follow()` sends `snapshot="none"` and the cursor, which
 is what you want.
 
@@ -137,12 +137,12 @@ and when widening a response vocabulary keep its `"unknown"` member.
 ## Public nouns
 
 `evt_` event · `ent_` entrant · `cmp_` competitor · `mtg_` meeting · `ven_` venue ·
-`mkt_` market · `out_` outcome · `odd_` odds
+`odd_` odds
 
 Stored ids (`evt_`, `ent_`, `cmp_`, `mtg_`, `ven_`) survive an entity merge: the
 server resolves them to the surviving record and returns it as 200, never a
-redirect. Derived ids (`mkt_`, `out_`, `odd_`) do not — they embed their owning
-event, so after a merge the same market has a different id and the old one 404s.
+redirect. Derived `odd_` ids do not — they embed their owning event, so after a
+merge the same price has a different id and the old one 404s.
 
 That is not data loss. Re-read the event and take the new ids. A `NotFoundError`
 on a derived id held across a merge is the expected answer, not a bug.

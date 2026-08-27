@@ -28,7 +28,7 @@ class Meetings:
         limit: int | None = None,
     ) -> MeetingPage:
         return self._client._get(
-            "/v1/meetings",
+            "/v2/meetings",
             list_query(
                 sport=sport,
                 country=country,
@@ -54,7 +54,7 @@ class Meetings:
     ) -> Iterator[Meeting]:
         """Walk every page of matching meeting rows.
 
-        The cursor goes back to `/v1/meetings` and nowhere else — a cursor
+        The cursor goes back to `/v2/meetings` and nowhere else — a cursor
         is only valid on the collection that issued it.
         """
 
@@ -72,7 +72,7 @@ class Meetings:
         return walk(fetch)
 
     def retrieve(self, id: str) -> Meeting:
-        return self._client._get("/v1/meetings/" + id, None, Meeting)
+        return self._client._get("/v2/meetings/" + id, None, Meeting)
 
 
 class AsyncMeetings:
@@ -92,7 +92,7 @@ class AsyncMeetings:
         limit: int | None = None,
     ) -> MeetingPage:
         return await self._client._aget(
-            "/v1/meetings",
+            "/v2/meetings",
             list_query(
                 sport=sport,
                 country=country,
@@ -118,7 +118,7 @@ class AsyncMeetings:
     ) -> AsyncIterator[Meeting]:
         """Walk every page of matching meeting rows.
 
-        The cursor goes back to `/v1/meetings` and nowhere else — a cursor
+        The cursor goes back to `/v2/meetings` and nowhere else — a cursor
         is only valid on the collection that issued it.
         """
 
@@ -137,4 +137,4 @@ class AsyncMeetings:
             yield row
 
     async def retrieve(self, id: str) -> Meeting:
-        return await self._client._aget("/v1/meetings/" + id, None, Meeting)
+        return await self._client._aget("/v2/meetings/" + id, None, Meeting)

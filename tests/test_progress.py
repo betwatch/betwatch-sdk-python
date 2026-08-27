@@ -113,8 +113,7 @@ def _odds(price: float, state: str = "available") -> StreamFrame:
         {
             "id": "odd_1.a",
             "eventId": "evt_1",
-            "marketId": "mkt_1.a",
-            "outcomeId": "out_1.a",
+            "key": "win",
             "source": {"id": "sportsbet", "name": "Sportsbet", "kind": "bookmaker"},
             "state": state,
             "price": price,
@@ -145,8 +144,7 @@ def test_sources_are_tracked_separately() -> None:
             {
                 "id": f"odd_1.{source}",
                 "eventId": "evt_1",
-                "marketId": "mkt_1.a",
-                "outcomeId": "out_1.a",
+                "key": "win",
                 "source": {"id": source, "name": source, "kind": "bookmaker"},
                 "state": "available",
                 "price": 3.2,
@@ -190,13 +188,12 @@ def test_odds_rows_can_be_filtered_individually() -> None:
             "cur_1",
             {
                 "eventId": "evt_1",
-                "marketId": "mkt_1.a",
+                "key": "win",
                 "items": [
                     {
                         "id": f"odd_1.{i}",
                         "eventId": "evt_1",
-                        "marketId": "mkt_1.a",
-                        "outcomeId": f"out_1.{i}",
+                        "key": "win",
                         "source": {"id": "sportsbet", "name": "Sportsbet", "kind": "bookmaker"},
                         "state": "available",
                         "price": p,

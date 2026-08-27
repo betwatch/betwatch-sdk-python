@@ -9,10 +9,8 @@ from .._compat import unknown_value_coercer
 from .common import Model
 from .coverage import Coverage
 from .entrant import Entrant
-from .enums import EventStatus
-from .market import Market
+from .enums import EventStatus, MarketKey
 from .odds import Odds
-from .outcome import Outcome
 
 _M = TypeVar("_M")
 
@@ -64,18 +62,6 @@ class EntrantFrame(Model):
     type: Literal["entrant"] = "entrant"
 
 
-class MarketFrame(Model):
-    data: Market
-    cursor: str
-    type: Literal["market"] = "market"
-
-
-class OutcomeFrame(Model):
-    data: Outcome
-    cursor: str
-    type: Literal["outcome"] = "outcome"
-
-
 class OddsFrame(Model):
     data: Odds
     cursor: str
@@ -83,10 +69,11 @@ class OddsFrame(Model):
 
 
 class OddsSet(Model):
-    """Snapshot-only coalesced odds for one market. Each item is a live Odds row."""
+    """Snapshot-only coalesced odds for one win or place. Each item is a live Odds row."""
 
     event_id: str
-    market_id: str
+    key: MarketKey
+    places_paid: int | None = None
     items: list[Odds] = []
 
 
@@ -116,8 +103,6 @@ StreamFrame = (
     | SyncFrame
     | EventFrame
     | EntrantFrame
-    | MarketFrame
-    | OutcomeFrame
     | OddsFrame
     | OddsSetFrame
     | CoverageFrame
@@ -145,10 +130,6 @@ def frame_for_event(event: str, cursor: str, payload: Any) -> StreamFrame:
         return EventFrame(data=_convert(raw, StreamEvent), cursor=cursor)
     if event == "entrant":
         return EntrantFrame(data=_convert(raw, Entrant), cursor=cursor)
-    if event == "market":
-        return MarketFrame(data=_convert(raw, Market), cursor=cursor)
-    if event == "outcome":
-        return OutcomeFrame(data=_convert(raw, Outcome), cursor=cursor)
     if event == "odds":
         return OddsFrame(data=_convert(raw, Odds), cursor=cursor)
     if event == "odds_set":

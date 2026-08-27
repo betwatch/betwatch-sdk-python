@@ -33,7 +33,7 @@ def test_snapshot_and_page_decode_nested_collections() -> None:
         b'"startAt":"2026-08-14T04:00:00Z","status":"open","racing":{"raceNumber":1}},'
         b'"entrants":[{"id":"ent_1","eventId":"evt_1","competitorId":"cmp_1","name":"A",'
         b'"entryState":"listed","racing":{"number":1}}],'
-        b'"markets":[],"outcomes":[],"odds":[],"coverage":[]}'
+        b'"odds":[],"coverage":[]}'
     )
     card = msgspec.json.decode(raw, type=EventSnapshot)
     assert card.stream.cursor == "cur_1"
@@ -136,11 +136,10 @@ def test_empty_collections_decode_as_empty_lists() -> None:
         b'{"stream":{"cursor":"cur_1","event":["evt_1"],"source":[]},'
         b'"event":{"id":"evt_1","sport":"thoroughbred","name":"R1",'
         b'"startAt":"2026-08-14T04:00:00Z","status":"open","racing":{}},'
-        b'"entrants":[],"markets":[],"outcomes":[],"odds":[],"coverage":[]}'
+        b'"entrants":[],"odds":[],"coverage":[]}'
     )
-    card = decode_model("/v1/events/evt_1/snapshot", raw, EventSnapshot)
+    card = decode_model("/v2/events/evt_1/snapshot", raw, EventSnapshot)
     assert card.entrants == []
-    assert card.markets == []
     assert card.odds == []
 
 
@@ -151,12 +150,10 @@ def test_snapshot_price_helpers() -> None:
         b'"startAt":"2026-08-14T04:00:00Z","status":"open","racing":{}},'
         b'"entrants":[{"id":"ent_1","eventId":"evt_1","competitorId":"cmp_1","name":"A",'
         b'"entryState":"listed","racing":{"number":4}}],'
-        b'"markets":[{"id":"mkt_w","eventId":"evt_1","key":"win","state":"unsettled","scope":{}}],'
-        b'"outcomes":[],'
-        b'"odds":[{"id":"odd_1","eventId":"evt_1","marketId":"mkt_w","outcomeId":"out_1",'
+        b'"odds":[{"id":"odd_1","eventId":"evt_1","key":"win",'
         b'"source":{"id":"sportsbet","name":"Sportsbet","kind":"bookmaker"},'
         b'"state":"available","price":3.2,"entrantId":"ent_1"},'
-        b'{"id":"odd_2","eventId":"evt_1","marketId":"mkt_w","outcomeId":"out_1",'
+        b'{"id":"odd_2","eventId":"evt_1","key":"win",'
         b'"source":{"id":"tab","name":"TAB Fixed","kind":"bookmaker"},'
         b'"state":"available","price":2.8,"entrantId":"ent_1"}],'
         b'"coverage":[]}',

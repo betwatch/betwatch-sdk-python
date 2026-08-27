@@ -182,10 +182,10 @@ def frame_from_sse(sse: ServerSentEvent) -> StreamFrame | None:
         if stream_error.code == "incomplete_snapshot":
             raise ResyncRequired(sse.id, stream_error.code)
         raise APIStatusError(
-            f"/v1/stream failed: {stream_error.detail}",
+            f"/v2/stream failed: {stream_error.detail}",
             status_code=503,
             body=payload,
-            path="/v1/stream",
+            path="/v2/stream",
             trace_id=stream_error.trace_id,
         )
     try:

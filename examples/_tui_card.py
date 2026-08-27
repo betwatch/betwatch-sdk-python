@@ -15,10 +15,8 @@ from betwatch.types.stream import (
     CoverageFrame,
     EntrantFrame,
     EventFrame,
-    MarketFrame,
     OddsFrame,
     OddsSetFrame,
-    OutcomeFrame,
     StreamEvent,
     StreamFrame,
 )
@@ -75,7 +73,7 @@ def _upsert(items: list[_T], incoming: _T, key: Callable[[_T], object]) -> None:
 
 
 def _odds_key(quote: Odds) -> tuple[str, str, str, str]:
-    return (quote.id, quote.market_id, quote.source.id, quote.entrant_id or "")
+    return (quote.id, quote.key, quote.source.id, quote.entrant_id or "")
 
 
 def apply_stream_event(event: Event, patch: StreamEvent) -> Event:
@@ -107,12 +105,6 @@ def apply_frame(card: EventSnapshot, frame: StreamFrame) -> bool:
     if isinstance(frame, EntrantFrame):
         _upsert(card.entrants, frame.data, key=lambda row: row.id)
         return True
-    if isinstance(frame, MarketFrame):
-        _upsert(card.markets, frame.data, key=lambda row: row.id)
-        return True
-    if isinstance(frame, OutcomeFrame):
-        _upsert(card.outcomes, frame.data, key=lambda row: row.id)
-        return True
     if isinstance(frame, OddsFrame):
         _upsert(card.odds, frame.data, key=_odds_key)
         return True
@@ -126,7 +118,7 @@ def apply_frame(card: EventSnapshot, frame: StreamFrame) -> bool:
         _upsert(
             card.coverage,
             frame.data,
-            key=lambda row: (row.event_id, row.market_id, row.source_id),
+            key=lambda row: (row.event_id, row.key, row.places_paid, row.source_id),
         )
         return True
     return False
@@ -145,18 +137,11 @@ def sort_entrants(entrants: list[Entrant]) -> list[Entrant]:
     return sorted(entrants, key=key)
 
 
-def market_ids(card: EventSnapshot, market: str) -> set[str]:
-    key = market.lower()
-    return {row.id for row in card.markets if row.key.lower() == key}
-
-
 def priced_quotes(card: EventSnapshot, market: str = "win") -> list[Odds]:
-    wanted = market_ids(card, market)
-    if not wanted:
-        return []
+    key = market.lower()
     out: list[Odds] = []
     for quote in card.odds:
-        if quote.market_id not in wanted:
+        if quote.key != key:
             continue
         if quote_price(quote) is None:
             continue

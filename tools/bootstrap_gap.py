@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Does anything change between reading a snapshot and following its cursor?
 
-`GET /v1/snapshot` anchors its cursor before it reads, so every change published
+`GET /v2/snapshot` anchors its cursor before it reads, so every change published
 while the read was in flight should replay once you connect. If that were wrong
 a client would silently hold a stale price until that source moved again — the
 worst failure available here, because nothing announces it.
@@ -36,7 +36,7 @@ Key = tuple[str, str, str]
 
 
 def _key(row: Odds) -> Key:
-    return (row.market_id, row.outcome_id, row.source.id)
+    return (row.key, row.entrant_id or "", row.source.id)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

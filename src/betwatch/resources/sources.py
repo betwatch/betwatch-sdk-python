@@ -24,7 +24,7 @@ class Sources:
         source: Sequence[str] | str | None = None,
     ) -> SourcePage:
         return self._client._get(
-            "/v1/sources",
+            "/v2/sources",
             list_query(after=after, before=before, limit=limit, source=source),
             SourcePage,
         )
@@ -37,7 +37,7 @@ class Sources:
     ) -> Iterator[Source]:
         """Walk every page of matching source rows.
 
-        The cursor goes back to `/v1/sources` and nowhere else — a cursor
+        The cursor goes back to `/v2/sources` and nowhere else — a cursor
         is only valid on the collection that issued it.
         """
 
@@ -64,7 +64,7 @@ class AsyncSources:
         source: Sequence[str] | str | None = None,
     ) -> SourcePage:
         return await self._client._aget(
-            "/v1/sources",
+            "/v2/sources",
             list_query(after=after, before=before, limit=limit, source=source),
             SourcePage,
         )
@@ -77,7 +77,7 @@ class AsyncSources:
     ) -> AsyncIterator[Source]:
         """Walk every page of matching source rows.
 
-        The cursor goes back to `/v1/sources` and nowhere else — a cursor
+        The cursor goes back to `/v2/sources` and nowhere else — a cursor
         is only valid on the collection that issued it.
         """
 

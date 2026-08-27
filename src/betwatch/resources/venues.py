@@ -25,7 +25,7 @@ class Venues:
         limit: int | None = None,
     ) -> VenuePage:
         return self._client._get(
-            "/v1/venues",
+            "/v2/venues",
             list_query(sport=sport, country=country, after=after, before=before, limit=limit),
             VenuePage,
         )
@@ -39,7 +39,7 @@ class Venues:
     ) -> Iterator[Venue]:
         """Walk every page of matching venue rows.
 
-        The cursor goes back to `/v1/venues` and nowhere else — a cursor
+        The cursor goes back to `/v2/venues` and nowhere else — a cursor
         is only valid on the collection that issued it.
         """
 
@@ -54,7 +54,7 @@ class Venues:
         return walk(fetch)
 
     def retrieve(self, id: str) -> Venue:
-        return self._client._get("/v1/venues/" + id, None, Venue)
+        return self._client._get("/v2/venues/" + id, None, Venue)
 
 
 class AsyncVenues:
@@ -71,7 +71,7 @@ class AsyncVenues:
         limit: int | None = None,
     ) -> VenuePage:
         return await self._client._aget(
-            "/v1/venues",
+            "/v2/venues",
             list_query(sport=sport, country=country, after=after, before=before, limit=limit),
             VenuePage,
         )
@@ -85,7 +85,7 @@ class AsyncVenues:
     ) -> AsyncIterator[Venue]:
         """Walk every page of matching venue rows.
 
-        The cursor goes back to `/v1/venues` and nowhere else — a cursor
+        The cursor goes back to `/v2/venues` and nowhere else — a cursor
         is only valid on the collection that issued it.
         """
 
@@ -101,4 +101,4 @@ class AsyncVenues:
             yield row
 
     async def retrieve(self, id: str) -> Venue:
-        return await self._client._aget("/v1/venues/" + id, None, Venue)
+        return await self._client._aget("/v2/venues/" + id, None, Venue)

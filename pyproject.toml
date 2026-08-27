@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "betwatch"
 dynamic = ["version"]
-description = "Public /v1 REST + SSE client for the Betwatch racing odds API"
+description = "Public /v2 REST + SSE client for the Betwatch racing odds API"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"

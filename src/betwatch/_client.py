@@ -41,10 +41,8 @@ from ._streaming import aiter_sse, frame_from_sse, iter_sse
 from .resources.competitors import AsyncCompetitors, Competitors
 from .resources.entrants import AsyncEntrants, Entrants
 from .resources.events import AsyncEvents, Events
-from .resources.markets import AsyncMarkets, Markets
 from .resources.meetings import AsyncMeetings, Meetings
 from .resources.odds import AsyncOddsResource, OddsResource
-from .resources.outcomes import AsyncOutcomes, Outcomes
 from .resources.sources import AsyncSources, Sources
 from .resources.venues import AsyncVenues, Venues
 from .types.common import as_sequence
@@ -80,7 +78,7 @@ def _stream_backoff(attempt: int) -> float:
 
 
 class Stream:
-    """Live `/v1/stream`. Use as a context manager.
+    """Live `/v2/stream`. Use as a context manager.
 
     Transport disconnects reconnect with backoff and `Last-Event-ID`.
     HTTP, decode, and `resync` failures surface immediately.
@@ -116,7 +114,7 @@ class Stream:
         headers = {**self._client._headers, **extra}
         request = self._client._raw.build_request(
             "GET",
-            "/v1/stream",
+            "/v2/stream",
             params=flatten(query),
             headers=headers,
             timeout=httpx.Timeout(STREAM_READ_TIMEOUT, connect=10.0),
@@ -129,7 +127,7 @@ class Stream:
 
             err = error_for_status(
                 response.status_code,
-                path="/v1/stream",
+                path="/v2/stream",
                 body=safe_json(httpx.Response(response.status_code, content=raw)),
                 request_id=response.headers.get("x-request-id") or None,
                 trace_id=response.headers.get("x-trace-id") or None,
@@ -153,7 +151,7 @@ class Stream:
                 return self._open()
             except httpx.TransportError as exc:
                 if not self._reconnect:
-                    raise APIConnectionError("/v1/stream", exc) from exc
+                    raise APIConnectionError("/v2/stream", exc) from exc
             wait = _stream_backoff(self._attempt)
             self._attempt += 1
             time.sleep(wait)
@@ -214,7 +212,7 @@ class Stream:
                 except httpx.TransportError as exc:
                     self.close()
                     if not self._reconnect:
-                        raise APIConnectionError("/v1/stream", exc) from exc
+                        raise APIConnectionError("/v2/stream", exc) from exc
                     if not self._synced and self._params.get("snapshot") == "full":
                         # No resumable position exists until `sync`, so the whole
                         # snapshot starts again and every frame so far is lost.
@@ -265,7 +263,7 @@ class AsyncStream:
         headers = {**self._client._headers, **extra}
         request = self._client._raw.build_request(
             "GET",
-            "/v1/stream",
+            "/v2/stream",
             params=flatten(query),
             headers=headers,
             timeout=httpx.Timeout(STREAM_READ_TIMEOUT, connect=10.0),
@@ -278,7 +276,7 @@ class AsyncStream:
 
             err = error_for_status(
                 response.status_code,
-                path="/v1/stream",
+                path="/v2/stream",
                 body=safe_json(httpx.Response(response.status_code, content=raw)),
                 request_id=response.headers.get("x-request-id") or None,
                 trace_id=response.headers.get("x-trace-id") or None,
@@ -302,7 +300,7 @@ class AsyncStream:
                 return await self._open()
             except httpx.TransportError as exc:
                 if not self._reconnect:
-                    raise APIConnectionError("/v1/stream", exc) from exc
+                    raise APIConnectionError("/v2/stream", exc) from exc
             wait = _stream_backoff(self._attempt)
             self._attempt += 1
             await asyncio.sleep(wait)
@@ -363,7 +361,7 @@ class AsyncStream:
                 except httpx.TransportError as exc:
                     await self.close()
                     if not self._reconnect:
-                        raise APIConnectionError("/v1/stream", exc) from exc
+                        raise APIConnectionError("/v2/stream", exc) from exc
                     if not self._synced and self._params.get("snapshot") == "full":
                         # No resumable position exists until `sync`, so the whole
                         # snapshot starts again and every frame so far is lost.
@@ -520,7 +518,6 @@ def _continuation_params(stream: StreamContinuation) -> dict[str, Any]:
         "meeting": stream.meeting,
         "venue": stream.venue,
         "market": stream.market,
-        "outcome": stream.outcome,
         "entrant": stream.entrant,
         "start_from": stream.start_from,
         "start_to": stream.start_to,
@@ -537,7 +534,6 @@ def _stream_params(
     event: Sequence[str] | str | None,
     venue: Sequence[str] | str | None,
     market: Sequence[str] | str | None,
-    outcome: Sequence[str] | str | None,
     entrant: Sequence[str] | str | None,
     source: Sequence[str] | str | None,
     start_from: str | None,
@@ -552,7 +548,6 @@ def _stream_params(
         "event": as_sequence(event),
         "venue": as_sequence(venue),
         "market": as_sequence(market),
-        "outcome": as_sequence(outcome),
         "entrant": as_sequence(entrant),
         "source": as_sequence(source),
         "startFrom": start_from,
@@ -561,7 +556,7 @@ def _stream_params(
 
 
 class Betwatch:
-    """Sync client for the public `/v1` REST + SSE API.
+    """Sync client for the public `/v2` REST + SSE API.
 
     ```python
     with Betwatch() as client:                     # BETWATCH_API_KEY
@@ -595,8 +590,6 @@ class Betwatch:
         self.events = Events(self)
         self.odds = OddsResource(self)
         self.entrants = Entrants(self)
-        self.markets = Markets(self)
-        self.outcomes = Outcomes(self)
         self.meetings = Meetings(self)
         self.venues = Venues(self)
         self.competitors = Competitors(self)
@@ -682,10 +675,10 @@ class Betwatch:
         changes to races still being read replay once you are attached.
 
         `include="history"` is refused here: fluctuations stay event-scoped, so
-        ask `/v1/odds` for them.
+        ask `/v2/odds` for them.
         """
         return self._get(
-            "/v1/snapshot",
+            "/v2/snapshot",
             list_query(
                 sport=sport,
                 country=country,
@@ -752,7 +745,6 @@ class Betwatch:
         event: Sequence[str] | str | None = None,
         venue: Sequence[str] | str | None = None,
         market: Sequence[str] | str | None = None,
-        outcome: Sequence[str] | str | None = None,
         entrant: Sequence[str] | str | None = None,
         source: Sequence[str] | str | None = None,
         start_from: str | None = None,
@@ -760,7 +752,7 @@ class Betwatch:
         progress: ProgressCallback | None = None,
         progress_interval: float = DEFAULT_INTERVAL,
     ) -> Stream:
-        """Open `/v1/stream`. Prefer `watch()` or `follow(snapshot)`.
+        """Open `/v2/stream`. Prefer `watch()` or `follow(snapshot)`.
 
         `progress=print_progress` reports the bootstrap while `snapshot=full`
         is being delivered — a broad scope sends nothing for tens of seconds
@@ -777,7 +769,6 @@ class Betwatch:
                 event=event,
                 venue=venue,
                 market=market,
-                outcome=outcome,
                 entrant=entrant,
                 source=source,
                 start_from=start_from,
@@ -815,8 +806,6 @@ class AsyncBetwatch:
         self.events = AsyncEvents(self)
         self.odds = AsyncOddsResource(self)
         self.entrants = AsyncEntrants(self)
-        self.markets = AsyncMarkets(self)
-        self.outcomes = AsyncOutcomes(self)
         self.meetings = AsyncMeetings(self)
         self.venues = AsyncVenues(self)
         self.competitors = AsyncCompetitors(self)
@@ -902,10 +891,10 @@ class AsyncBetwatch:
         changes to races still being read replay once you are attached.
 
         `include="history"` is refused here: fluctuations stay event-scoped, so
-        ask `/v1/odds` for them.
+        ask `/v2/odds` for them.
         """
         return await self._aget(
-            "/v1/snapshot",
+            "/v2/snapshot",
             list_query(
                 sport=sport,
                 country=country,
@@ -967,7 +956,6 @@ class AsyncBetwatch:
         event: Sequence[str] | str | None = None,
         venue: Sequence[str] | str | None = None,
         market: Sequence[str] | str | None = None,
-        outcome: Sequence[str] | str | None = None,
         entrant: Sequence[str] | str | None = None,
         source: Sequence[str] | str | None = None,
         start_from: str | None = None,
@@ -986,7 +974,6 @@ class AsyncBetwatch:
                 event=event,
                 venue=venue,
                 market=market,
-                outcome=outcome,
                 entrant=entrant,
                 source=source,
                 start_from=start_from,

@@ -21,16 +21,12 @@ from typing import Any
 
 from .types.coverage import Coverage
 from .types.entrant import Entrant
-from .types.market import Market
 from .types.odds import Odds
-from .types.outcome import Outcome
 from .types.stream import (
     CoverageFrame,
     EntrantFrame,
     EventFrame,
-    MarketFrame,
     OddsFrame,
-    OutcomeFrame,
     StreamEvent,
     StreamFrame,
 )
@@ -41,30 +37,23 @@ _Key = tuple[str, ...]
 def _identity(item: Any) -> tuple[_Key, Any] | None:
     """The thing's identity, and the state that makes it 'changed'."""
     if isinstance(item, Odds):
-        return (
-            ("odds", item.event_id, item.market_id, item.outcome_id, item.source.id),
-            (item.price, item.state),
-        )
+        return (("odds", item.id), (item.price, item.state))
     if isinstance(item, StreamEvent):
         return ("event", item.id), (item.status, item.start_at)
     if isinstance(item, Entrant):
         return ("entrant", item.id), (item.scratched, item.entry_state)
     if isinstance(item, Coverage):
         return (
-            ("coverage", item.event_id, item.market_id, item.source_id),
+            ("coverage", item.event_id, item.key, item.places_paid, item.source_id),
             (item.state, item.complete),
         )
-    if isinstance(item, Market):
-        return ("market", item.id), item.state
-    if isinstance(item, Outcome):
-        return ("outcome", item.id), item.state
     return None
 
 
 def _payload(item: Any) -> Any:
     if isinstance(
         item,
-        (OddsFrame, EventFrame, EntrantFrame, CoverageFrame, MarketFrame, OutcomeFrame),
+        (OddsFrame, EventFrame, EntrantFrame, CoverageFrame),
     ):
         return item.data
     return item

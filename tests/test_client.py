@@ -12,13 +12,13 @@ from betwatch.types.snapshot import EventSnapshot
 
 def _snapshot(*, source: list[str] | None = None) -> EventSnapshot:
     return decode_model(
-        "/v1/events/evt_1/snapshot",
+        "/v2/events/evt_1/snapshot",
         (
             b'{"stream":{"cursor":"cur_1","event":["evt_1"],"source":'
             + __import__("json").dumps(source or []).encode()
             + b'},"event":{"id":"evt_1","sport":"thoroughbred","name":"R1",'
-            b'"startAt":"2026-08-15T04:00:00Z","status":"open"},"entrants":[],"markets":[],'
-            b'"outcomes":[],"odds":[],"coverage":[]}'
+            b'"startAt":"2026-08-15T04:00:00Z","status":"open"},"entrants":[],'
+            b'"odds":[],"coverage":[]}'
         ),
         EventSnapshot,
     )
@@ -41,7 +41,7 @@ def test_snapshot_rejects_missing_or_empty_continuation_cursor() -> None:
         b'"startAt":"2026-08-15T04:00:00Z","status":"open"}}'
     )
     with pytest.raises(Exception, match="stream.cursor must be non-empty"):
-        decode_model("/v1/events/evt_1/snapshot", body, EventSnapshot)
+        decode_model("/v2/events/evt_1/snapshot", body, EventSnapshot)
 
 
 def test_rest_retries_are_bounded_and_configurable(monkeypatch: pytest.MonkeyPatch) -> None:

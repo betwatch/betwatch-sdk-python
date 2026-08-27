@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Time how long it takes to start following a scope, and how often that fails.
 
-Measures the path the contract now offers: read `GET /v1/snapshot`, then follow
+Measures the path the contract now offers: read `GET /v2/snapshot`, then follow
 the cursor it returned. An earlier version opened `snapshot=full`, which the
 server refuses above an event, meeting or venue — it reported ten drops in ten
 attempts that were really ten `422 filter_required`. That is the shape of tool

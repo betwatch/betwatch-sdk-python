@@ -3,7 +3,7 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/betwatch.svg)](https://pypi.org/project/betwatch)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/betwatch.svg)](https://pypi.org/project/betwatch)
 
-Public `/v1` REST + SSE client. **`2.0.0b1` on the `beta` branch** — not the
+Public `/v2` REST + SSE client. **`2.0.0b2` on the `beta` branch** — not the
 GraphQL 1.x `get_races` client.
 
 Agents: read [`AGENTS.md`](AGENTS.md) first.
@@ -11,7 +11,7 @@ Agents: read [`AGENTS.md`](AGENTS.md) first.
 ## Install
 
 ```console
-pip install betwatch==2.0.0b1
+pip install betwatch==2.0.0b2
 # or, from the beta branch:
 # pip install "betwatch @ git+https://github.com/betwatch/betwatch-sdk-python@beta"
 ```
@@ -43,7 +43,7 @@ returned.
 from betwatch import Betwatch, OddsFrame
 
 with Betwatch() as client:
-    # 1. Discover. /v1/odds and friends refuse an unscoped read, so start here.
+    # 1. Discover. /v2/odds and friends refuse an unscoped read, so start here.
     page = client.events.list(sport="thoroughbred", country="au", limit=5)
     event = page[0]
     print(event.name, event.start_at, event.racing.race_number)
@@ -69,7 +69,7 @@ cost, so ask for it only when you use it.
 
 ### Stream instead of polling
 
-**Stream frames are not metered.** Polling `/v1/odds` on a timer is the
+**Stream frames are not metered.** Polling `/v2/odds` on a timer is the
 expensive way to stay current and the slowest to see a move; bootstrapping once
 and following costs nothing beyond that first read. A single filtered
 connection covers a whole raceday — `client.stream(sport="thoroughbred",
@@ -105,8 +105,8 @@ for venue in client.venues.iter(country="au"):
     print(venue.name)
 ```
 
-A cursor belongs to the collection that issued it — a `next` from `/v1/venues`
-is not valid on `/v1/meetings`. `iter()` feeds each cursor back to the endpoint
+A cursor belongs to the collection that issued it — a `next` from `/v2/venues`
+is not valid on `/v2/meetings`. `iter()` feeds each cursor back to the endpoint
 that produced it, so this cannot go wrong by accident. Cursors are opaque: do
 not decode, build, or edit one.
 
@@ -149,8 +149,6 @@ mapping to the contract's `operationId`s is one-to-one:
 | `listEvents` / `getEvent` / `getEventSnapshot` | `client.events.list` / `.retrieve` / `.snapshot` |
 | `listEntrants` / `getEntrant` | `client.entrants.list` / `.retrieve` |
 | `getCompetitor` | `client.competitors.retrieve` |
-| `listMarkets` / `getMarket` | `client.markets.list` / `.retrieve` |
-| `listOutcomes` / `getOutcome` | `client.outcomes.list` / `.retrieve` |
 | `listOdds` / `getOdds` | `client.odds.list` / `.retrieve` |
 | `listMeetings` / `getMeeting` | `client.meetings.list` / `.retrieve` |
 | `listVenues` / `getVenue` | `client.venues.list` / `.retrieve` |
@@ -190,7 +188,7 @@ new stream with reconstructed filters.
 
 `examples/tui.py` is a Textual demo (not part of the installed package). Left
 pane is the raceday list **ordered by time-to-jump**; right pane is the runner
-× bookmaker grid. The selected race follows live `/v1/stream`.
+× bookmaker grid. The selected race follows live `/v2/stream`.
 
 ```console
 uv sync
@@ -224,7 +222,7 @@ decision, a budget header nothing parses, an operation with no method.
 
 ### Measuring the stream
 
-`tools/stream_timing.py` reports how long `/v1/stream` takes to bootstrap for a
+`tools/stream_timing.py` reports how long `/v2/stream` takes to bootstrap for a
 given filter scope: time to `ready`, time to the first data frame, the silence
 between them, and time to `sync`. A broad `snapshot=full` sends nothing for
 tens of seconds while the server builds the snapshot, so the silence is the
@@ -248,7 +246,7 @@ uv run examples/live_check.py run-1
 
 ## Releasing
 
-Tag the exact version in `src/betwatch/__about__.py` (`v2.0.0b1`) and push the
+Tag the exact version in `src/betwatch/__about__.py` (`v2.0.0b2`) and push the
 tag. `.github/workflows/release.yml` builds that commit, checks the tag matches
 the package version, and publishes with PyPI Trusted Publishing. Do not bump
 versions from CI.

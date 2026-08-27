@@ -17,7 +17,7 @@ def test_decoder_parses_named_event_and_keeps_last_event_id() -> None:
         b"\n"
         b"id: cur_2\n"
         b"event: odds\n"
-        b'data: {"id":"odd_1","eventId":"evt_1","marketId":"mkt_1","outcomeId":"out_1",'
+        b'data: {"id":"odd_1","eventId":"evt_1","key":"win",'
         b'"source":{"id":"sportsbet","name":"Sportsbet","kind":"bookmaker"},'
         b'"state":"available","price":3.2}\n'
         b"\n"
@@ -37,8 +37,8 @@ def test_odds_set_frame_decodes_live_shaped_rows() -> None:
     raw = (
         b"id: cur_set\n"
         b"event: odds_set\n"
-        b'data: {"eventId":"evt_1","marketId":"mkt_1","items":['
-        b'{"id":"odd_1","eventId":"evt_1","marketId":"mkt_1","outcomeId":"out_1",'
+        b'data: {"eventId":"evt_1","key":"win","items":['
+        b'{"id":"odd_1","eventId":"evt_1","key":"win",'
         b'"source":{"id":"ladbrokes","name":"Ladbrokes","kind":"bookmaker"},'
         b'"state":"available","price":4.2}]}\n'
         b"\n"
@@ -140,7 +140,7 @@ def test_empty_event_id_fails_closed_instead_of_reusing_stale_cursor() -> None:
 
 
 def test_decoder_handles_crlf_and_multiline_data() -> None:
-    raw = b'id: cur_coverage\r\nevent: coverage\r\ndata: {"eventId":"evt_1","marketId":"mkt_1",\r\ndata: "sourceId":"sportsbet","state":"priced","complete":true}\r\n\r\n'
+    raw = b'id: cur_coverage\r\nevent: coverage\r\ndata: {"eventId":"evt_1","key":"win",\r\ndata: "sourceId":"sportsbet","state":"priced","complete":true}\r\n\r\n'
     events = list(SSEDecoder().iter_bytes(iter([raw])))
     assert len(events) == 1
     frame = frame_from_sse(events[0])
@@ -253,7 +253,7 @@ def test_stream_enter_does_not_retry_auth_errors() -> None:
 
     def fake_open() -> object:
         calls["n"] += 1
-        raise AuthenticationError("nope", status_code=401, path="/v1/stream")
+        raise AuthenticationError("nope", status_code=401, path="/v2/stream")
 
     object.__setattr__(stream, "_open", fake_open)
     try:
@@ -275,7 +275,7 @@ def test_stream_enter_does_not_retry_server_status() -> None:
 
     def fake_open() -> object:
         calls["n"] += 1
-        raise InternalServerError("down", status_code=503, path="/v1/stream")
+        raise InternalServerError("down", status_code=503, path="/v2/stream")
 
     object.__setattr__(stream, "_open", fake_open)
     try:
@@ -348,7 +348,7 @@ def test_resume_reconnects_with_the_last_frame_id_not_the_original_cursor() -> N
     stream = Stream(client, {"snapshot": "none", "cursor": "cur_start"}, reconnect=True)
 
     row = (
-        b'{"id":"odd_1.a","eventId":"evt_1","marketId":"mkt_1.a","outcomeId":"out_1.a",'
+        b'{"id":"odd_1.a","eventId":"evt_1","key":"win",'
         b'"source":{"id":"sportsbet","name":"Sportsbet","kind":"bookmaker"},'
         b'"state":"available","price":3.4}'
     )
@@ -391,7 +391,7 @@ def _snapshot_bytes(cursor: str) -> bytes:
         b'{"stream":{"cursor":"' + cursor.encode() + b'","event":["evt_1"],'
         b'"source":["sportsbet"]},"event":{"id":"evt_1","sport":"thoroughbred",'
         b'"name":"R1","startAt":"2026-08-15T04:00:00Z","status":"open"},'
-        b'"entrants":[],"markets":[],"outcomes":[],"odds":[],"coverage":[]}'
+        b'"entrants":[],"odds":[],"coverage":[]}'
     )
 
 
@@ -408,8 +408,8 @@ def test_409_cursor_expired_recovers_by_re_bootstrapping_over_rest() -> None:
     from betwatch._base_client import decode_model
     from betwatch.types.snapshot import EventSnapshot
 
-    stale = decode_model("/v1/events/evt_1/snapshot", _snapshot_bytes("cur_stale"), EventSnapshot)
-    fresh = decode_model("/v1/events/evt_1/snapshot", _snapshot_bytes("cur_fresh"), EventSnapshot)
+    stale = decode_model("/v2/events/evt_1/snapshot", _snapshot_bytes("cur_stale"), EventSnapshot)
+    fresh = decode_model("/v2/events/evt_1/snapshot", _snapshot_bytes("cur_fresh"), EventSnapshot)
 
     sent: list[dict[str, str]] = []
 

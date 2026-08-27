@@ -37,7 +37,7 @@ class Entrants:
                 "client.entrants.list(event=event_id)",
             )
         return self._client._get(
-            "/v1/entrants",
+            "/v2/entrants",
             list_query(
                 event=event,
                 competitor=competitor,
@@ -59,7 +59,7 @@ class Entrants:
     ) -> Iterator[Entrant]:
         """Walk every page of matching entrant rows.
 
-        The cursor goes back to `/v1/entrants` and nowhere else — a cursor
+        The cursor goes back to `/v2/entrants` and nowhere else — a cursor
         is only valid on the collection that issued it.
         """
 
@@ -75,7 +75,7 @@ class Entrants:
         return walk(fetch)
 
     def retrieve(self, id: str, *, include: Sequence[str] | str | None = None) -> Entrant:
-        return self._client._get("/v1/entrants/" + id, list_query(include=include), Entrant)
+        return self._client._get("/v2/entrants/" + id, list_query(include=include), Entrant)
 
 
 class AsyncEntrants:
@@ -99,7 +99,7 @@ class AsyncEntrants:
                 "client.entrants.list(event=event_id)",
             )
         return await self._client._aget(
-            "/v1/entrants",
+            "/v2/entrants",
             list_query(
                 event=event,
                 competitor=competitor,
@@ -121,7 +121,7 @@ class AsyncEntrants:
     ) -> AsyncIterator[Entrant]:
         """Walk every page of matching entrant rows.
 
-        The cursor goes back to `/v1/entrants` and nowhere else — a cursor
+        The cursor goes back to `/v2/entrants` and nowhere else — a cursor
         is only valid on the collection that issued it.
         """
 
@@ -138,4 +138,4 @@ class AsyncEntrants:
             yield row
 
     async def retrieve(self, id: str, *, include: Sequence[str] | str | None = None) -> Entrant:
-        return await self._client._aget("/v1/entrants/" + id, list_query(include=include), Entrant)
+        return await self._client._aget("/v2/entrants/" + id, list_query(include=include), Entrant)

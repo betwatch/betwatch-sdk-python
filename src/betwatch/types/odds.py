@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from .common import Model, PriceLevel
-from .enums import ExchangeMarketState, ExchangeOutcomeState, OddsState
+from .enums import ExchangeMarketState, ExchangeOutcomeState, MarketKey, OddsState
 from .page import Page
 from .source import Source
 
@@ -26,10 +26,10 @@ class OddsHistoryItem(Model):
 class Odds(Model):
     id: str
     event_id: str
-    market_id: str
-    outcome_id: str
+    key: MarketKey
     source: Source
     state: OddsState
+    places_paid: int | None = None
     price: float | None = None
     exchange: Exchange | None = None
     entrant_id: str | None = None

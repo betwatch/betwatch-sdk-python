@@ -260,7 +260,7 @@ class RaceTable(DataTable[Text]):
 
 
 class BetwatchApp(App[None]):
-    """TTJ-ordered event list + bookmaker grid, fed by public /v1."""
+    """TTJ-ordered event list + bookmaker grid, fed by public /v2."""
 
     TITLE = "Betwatch"
     AUTO_FOCUS = "#events"

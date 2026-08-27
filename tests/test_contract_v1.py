@@ -1,4 +1,4 @@
-"""Alignment with the public /v1 contract rework.
+"""Alignment with the public /v2 contract rework.
 
 Covers the parts of the contract the SDK has to encode rather than merely
 pass through: the two 429 budgets, the three 403 causes, RFC 9457 members,
@@ -180,7 +180,7 @@ def test_problem_field_errors_and_instance_are_parsed() -> None:
     response = _problem(
         422,
         ErrorCodes.INVALID_REQUEST,
-        instance="/v1/events",
+        instance="/v2/events",
         errors=[
             {"message": "must be <= 200", "location": "query.limit", "value": 5000},
             {"message": "unknown sport", "location": "query.sport", "value": "camel"},
@@ -193,7 +193,7 @@ def test_problem_field_errors_and_instance_are_parsed() -> None:
     finally:
         client.close()
     err = caught.value
-    assert err.instance == "/v1/events"
+    assert err.instance == "/v2/events"
     assert err.type is not None and err.type.endswith("invalid_request")
     assert [e.location for e in err.errors] == ["query.limit", "query.sport"]
     assert err.errors[0].value == 5000
@@ -280,7 +280,7 @@ def test_dotted_derived_id_reaches_the_path_untouched() -> None:
         httpx.Response(
             200,
             content=b'{"$schema":"https://x/Odds.json","id":"odd_7Yz.4mQ",'
-            b'"eventId":"evt_1","marketId":"mkt_7Yz.1aB","outcomeId":"out_7Yz.9kL",'
+            b'"eventId":"evt_1","key":"win",'
             b'"source":{"id":"sportsbet","name":"Sportsbet","kind":"bookmaker"},"state":"available","price":3.4}',
         )
     )
@@ -289,7 +289,7 @@ def test_dotted_derived_id_reaches_the_path_untouched() -> None:
         odds = client.odds.retrieve("odd_7Yz.4mQ")
     finally:
         client.close()
-    assert raw.calls[0][0] == "/v1/odds/odd_7Yz.4mQ"
+    assert raw.calls[0][0] == "/v2/odds/odd_7Yz.4mQ"
     assert odds.id == "odd_7Yz.4mQ"
 
 
@@ -334,7 +334,7 @@ async def test_async_iter_feeds_the_cursor_back_to_the_same_collection() -> None
         await client.close()
 
     assert seen == ["evt_1", "evt_2"]
-    assert [path for path, _ in raw.calls] == ["/v1/events", "/v1/events"]
+    assert [path for path, _ in raw.calls] == ["/v2/events", "/v2/events"]
     second = dict(raw.calls[1][1])
     assert second["after"] == "cur_page2"
 
@@ -343,7 +343,7 @@ async def test_async_iter_feeds_the_cursor_back_to_the_same_collection() -> None
 
 
 def test_an_undeclared_redirect_is_named_not_decoded() -> None:
-    """Merged entities write a PublicRedirect; /v1 declares no 3xx.
+    """Merged entities write a PublicRedirect; /v2 declares no 3xx.
 
     Before this, a redirect reached the decoder and surfaced as "Input data was
     truncated" — an error that says nothing about what happened. The SDK does
@@ -352,7 +352,7 @@ def test_an_undeclared_redirect_is_named_not_decoded() -> None:
     """
     from betwatch import UnexpectedRedirectError
 
-    redirecting = FakeRaw(httpx.Response(308, headers={"Location": "/v1/entrants/ent_new"}))
+    redirecting = FakeRaw(httpx.Response(308, headers={"Location": "/v2/entrants/ent_new"}))
     client = _client(redirecting, max_retries=0)
     try:
         with pytest.raises(UnexpectedRedirectError) as caught:
@@ -360,7 +360,7 @@ def test_an_undeclared_redirect_is_named_not_decoded() -> None:
     finally:
         client.close()
     assert caught.value.status_code == 308
-    assert caught.value.location == "/v1/entrants/ent_new"
+    assert caught.value.location == "/v2/entrants/ent_new"
     assert "does not follow" in str(caught.value)
 
 

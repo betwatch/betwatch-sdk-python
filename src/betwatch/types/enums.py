@@ -241,7 +241,7 @@ class SnapshotModes:
 class BudgetHeaders:
     """Response headers carrying the two budgets, as declared by the contract.
 
-    Every `/v1` response declares all seven; `RETRY_AFTER` is additionally
+    Every `/v2` response declares all seven; `RETRY_AFTER` is additionally
     declared on 429 and 503. `MONTHLY_RESET` is an RFC 3339 instant — the rest
     are integers, and `RESET` is *seconds remaining*, not a timestamp.
 

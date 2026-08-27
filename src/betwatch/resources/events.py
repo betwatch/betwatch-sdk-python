@@ -76,7 +76,7 @@ class Events:
         Example: `client.events.list(sport="thoroughbred", country="au", status="open")`
         """
         return self._client._get(
-            "/v1/events",
+            "/v2/events",
             _event_list_query(
                 sport=sport,
                 status=status,
@@ -111,7 +111,7 @@ class Events:
         """Walk every page of matching events.
 
         A cursor belongs to the collection that issued it, so `next` only ever
-        goes back to `/v1/events`.
+        goes back to `/v2/events`.
         """
 
         def fetch(after: str | None) -> EventPage:
@@ -133,7 +133,7 @@ class Events:
 
     def retrieve(self, id: str, *, include: Sequence[str] | str | None = None) -> Event:
         """Fetch one event by public id (`evt_...`)."""
-        return self._client._get("/v1/events/" + id, list_query(include=include), Event)
+        return self._client._get("/v2/events/" + id, list_query(include=include), Event)
 
     def snapshot(
         self,
@@ -147,7 +147,7 @@ class Events:
         Then `client.follow(snapshot)` to subscribe without a snapshot replay.
         """
         return self._client._get(
-            f"/v1/events/{id}/snapshot",
+            f"/v2/events/{id}/snapshot",
             list_query(source=source, include=include),
             EventSnapshot,
         )
@@ -174,7 +174,7 @@ class AsyncEvents:
         include: Sequence[IncludeFlag] | IncludeFlag | None = None,
     ) -> EventPage:
         return await self._client._aget(
-            "/v1/events",
+            "/v2/events",
             _event_list_query(
                 sport=sport,
                 status=status,
@@ -209,7 +209,7 @@ class AsyncEvents:
         """Walk every page of matching events.
 
         A cursor belongs to the collection that issued it, so `next` only ever
-        goes back to `/v1/events`.
+        goes back to `/v2/events`.
         """
 
         async def fetch(after: str | None) -> EventPage:
@@ -231,7 +231,7 @@ class AsyncEvents:
             yield row
 
     async def retrieve(self, id: str, *, include: Sequence[str] | str | None = None) -> Event:
-        return await self._client._aget("/v1/events/" + id, list_query(include=include), Event)
+        return await self._client._aget("/v2/events/" + id, list_query(include=include), Event)
 
     async def snapshot(
         self,
@@ -247,11 +247,11 @@ class AsyncEvents:
         `include="history"` fills each `Odds.history` with that source's
         fluctuations. It is honoured here as of contract 1.0.0 — it was
         previously accepted and ignored — and doubles what the call costs
-        against your monthly quota, exactly like the equivalent `/v1/odds`
+        against your monthly quota, exactly like the equivalent `/v2/odds`
         read. Ask for it only when you use it.
         """
         return await self._client._aget(
-            f"/v1/events/{id}/snapshot",
+            f"/v2/events/{id}/snapshot",
             list_query(source=source, include=include),
             EventSnapshot,
         )

@@ -1,7 +1,7 @@
 """Cursor walking, shared by every collection.
 
-A cursor belongs to the collection that issued it: a `next` from `/v1/venues`
-is `422 invalid_filter` on `/v1/meetings`. These helpers take the *fetch
+A cursor belongs to the collection that issued it: a `next` from `/v2/venues`
+is `422 invalid_filter` on `/v2/meetings`. These helpers take the *fetch
 function* for one endpoint and feed each cursor back to that same function, so
 a cursor cannot reach a different collection by construction.
 

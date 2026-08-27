@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Import the shipped SDK twice and hit local /v1 list + snapshot + stream."""
+"""Import the shipped SDK twice and hit local /v2 list + snapshot + stream."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def run(label: str) -> None:
         )
         print(f"{label} events={len(page)} next={bool(page.next)} cursor={page.cursor!r}")
         if not page.items:
-            raise SystemExit(f"{label}: empty /v1/events page")
+            raise SystemExit(f"{label}: empty /v2/events page")
         event_id = page[0].id
         print(f"{label} first_event={event_id} name={page[0].name!r}")
         card = client.events.snapshot(event_id)
