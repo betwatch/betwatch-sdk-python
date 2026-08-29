@@ -690,7 +690,9 @@ class Betwatch:
             ScopeSnapshot,
         )
 
-    def snapshot_page(self, /, *, after: str | None = None, before: str | None = None) -> ScopeSnapshot:
+    def snapshot_page(
+        self, /, *, after: str | None = None, before: str | None = None
+    ) -> ScopeSnapshot:
         """Fetch the next or previous page from a server-issued snapshot cursor.
 
         The cursor seals the original scope, default time window, and page
@@ -700,7 +702,9 @@ class Betwatch:
         """
         if (after is None) == (before is None):
             raise ValueError("pass exactly one of after or before")
-        return self._get("/v2/events/snapshot", list_query(after=after, before=before), ScopeSnapshot)
+        return self._get(
+            "/v2/events/snapshot", list_query(after=after, before=before), ScopeSnapshot
+        )
 
     def follow(
         self,
@@ -893,11 +897,15 @@ class AsyncBetwatch:
             ScopeSnapshot,
         )
 
-    async def snapshot_page(self, /, *, after: str | None = None, before: str | None = None) -> ScopeSnapshot:
+    async def snapshot_page(
+        self, /, *, after: str | None = None, before: str | None = None
+    ) -> ScopeSnapshot:
         """Fetch the next or previous sealed snapshot page."""
         if (after is None) == (before is None):
             raise ValueError("pass exactly one of after or before")
-        return await self._aget("/v2/events/snapshot", list_query(after=after, before=before), ScopeSnapshot)
+        return await self._aget(
+            "/v2/events/snapshot", list_query(after=after, before=before), ScopeSnapshot
+        )
 
     def follow(
         self,
