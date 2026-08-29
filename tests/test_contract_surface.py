@@ -109,6 +109,22 @@ def test_credential_shaped_query_params_are_refused_locally(name: str) -> None:
     assert name in str(caught.value)
 
 
+def test_rest_collection_filters_use_csv_not_stream_style_repetition() -> None:
+    from betwatch._base_client import flatten, list_query
+
+    query = list_query(
+        sport=["thoroughbred", "greyhound", "harness"],
+        country=["au", "nz"],
+        market=["win", "place"],
+    )
+
+    assert flatten(query) == [
+        ("sport", "thoroughbred,greyhound,harness"),
+        ("country", "au,nz"),
+        ("market", "win,place"),
+    ]
+
+
 # --- 4. the retry table --------------------------------------------------
 
 

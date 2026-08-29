@@ -224,22 +224,29 @@ def list_query(
 ) -> dict[str, Any]:
     from .types.common import as_sequence
 
+    # REST collections declare arrays with `explode: false`: multiple values
+    # occupy one comma-separated parameter. SSE is deliberately different
+    # (`explode: true`) and continues through `flatten()` unchanged.
+    def csv(value: Sequence[str] | str | None) -> str | None:
+        values = as_sequence(value)
+        return ",".join(values) if values else None
+
     return {
-        "sport": as_sequence(sport),
-        "status": as_sequence(status),
-        "country": as_sequence(country),
-        "meeting": as_sequence(meeting),
-        "event": as_sequence(event),
-        "venue": as_sequence(venue),
-        "market": as_sequence(market),
-        "outcome": as_sequence(outcome),
-        "entrant": as_sequence(entrant),
-        "source": as_sequence(source),
-        "competitor": as_sequence(competitor),
+        "sport": csv(sport),
+        "status": csv(status),
+        "country": csv(country),
+        "meeting": csv(meeting),
+        "event": csv(event),
+        "venue": csv(venue),
+        "market": csv(market),
+        "outcome": csv(outcome),
+        "entrant": csv(entrant),
+        "source": csv(source),
+        "competitor": csv(competitor),
         "startFrom": start_from,
         "startTo": start_to,
         "after": after,
         "before": before,
         "limit": limit,
-        "include": as_sequence(include),
+        "include": csv(include),
     }
