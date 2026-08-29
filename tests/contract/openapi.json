@@ -5089,6 +5089,61 @@
               }
             }
           },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Conflict",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
           "415": {
             "content": {
               "application/problem+json": {
