@@ -49,9 +49,10 @@ jobs:
           uv pip install --python "$(which python)" dist/*.whl
           python - <<'EOF'
           import betwatch
+          from importlib.metadata import version
 
           assert not hasattr(betwatch, "get_races"), "GraphQL 1.x surface leaked into the wheel"
-          assert betwatch.__version__.endswith("b1"), betwatch.__version__
+          assert betwatch.__version__ == version("betwatch"), betwatch.__version__
           # the public surface a consumer actually imports
           for name in ("Betwatch", "AsyncBetwatch", "ErrorCodes", "QuotaExceededError"):
               assert hasattr(betwatch, name), name
