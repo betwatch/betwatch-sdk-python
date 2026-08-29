@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Self
+
+import msgspec
 
 from .common import Model, to_records
 from .coverage import Coverage
@@ -38,6 +40,11 @@ class StreamContinuation(Model):
         if not self.cursor.strip():
             raise ValueError("stream.cursor must be non-empty")
 
+    @classmethod
+    def from_json(cls, value: bytes | str) -> Self:
+        """Restore a continuation persisted with :meth:`to_json`."""
+        return msgspec.json.decode(value, type=cls)
+
 
 class ScopeSnapshot(Model):
     """One page of current state for a filter scope, plus the stream handoff.
@@ -45,7 +52,8 @@ class ScopeSnapshot(Model):
     How to start anything broader than a single race:
 
     ```python
-    snap = client.snapshot(sport="thoroughbred", country="au")
+    scope = RacingScope(sport="thoroughbred", country="au")
+    snap = client.snapshot(scope)
     with client.follow(snap) as live:
         ...
     ```

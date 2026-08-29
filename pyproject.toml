@@ -77,7 +77,7 @@ pythonpath = ["src", "examples"]
 
 [tool.ty.src]
 include = ["src/betwatch", "tests"]
-exclude = ["tests/typing/status_bad.py", "tests/typing/status_eq_bad.py"]
+exclude = ["tests/typing/status_bad.py", "tests/typing/status_eq_bad.py", "tests/typing/scope_bad.py"]
 
 [tool.pyright]
 include = ["src/betwatch"]

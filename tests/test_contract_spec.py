@@ -451,18 +451,16 @@ def test_scope_snapshot_carries_state_and_the_handoff(spec: dict[str, Any]) -> N
 
 def test_sdk_reads_every_filter_the_continuation_carries(spec: dict[str, Any]) -> None:
     """follow() replays these verbatim; a field it drops narrows the scope silently."""
-    from betwatch._client import _continuation_params
+    from betwatch._client import _continuation_scope
     from betwatch.types.snapshot import StreamContinuation
 
     declared = set(spec["components"]["schemas"]["PublicStreamContinuation"]["properties"])
     declared.discard("$schema")
     declared.discard("cursor")  # passed separately, not as a filter
 
-    replayed = set(_continuation_params(StreamContinuation(cursor="cur_1")))
-    camel = {
-        "".join(w if i == 0 else w.title() for i, w in enumerate(n.split("_"))) for n in replayed
-    }
-    assert declared <= camel, f"follow() drops: {sorted(declared - camel)}"
+    scope = _continuation_scope(StreamContinuation(cursor="cur_1"))
+    replayed = set(scope._stream_filters())
+    assert declared <= replayed, f"follow() drops: {sorted(declared - replayed)}"
 
 
 def test_a_scope_continuation_needs_no_event_filter() -> None:

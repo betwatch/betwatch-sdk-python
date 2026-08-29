@@ -5,7 +5,7 @@ from betwatch import Betwatch, FilterRequiredError, NotFoundError, __version__
 
 
 def test_version_is_prerelease() -> None:
-    assert __version__ == "2.0.0b2"
+    assert __version__ == "2.0.0b3"
 
 
 def test_no_graphql_get_races_surface() -> None:

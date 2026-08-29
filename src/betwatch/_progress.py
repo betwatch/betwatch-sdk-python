@@ -70,7 +70,7 @@ ProgressCallback = Callable[[StreamProgress], None]
 
 
 def print_progress(progress: StreamProgress) -> None:
-    """Ready-made reporter: `client.stream(..., progress=print_progress)`."""
+    """Ready-made reporter: `client.stream(scope, progress=print_progress)`."""
     print(progress, flush=True)
 
 

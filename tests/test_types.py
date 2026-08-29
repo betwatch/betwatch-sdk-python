@@ -124,6 +124,30 @@ def test_ty_rejects_impossible_status_compare() -> None:
     )
 
 
+def test_scope_filters_are_strict_on_requests() -> None:
+    import subprocess
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    for checker in (["uv", "run", "pyright"], ["uv", "run", "ty", "check"]):
+        ok = subprocess.run(
+            [*checker, "tests/typing/scope_ok.py"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert ok.returncode == 0, ok.stdout + ok.stderr
+        bad = subprocess.run(
+            [*checker, "tests/typing/scope_bad.py"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert bad.returncode != 0, "request filters must reject response-only unknown values"
+
+
 def test_empty_collections_decode_as_empty_lists() -> None:
     """The contract guarantees `[]` rather than null, so the models take it plainly.
 

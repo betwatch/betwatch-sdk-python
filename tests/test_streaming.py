@@ -474,7 +474,7 @@ def test_a_dead_cursor_is_never_retried_with_itself() -> None:
     """Reconnecting with an expired cursor is an infinite loop, so it must not happen."""
     import httpx
 
-    from betwatch import Betwatch, ResyncRequired
+    from betwatch import Betwatch, ResyncRequired, StreamContinuation
 
     class Raw:
         def __init__(self) -> None:
@@ -506,7 +506,9 @@ def test_a_dead_cursor_is_never_retried_with_itself() -> None:
     raw = Raw()
     client = Betwatch(api_key="bw_test", base_url="http://localhost:8888")
     object.__setattr__(client, "_raw", raw)
-    stream = client.stream(event="evt_1", cursor="cur_wrong_scope", reconnect=True)
+    stream = client.follow(
+        StreamContinuation(cursor="cur_wrong_scope", event=["evt_1"]), reconnect=True
+    )
     try:
         with pytest.raises(ResyncRequired):
             with stream:

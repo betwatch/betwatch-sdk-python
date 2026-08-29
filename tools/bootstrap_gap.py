@@ -29,7 +29,7 @@ import argparse
 from datetime import UTC, datetime
 from time import monotonic
 
-from betwatch import APIConnectionError, Betwatch, Odds, ResyncRequired
+from betwatch import APIConnectionError, Betwatch, Odds, RacingScope, ResyncRequired
 from betwatch.types.stream import iter_odds
 
 Key = tuple[str, str, str]
@@ -52,7 +52,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    scope = {"sport": args.sport or ["thoroughbred"], "country": args.country or ["au"]}
+    scope = RacingScope(sport=args.sport or ["thoroughbred"], country=args.country or ["au"])
 
     in_snapshot: dict[Key, Odds] = {}
     replayed: dict[Key, Odds] = {}
@@ -62,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"host={client.base_url} scope={scope}", flush=True)
 
         opened = datetime.now(UTC)
-        snap = client.snapshot(**scope, limit=200)
+        snap = client.snapshot(scope, limit=200)
         read_done = datetime.now(UTC)
         for row in snap.odds:
             in_snapshot[_key(row)] = row

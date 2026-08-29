@@ -21,6 +21,8 @@ from .enums import (
     MarketStates,
     OddsState,
     OddsStates,
+    RequestMarket,
+    RequestSport,
     SnapshotMode,
     SnapshotModes,
     SourceKind,
@@ -32,6 +34,7 @@ from .event import Dividend, Event, EventPage, EventRacing, EventResult
 from .meeting import Meeting, MeetingPage
 from .odds import Exchange, Odds, OddsHistoryItem, OddsPage
 from .page import Page
+from .scope import RacingScope
 from .snapshot import EventSnapshot, ScopeSnapshot, StreamContinuation
 from .source import Source, SourcePage
 from .stream import (
@@ -73,6 +76,7 @@ __all__ = [
     "EventResult",
     "EventSnapshot",
     "ScopeSnapshot",
+    "RacingScope",
     "EventStatus",
     "EventStatuses",
     "IncludeFlag",
@@ -82,6 +86,8 @@ __all__ = [
     "Exchange",
     "MarketKey",
     "MarketKeys",
+    "RequestMarket",
+    "RequestSport",
     "MarketState",
     "MarketStates",
     "Meeting",

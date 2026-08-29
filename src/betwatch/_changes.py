@@ -17,7 +17,7 @@ entry state for a runner. That knowledge belongs here, not in every caller.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypeAlias
 
 from .types.coverage import Coverage
 from .types.entrant import Entrant
@@ -31,7 +31,7 @@ from .types.stream import (
     StreamFrame,
 )
 
-_Key = tuple[str, ...]
+_Key: TypeAlias = tuple[str | int | None, ...]
 
 
 def _identity(item: Any) -> tuple[_Key, Any] | None:

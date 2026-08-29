@@ -1,6 +1,6 @@
 # Betwatch Python SDK — agent guide
 
-This is the **public `/v2` REST + SSE** client (`2.0.0b2` on branch `beta`).
+This is the **public `/v2` REST + SSE** client (`2.0.0b3` on branch `beta`).
 It is **not** the GraphQL 1.x SDK. There is no `get_races`.
 
 ## Load this first
@@ -22,7 +22,7 @@ Copy-paste examples match 1.x use cases: `examples/get_races.py`,
 ## Do this, in this order
 
 ```python
-from betwatch import Betwatch, OddsFrame
+from betwatch import Betwatch, OddsFrame, RacingScope
 
 with Betwatch() as client:
     races = client.events.list(sport="thoroughbred", country="au", limit=10)
@@ -36,7 +36,8 @@ with Betwatch() as client:
 ```
 
 If `ResyncRequired` is raised: **do not** reconnect with the old cursor. Call
-`client.watch(event_id)` again (it re-snapshots).
+`client.watch(event_id)` again (it re-snapshots), or begin a fresh scoped
+snapshot and follow it.
 
 ## Surfaces
 
@@ -66,17 +67,19 @@ fails `pyright` (`reportUnnecessaryComparison`).
 
 ## Starting a stream
 
-Bootstrap over REST, then follow the cursor it returns. One shape, any scope:
+Bootstrap over REST, then follow the server-issued continuation it returns.
+One shape, any scope:
 
 ```python
-snap = client.snapshot(sport="thoroughbred", country="au")  # card + prices + cursor
+scope = RacingScope(sport="thoroughbred", country="au")
+snap = client.snapshot(scope)  # card + prices + continuation
 with client.follow(snap) as live:
     ...
 ```
 
 `client.watch(event_id)` is the same thing for a single race. Every snapshot
 page returns the same `stream.cursor`, so follow from any page and page the
-rest with `after=snap.next`.
+rest with `client.snapshot_page(after=snap.next)`.
 
 `snapshot="full"` on the stream is only accepted for an event, meeting or
 venue; anything broader is `422 filter_required` pointing at `/v2/events/snapshot`.
@@ -88,7 +91,7 @@ client — so re-bootstrap cheaply and do not treat it as exceptional.
 
 ## Out of the box
 
-Reach for the SDK before writing it in an example. `client.stream(progress=
+Reach for the SDK before writing it in an example. `client.stream(scope, progress=
 print_progress)` reports a `snapshot=full` bootstrap, which otherwise looks
 hung for 20-45s. `ChangeTracker().changed(frame_or_odds_row)` drops
 republished state that has not moved. `tools/stream_timing.py` measures a

@@ -9,13 +9,14 @@ from __future__ import annotations
 
 from typing import Final, Literal, TypeAlias
 
+RequestSport: TypeAlias = Literal["thoroughbred", "greyhound", "harness"]
 Sport: TypeAlias = Literal["thoroughbred", "greyhound", "harness", "unknown"]
 
 
 class Sports:
-    THOROUGHBRED: Final[Sport] = "thoroughbred"
-    GREYHOUND: Final[Sport] = "greyhound"
-    HARNESS: Final[Sport] = "harness"
+    THOROUGHBRED: Final[RequestSport] = "thoroughbred"
+    GREYHOUND: Final[RequestSport] = "greyhound"
+    HARNESS: Final[RequestSport] = "harness"
     UNKNOWN: Final[Sport] = "unknown"
 
 
@@ -102,12 +103,13 @@ class CompetitorKinds:
     UNKNOWN: Final[CompetitorKind] = "unknown"
 
 
+RequestMarket: TypeAlias = Literal["win", "place"]
 MarketKey: TypeAlias = Literal["win", "place", "unknown"]
 
 
 class MarketKeys:
-    WIN: Final[MarketKey] = "win"
-    PLACE: Final[MarketKey] = "place"
+    WIN: Final[RequestMarket] = "win"
+    PLACE: Final[RequestMarket] = "place"
     UNKNOWN: Final[MarketKey] = "unknown"
 
 

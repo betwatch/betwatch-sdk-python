@@ -72,8 +72,8 @@ cost, so ask for it only when you use it.
 **Stream frames are not metered.** Polling `/v2/odds` on a timer is the
 expensive way to stay current and the slowest to see a move; bootstrapping once
 and following costs nothing beyond that first read. A single filtered
-connection covers a whole raceday — `client.stream(sport="thoroughbred",
-country="au")` — and a connection per race is the shape to avoid, which your
+connection covers a whole raceday — `client.stream(RacingScope(sport="thoroughbred",
+country="au"))` — and a connection per race is the shape to avoid, which your
 plan's concurrent-stream cap will enforce with `StreamLimitError`.
 
 ### Following a whole scope
@@ -81,7 +81,10 @@ plan's concurrent-stream cap will enforce with `StreamLimitError`.
 One call returns the card, the prices and the cursor to follow them:
 
 ```python
-snap = client.snapshot(sport="thoroughbred", country="au")
+from betwatch import RacingScope
+
+scope = RacingScope(sport="thoroughbred", country="au")
+snap = client.snapshot(scope)
 with client.follow(snap) as live:
     for frame in live:
         ...
@@ -89,7 +92,26 @@ with client.follow(snap) as live:
 
 Every page returns the same `stream.cursor`, captured before the first page was
 read, so paging to the end and then following cannot miss a change to a race you
-read earlier. Follow from any page; page the rest with `after=snap.next`.
+read earlier. Follow from any page; page the rest with
+`client.snapshot_page(after=snap.next)`.
+
+For a process restart, persist the complete server-issued continuation, not a
+bare cursor. It includes the exact filters the cursor was minted under:
+
+```python
+from pathlib import Path
+
+from betwatch import StreamContinuation
+
+position = live.continuation
+assert position is not None
+Path("stream-position.json").write_bytes(position.to_json())
+
+# Later
+position = StreamContinuation.from_json(Path("stream-position.json").read_bytes())
+with client.follow(position) as live:
+    ...
+```
 
 Hydration costs roughly half a second per race, so for a large scope take a
 small first page, attach, and read the rest while already live — you are

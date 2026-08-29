@@ -45,8 +45,8 @@ from .resources.meetings import AsyncMeetings, Meetings
 from .resources.odds import AsyncOddsResource, OddsResource
 from .resources.sources import AsyncSources, Sources
 from .resources.venues import AsyncVenues, Venues
-from .types.common import as_sequence
-from .types.enums import ErrorCodes, IncludeFlag, SnapshotMode, Sport
+from .types.enums import ErrorCodes, IncludeFlag, SnapshotMode
+from .types.scope import RacingScope
 from .types.snapshot import EventSnapshot, ScopeSnapshot, StreamContinuation
 from .types.stream import ReadyFrame, StreamFrame, SyncFrame, frame_name
 
@@ -108,6 +108,17 @@ class Stream:
             if progress is not None and params.get("snapshot") != "none"
             else None
         )
+
+    @property
+    def continuation(self) -> StreamContinuation | None:
+        """A server-compatible position to persist and pass to ``follow()``.
+
+        A full bootstrap is not resumable before ``sync``: frames before then
+        would be lost on a reconnect, so expose no durable position yet.
+        """
+        if self.cursor is None or (self._params.get("snapshot") == "full" and not self._synced):
+            return None
+        return _stream_continuation(self._params, self.cursor)
 
     def _open(self) -> httpx.Response:
         extra, query = stream_headers_and_query(self._params, self.cursor)
@@ -257,6 +268,13 @@ class AsyncStream:
             if progress is not None and params.get("snapshot") != "none"
             else None
         )
+
+    @property
+    def continuation(self) -> StreamContinuation | None:
+        """A server-compatible position to persist and pass to ``follow()``."""
+        if self.cursor is None or (self._params.get("snapshot") == "full" and not self._synced):
+            return None
+        return _stream_continuation(self._params, self.cursor)
 
     async def _open(self) -> httpx.Response:
         extra, query = stream_headers_and_query(self._params, self.cursor)
@@ -504,55 +522,39 @@ class AsyncWatch:
                 await self._open()
 
 
-def _continuation_params(stream: StreamContinuation) -> dict[str, Any]:
-    """The filters a snapshot's cursor was minted under, replayed verbatim.
-
-    Sent as given rather than reconstructed: filters are part of the cursor's
-    identity, and widening the scope invalidates it.
-    """
-    return {
-        "event": stream.event,
-        "source": stream.source,
-        "sport": stream.sport,
-        "country": stream.country,
-        "meeting": stream.meeting,
-        "venue": stream.venue,
-        "market": stream.market,
-        "entrant": stream.entrant,
-        "start_from": stream.start_from,
-        "start_to": stream.start_to,
-    }
+def _continuation_scope(stream: StreamContinuation) -> RacingScope:
+    return RacingScope._from_continuation(
+        sport=stream.sport,
+        country=stream.country,
+        meeting=stream.meeting,
+        event=stream.event,
+        venue=stream.venue,
+        market=stream.market,
+        entrant=stream.entrant,
+        source=stream.source,
+        start_from=stream.start_from,
+        start_to=stream.start_to,
+    )
 
 
-def _stream_params(
-    *,
-    cursor: str | None,
-    snapshot: SnapshotMode,
-    sport: Sequence[Sport] | Sport | None,
-    country: Sequence[str] | str | None,
-    meeting: Sequence[str] | str | None,
-    event: Sequence[str] | str | None,
-    venue: Sequence[str] | str | None,
-    market: Sequence[str] | str | None,
-    entrant: Sequence[str] | str | None,
-    source: Sequence[str] | str | None,
-    start_from: str | None,
-    start_to: str | None,
-) -> dict[str, Any]:
-    return {
-        "cursor": cursor,
-        "snapshot": snapshot,
-        "sport": as_sequence(sport),
-        "country": as_sequence(country),
-        "meeting": as_sequence(meeting),
-        "event": as_sequence(event),
-        "venue": as_sequence(venue),
-        "market": as_sequence(market),
-        "entrant": as_sequence(entrant),
-        "source": as_sequence(source),
-        "startFrom": start_from,
-        "startTo": start_to,
-    }
+def _stream_continuation(params: Mapping[str, Any], cursor: str) -> StreamContinuation:
+    def values(name: str) -> list[str]:
+        value = params.get(name) or ()
+        return list(value) if not isinstance(value, str) else [value]
+
+    return StreamContinuation(
+        cursor=cursor,
+        event=values("event"),
+        source=values("source"),
+        sport=values("sport"),
+        country=values("country"),
+        meeting=values("meeting"),
+        venue=values("venue"),
+        market=values("market"),
+        entrant=values("entrant"),
+        start_from=params.get("startFrom"),
+        start_to=params.get("startTo"),
+    )
 
 
 class Betwatch:
@@ -629,17 +631,9 @@ class Betwatch:
 
     def snapshot(
         self,
+        scope: RacingScope,
+        /,
         *,
-        sport: Sequence[Sport] | Sport | None = None,
-        country: Sequence[str] | str | None = None,
-        meeting: Sequence[str] | str | None = None,
-        event: Sequence[str] | str | None = None,
-        venue: Sequence[str] | str | None = None,
-        source: Sequence[str] | str | None = None,
-        status: Sequence[str] | str | None = None,
-        start_from: str | None = None,
-        start_to: str | None = None,
-        after: str | None = None,
         limit: int | None = None,
         include: Sequence[IncludeFlag] | IncludeFlag | None = None,
     ) -> ScopeSnapshot:
@@ -648,7 +642,8 @@ class Betwatch:
         The way to start anything broader than one race:
 
         ```python
-        snap = client.snapshot(sport="thoroughbred", country="au")
+        scope = RacingScope(sport="thoroughbred", country="au")
+        snap = client.snapshot(scope)
         with client.follow(snap) as live:
             ...
         ```
@@ -656,19 +651,18 @@ class Betwatch:
         Every page returns the same `stream.cursor`, captured before the first
         page was read, so paging to the end and then following cannot miss a
         change to a race read earlier — follow from any page. Page with
-        `after=snap.next`.
+        `client.snapshot_page(after=snap.next)`.
 
         That property is worth using rather than just knowing: hydration costs
         roughly half a second per race, so a small first page attaches far
         sooner and the rest can be read while already live.
 
         ```python
-        page = client.snapshot(sport="thoroughbred", country="au", limit=10)
+        page = client.snapshot(scope, limit=10)
         with client.follow(page) as live:      # attached in ~5s, not ~50s
             rest = page
             while rest.next:                   # fill in the card as it streams
-                rest = client.snapshot(sport="thoroughbred", country="au",
-                                       limit=10, after=rest.next)
+                rest = client.snapshot_page(after=rest.next)
         ```
 
         Nothing is missed in the meantime: the cursor predates every page, so
@@ -680,40 +674,57 @@ class Betwatch:
         return self._get(
             "/v2/events/snapshot",
             list_query(
-                sport=sport,
-                country=country,
-                meeting=meeting,
-                event=event,
-                venue=venue,
-                source=source,
-                status=status,
-                start_from=start_from,
-                start_to=start_to,
-                after=after,
+                sport=scope.sport,
+                country=scope.country,
+                meeting=scope.meeting,
+                event=scope.event,
+                venue=scope.venue,
+                market=scope.market,
+                entrant=scope.entrant,
+                source=scope.source,
+                start_from=scope.start_from,
+                start_to=scope.start_to,
                 limit=limit,
                 include=include,
             ),
             ScopeSnapshot,
         )
 
+    def snapshot_page(self, /, *, after: str | None = None, before: str | None = None) -> ScopeSnapshot:
+        """Fetch the next or previous page from a server-issued snapshot cursor.
+
+        The cursor seals the original scope, default time window, and page
+        size. Supplying a ``RacingScope`` or ``limit`` here would create a
+        competing source of truth, so this method deliberately accepts only
+        one page cursor.
+        """
+        if (after is None) == (before is None):
+            raise ValueError("pass exactly one of after or before")
+        return self._get("/v2/events/snapshot", list_query(after=after, before=before), ScopeSnapshot)
+
     def follow(
         self,
-        snapshot: EventSnapshot | ScopeSnapshot,
+        source: EventSnapshot | ScopeSnapshot | StreamContinuation,
         *,
         reconnect: bool = True,
         progress: ProgressCallback | None = None,
     ) -> Stream:
         """Subscribe after a REST snapshot, from either kind.
 
-        The snapshot carries the cursor and the filters that produced it, so
-        the scope cannot drift between the read and the subscription.
+        The server-issued continuation carries the cursor and filters, so the
+        scope cannot drift between the read and subscription. Persist
+        ``stream.continuation`` and pass it here to resume after a restart.
         """
-        return self.stream(
-            **_continuation_params(snapshot.stream),
-            progress=progress,
-            cursor=snapshot.stream.cursor,
-            snapshot="none",
+        continuation = source if isinstance(source, StreamContinuation) else source.stream
+        return Stream(
+            self,
+            {
+                "cursor": continuation.cursor,
+                "snapshot": "none",
+                **_continuation_scope(continuation)._stream_filters(),
+            },
             reconnect=reconnect,
+            progress=progress,
         )
 
     def watch(
@@ -735,20 +746,11 @@ class Betwatch:
 
     def stream(
         self,
+        scope: RacingScope,
+        /,
         *,
-        cursor: str | None = None,
         snapshot: SnapshotMode = "full",
         reconnect: bool = True,
-        sport: Sequence[Sport] | Sport | None = None,
-        country: Sequence[str] | str | None = None,
-        meeting: Sequence[str] | str | None = None,
-        event: Sequence[str] | str | None = None,
-        venue: Sequence[str] | str | None = None,
-        market: Sequence[str] | str | None = None,
-        entrant: Sequence[str] | str | None = None,
-        source: Sequence[str] | str | None = None,
-        start_from: str | None = None,
-        start_to: str | None = None,
         progress: ProgressCallback | None = None,
         progress_interval: float = DEFAULT_INTERVAL,
     ) -> Stream:
@@ -760,20 +762,7 @@ class Betwatch:
         """
         return Stream(
             self,
-            _stream_params(
-                cursor=cursor,
-                snapshot=snapshot,
-                sport=sport,
-                country=country,
-                meeting=meeting,
-                event=event,
-                venue=venue,
-                market=market,
-                entrant=entrant,
-                source=source,
-                start_from=start_from,
-                start_to=start_to,
-            ),
+            {"snapshot": snapshot, **scope._stream_filters()},
             reconnect=reconnect,
             progress=progress,
             progress_interval=progress_interval,
@@ -845,17 +834,9 @@ class AsyncBetwatch:
 
     async def snapshot(
         self,
+        scope: RacingScope,
+        /,
         *,
-        sport: Sequence[Sport] | Sport | None = None,
-        country: Sequence[str] | str | None = None,
-        meeting: Sequence[str] | str | None = None,
-        event: Sequence[str] | str | None = None,
-        venue: Sequence[str] | str | None = None,
-        source: Sequence[str] | str | None = None,
-        status: Sequence[str] | str | None = None,
-        start_from: str | None = None,
-        start_to: str | None = None,
-        after: str | None = None,
         limit: int | None = None,
         include: Sequence[IncludeFlag] | IncludeFlag | None = None,
     ) -> ScopeSnapshot:
@@ -864,7 +845,8 @@ class AsyncBetwatch:
         The way to start anything broader than one race:
 
         ```python
-        snap = client.snapshot(sport="thoroughbred", country="au")
+        scope = RacingScope(sport="thoroughbred", country="au")
+        snap = await client.snapshot(scope)
         with client.follow(snap) as live:
             ...
         ```
@@ -872,19 +854,18 @@ class AsyncBetwatch:
         Every page returns the same `stream.cursor`, captured before the first
         page was read, so paging to the end and then following cannot miss a
         change to a race read earlier — follow from any page. Page with
-        `after=snap.next`.
+        `await client.snapshot_page(after=snap.next)`.
 
         That property is worth using rather than just knowing: hydration costs
         roughly half a second per race, so a small first page attaches far
         sooner and the rest can be read while already live.
 
         ```python
-        page = client.snapshot(sport="thoroughbred", country="au", limit=10)
+        page = await client.snapshot(scope, limit=10)
         with client.follow(page) as live:      # attached in ~5s, not ~50s
             rest = page
             while rest.next:                   # fill in the card as it streams
-                rest = client.snapshot(sport="thoroughbred", country="au",
-                                       limit=10, after=rest.next)
+                rest = await client.snapshot_page(after=rest.next)
         ```
 
         Nothing is missed in the meantime: the cursor predates every page, so
@@ -896,36 +877,46 @@ class AsyncBetwatch:
         return await self._aget(
             "/v2/events/snapshot",
             list_query(
-                sport=sport,
-                country=country,
-                meeting=meeting,
-                event=event,
-                venue=venue,
-                source=source,
-                status=status,
-                start_from=start_from,
-                start_to=start_to,
-                after=after,
+                sport=scope.sport,
+                country=scope.country,
+                meeting=scope.meeting,
+                event=scope.event,
+                venue=scope.venue,
+                market=scope.market,
+                entrant=scope.entrant,
+                source=scope.source,
+                start_from=scope.start_from,
+                start_to=scope.start_to,
                 limit=limit,
                 include=include,
             ),
             ScopeSnapshot,
         )
 
+    async def snapshot_page(self, /, *, after: str | None = None, before: str | None = None) -> ScopeSnapshot:
+        """Fetch the next or previous sealed snapshot page."""
+        if (after is None) == (before is None):
+            raise ValueError("pass exactly one of after or before")
+        return await self._aget("/v2/events/snapshot", list_query(after=after, before=before), ScopeSnapshot)
+
     def follow(
         self,
-        snapshot: EventSnapshot | ScopeSnapshot,
+        source: EventSnapshot | ScopeSnapshot | StreamContinuation,
         *,
         reconnect: bool = True,
         progress: ProgressCallback | None = None,
     ) -> AsyncStream:
-        """Subscribe after a REST snapshot, from either kind."""
-        return self.stream(
-            **_continuation_params(snapshot.stream),
-            progress=progress,
-            cursor=snapshot.stream.cursor,
-            snapshot="none",
+        """Subscribe after a snapshot or server-issued continuation."""
+        continuation = source if isinstance(source, StreamContinuation) else source.stream
+        return AsyncStream(
+            self,
+            {
+                "cursor": continuation.cursor,
+                "snapshot": "none",
+                **_continuation_scope(continuation)._stream_filters(),
+            },
             reconnect=reconnect,
+            progress=progress,
         )
 
     def watch(
@@ -946,39 +937,17 @@ class AsyncBetwatch:
 
     def stream(
         self,
+        scope: RacingScope,
+        /,
         *,
-        cursor: str | None = None,
         snapshot: SnapshotMode = "full",
         reconnect: bool = True,
-        sport: Sequence[Sport] | Sport | None = None,
-        country: Sequence[str] | str | None = None,
-        meeting: Sequence[str] | str | None = None,
-        event: Sequence[str] | str | None = None,
-        venue: Sequence[str] | str | None = None,
-        market: Sequence[str] | str | None = None,
-        entrant: Sequence[str] | str | None = None,
-        source: Sequence[str] | str | None = None,
-        start_from: str | None = None,
-        start_to: str | None = None,
         progress: ProgressCallback | None = None,
         progress_interval: float = DEFAULT_INTERVAL,
     ) -> AsyncStream:
         return AsyncStream(
             self,
-            _stream_params(
-                cursor=cursor,
-                snapshot=snapshot,
-                sport=sport,
-                country=country,
-                meeting=meeting,
-                event=event,
-                venue=venue,
-                market=market,
-                entrant=entrant,
-                source=source,
-                start_from=start_from,
-                start_to=start_to,
-            ),
+            {"snapshot": snapshot, **scope._stream_filters()},
             reconnect=reconnect,
             progress=progress,
             progress_interval=progress_interval,

@@ -1,8 +1,8 @@
-"""All-code firehose. Resume from the last SSE cursor.
+"""All-code firehose. Resume from the last server-issued continuation.
 
 The first run takes a full snapshot, reporting progress while it arrives,
 then prints live ticks only; unchanged republishes are dropped. Later runs
-resume from the saved cursor and are live immediately.
+resume from the saved server-issued continuation and are live immediately.
 
 Default scope is every sport in every country the key can see, which is the
 slowest possible bootstrap: expect no frames at all for the first 20-45s while
@@ -33,8 +33,10 @@ from betwatch import (
     EventFrame,
     OddsFrame,
     OddsSetFrame,
+    RacingScope,
     ReadyFrame,
     ResyncRequired,
+    StreamContinuation,
     SyncFrame,
     print_progress,
 )
@@ -105,7 +107,9 @@ def main(argv: list[str] | None = None) -> None:
         cursor_file = _cursor_path(client.base_url)
         if args.reset_cursor or args.reset_all_cursors:
             _reset_cursors(cursor_file, all_hosts=args.reset_all_cursors)
-        last = cursor_file.read_text().strip() if cursor_file.exists() else None
+        continuation = (
+            StreamContinuation.from_json(cursor_file.read_bytes()) if cursor_file.exists() else None
+        )
         saved_at = 0.0
         countries = ",".join(args.country) if args.country else "all-countries"
         sports = ",".join(args.sport) if args.sport else "all-sports"
@@ -114,27 +118,21 @@ def main(argv: list[str] | None = None) -> None:
             "connect",
             client.base_url,
             "cursor",
-            bool(last),
+            bool(continuation),
             "scope",
             f"{sports}/{countries}",
             flush=True,
         )
         while True:
             try:
-                print(_ts(), "open", "resume" if last else "rest-bootstrap", flush=True)
+                print(_ts(), "open", "resume" if continuation else "rest-bootstrap", flush=True)
                 sports = args.sport or ["thoroughbred", "greyhound", "harness"]
-                if last:
-                    stream = client.stream(
-                        sport=sports,
-                        country=args.country,
-                        snapshot="none",
-                        cursor=last,
-                        progress=print_progress,
-                    )
+                if continuation:
+                    stream = client.follow(continuation, progress=print_progress)
                 else:
                     # One call returns the card, the prices and the cursor to
                     # follow them. `snapshot="full"` is refused at this scope.
-                    snap = client.snapshot(sport=sports, country=args.country)
+                    snap = client.snapshot(RacingScope(sport=sports, country=args.country))
                     print(
                         _ts(),
                         "snapshot",
@@ -148,14 +146,14 @@ def main(argv: list[str] | None = None) -> None:
                 with stream:
                     for frame in stream:
                         ts = _ts()
-                        if frame.cursor:
-                            last = frame.cursor
+                        if stream.continuation:
+                            continuation = stream.continuation
                             # Neither path emits `sync`, so persist on a clock
                             # instead of at a boundary that never comes. This
                             # bounds replay on restart to a couple of seconds
                             # whatever the frame rate.
                             if monotonic() - saved_at > 2.0:
-                                cursor_file.write_text(last)
+                                cursor_file.write_bytes(continuation.to_json())
                                 saved_at = monotonic()
                         if isinstance(frame, ReadyFrame):
                             print(ts, "ready — ticks after this are live", flush=True)
@@ -213,7 +211,7 @@ def main(argv: list[str] | None = None) -> None:
             except (ResyncRequired, APIStatusError) as exc:
                 if isinstance(exc, APIStatusError) and exc.status_code != 409:
                     raise
-                last = None
+                continuation = None
                 changes.clear()
                 cursor_file.unlink(missing_ok=True)
                 reason = getattr(exc, "reason", None) or getattr(exc, "code", None) or "resync"
@@ -222,8 +220,8 @@ def main(argv: list[str] | None = None) -> None:
                 print(_ts(), "disconnected", type(exc).__name__, flush=True)
                 sleep(1)
             except KeyboardInterrupt:
-                if last:
-                    cursor_file.write_text(last)
+                if continuation:
+                    cursor_file.write_bytes(continuation.to_json())
                 print(_ts(), "stopped", flush=True)
                 return
 

@@ -74,7 +74,7 @@ class BootstrapFailedError(BetwatchError):
     `snapshot="full"` is only accepted for an event, meeting, or venue now, so
     a bootstrap this fragile means a single race is taking too long or the
     connection is unhealthy. Bootstrap over REST instead, which is resumable:
-    `client.follow(client.snapshot(event=...))`.
+    `client.follow(client.snapshot(RacingScope(event=...)))`.
     """
 
     def __init__(self, restarts: int, scope: object = None) -> None:
@@ -82,7 +82,7 @@ class BootstrapFailedError(BetwatchError):
         super().__init__(
             f"the stream snapshot restarted {restarts} times without completing. "
             "Bootstrap over REST instead, which is resumable: "
-            "client.follow(client.snapshot(sport=..., country=...))"
+            "client.follow(client.snapshot(RacingScope(sport=..., country=...)))"
         )
 
 

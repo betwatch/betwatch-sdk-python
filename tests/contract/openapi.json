@@ -533,9 +533,6 @@
             "readOnly": true,
             "type": "string"
           },
-          "cursor": {
-            "type": "string"
-          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/PublicEntrant"
@@ -564,9 +561,6 @@
             ],
             "format": "uri",
             "readOnly": true,
-            "type": "string"
-          },
-          "cursor": {
             "type": "string"
           },
           "items": {
@@ -599,9 +593,6 @@
             "readOnly": true,
             "type": "string"
           },
-          "cursor": {
-            "type": "string"
-          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/PublicMeeting"
@@ -632,9 +623,6 @@
             "readOnly": true,
             "type": "string"
           },
-          "cursor": {
-            "type": "string"
-          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/PublicSource"
@@ -663,9 +651,6 @@
             ],
             "format": "uri",
             "readOnly": true,
-            "type": "string"
-          },
-          "cursor": {
             "type": "string"
           },
           "items": {
@@ -1375,7 +1360,7 @@
     }
   },
   "info": {
-    "description": "Australian racing odds, prices, and results.\n\nAll endpoints are relative to this document's server URL and require an API key\nin the `X-API-Key` header. Errors are RFC 9457 problem documents carrying a\nstable `code` you can branch on. Collections are cursor-paginated:\nfollow `next` rather than constructing page parameters.\n\nThe intended workflow is snapshot, then follow: take current prices for the\nraces you care about with `GET /events/snapshot` (or one race with\n`GET /events/{id}/snapshot`), then connect `GET /stream`\nwith `snapshot=none` and the `cursor` it returned. Each odds\nrow names `key` (`win` or `place`) so you can\nrender a race card without joining a market collection. Stream frames are\nunmetered, so following is cheaper and faster than polling.\n\nEmpty collections are always `[]`, never `null`.\n\nThis contract only grows. New fields and new endpoints can appear at any time,\nso ignore fields you do not recognise; existing fields will not be removed,\nretyped, or moved, and a breaking change would ship as a new path prefix.",
+    "description": "Australian racing odds, prices, and results.\n\nAll endpoints are relative to this document's server URL and require an API key\nin the `X-API-Key` header. Errors are RFC 9457 problem documents carrying a\nstable `code` you can branch on. Collections are cursor-paginated:\nfollow `next` rather than constructing page parameters.\n\nFor `GET /events/snapshot`, the first request supplies the scope and\neach later page request supplies only its `after` or `before`\ncursor. That sealed cursor preserves the resolved time window and stream\nboundary; do not repeat filters or a limit on later pages.\n\nThe intended workflow is snapshot, then follow: take current prices for the\nraces you care about with `GET /events/snapshot` (or one race with\n`GET /events/{id}/snapshot`), then connect `GET /stream`\nwith `snapshot=none` and the continuation's exact filters and `cursor`.\nApply ordered frames until the following `sync` frame before treating\nthe REST baseline as reconciled. Each odds\nrow names `key` (`win` or `place`) so you can\nrender a race card without joining a market collection. Stream frames are\nunmetered, so following is cheaper and faster than polling.\n\nEmpty collections are always `[]`, never `null`.\n\nThis pre-release contract can change before general availability. New fields and\nnew endpoints can appear at any time, so clients should ignore fields they do\nnot recognise.",
     "title": "Betwatch Racing API",
     "version": "2.0.0"
   },
@@ -4561,7 +4546,7 @@
     },
     "/events/snapshot": {
       "get": {
-        "description": "Current field, prices, and coverage for a page of races matching your filters — plus the `stream` handoff to follow them live.\n\nThis is how you start: one call per page, then follow `stream.cursor`. Every page returns the same cursor, captured before the first page was read, so paging to the end and then following cannot miss a change to a race you read earlier.",
+        "description": "Current field, prices, and coverage for a page of races matching your filters — plus the `stream` handoff to follow them live.\n\nThe first request declares the scope. Each later page sends only the opaque `after` or `before` token returned by the prior page; it restores the sealed scope and returns the same `stream.cursor`, captured before the first page was read. Paging to the end and then following cannot miss a change to a race you read earlier.",
         "operationId": "getSnapshot",
         "parameters": [
           {
@@ -4574,29 +4559,6 @@
                   "thoroughbred",
                   "greyhound",
                   "harness"
-                ],
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
-            "name": "status",
-            "schema": {
-              "items": {
-                "enum": [
-                  "scheduled",
-                  "open",
-                  "in_progress",
-                  "closed",
-                  "interim",
-                  "final",
-                  "abandoned",
-                  "cancelled",
-                  "postponed",
-                  "unknown"
                 ],
                 "type": "string"
               },
@@ -4733,20 +4695,8 @@
               "items": {
                 "enum": [
                   "coverage",
-                  "history",
                   "racing"
                 ],
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
-            "name": "competitor",
-            "schema": {
-              "items": {
                 "type": "string"
               },
               "type": "array"

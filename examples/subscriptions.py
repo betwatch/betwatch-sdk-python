@@ -3,7 +3,7 @@
 import asyncio
 
 import betwatch
-from betwatch import OddsFrame
+from betwatch import OddsFrame, RacingScope
 
 
 async def main() -> None:
@@ -15,7 +15,7 @@ async def main() -> None:
             ids = [races[0].id]
         if not ids:
             raise SystemExit("No races found in the current event window")
-        async with client.stream(event=ids, snapshot="full") as stream:
+        async with client.stream(RacingScope(event=ids), snapshot="full") as stream:
             async for frame in stream:
                 if isinstance(frame, OddsFrame):
                     print(frame.data.source.id, frame.data.price)

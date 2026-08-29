@@ -26,7 +26,14 @@ from collections import Counter
 from time import monotonic
 from typing import Any
 
-from betwatch import APIConnectionError, Betwatch, ReadyFrame, ResyncRequired, StreamProgress
+from betwatch import (
+    APIConnectionError,
+    Betwatch,
+    RacingScope,
+    ReadyFrame,
+    ResyncRequired,
+    StreamProgress,
+)
 from betwatch.types.stream import frame_name
 
 
@@ -57,11 +64,11 @@ def _measure(args: argparse.Namespace) -> dict[str, Any]:
         if not args.quiet and not args.json:
             print(progress, file=sys.stderr, flush=True)
 
-    scope = {k: v for k, v in (("sport", args.sport), ("country", args.country)) if v}
+    scope = RacingScope(sport=args.sport, country=args.country)
     with Betwatch() as client:
         if not args.json and not args.quiet:
-            print(f"host={client.base_url} scope={scope or 'all'}", file=sys.stderr, flush=True)
-        snap = client.snapshot(**scope, limit=200)
+            print(f"host={client.base_url} scope={scope}", file=sys.stderr, flush=True)
+        snap = client.snapshot(scope, limit=200)
         t_snapshot = monotonic() - started
         try:
             with client.follow(snap, reconnect=False, progress=report) as live:
@@ -81,7 +88,7 @@ def _measure(args: argparse.Namespace) -> dict[str, Any]:
 
     return {
         "host": base_url,
-        "scope": scope,
+        "scope": {"sport": scope.sport, "country": scope.country},
         "snapshot_s": round(t_snapshot, 2),
         "races": len(snap.events),
         "prices": len(snap.odds),
