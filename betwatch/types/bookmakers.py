@@ -117,6 +117,7 @@ class Bookmaker(str, Enum):
     NEXT2GO = "Next2Go"
     PUNTX = "PuntX"
     TERRYBET = "TerryBet"
+    INFOMARKET = "InfoMarket"
 
     def __str__(self):
         return self.value

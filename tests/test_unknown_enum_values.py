@@ -96,6 +96,7 @@ def test_case_insensitive_bookmaker():
         ("PuntX", Bookmaker.PUNTX),
         ("TerryBet", Bookmaker.TERRYBET),
         ("Betbunker", Bookmaker.BETBUNKER),
+        ("InfoMarket", Bookmaker.INFOMARKET),
     ],
 )
 def test_new_bookmakers_are_known(raw_bookmaker, enum_bookmaker):
