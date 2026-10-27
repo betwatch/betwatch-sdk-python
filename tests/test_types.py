@@ -237,3 +237,43 @@ def test_contract_2_1_racing_and_exchange_fields_decode() -> None:
     assert odds.exchange is not None
     assert (odds.exchange.market_id, odds.exchange.selection_id) == ("1.234", 5678)
     assert odds.exchange.back[0].size == 120.5
+
+
+def test_event_snapshot_apply_upserts_live_frames() -> None:
+    from betwatch.types.stream import frame_for_event
+
+    def odds(id: str, price: float, event: str = "evt_1") -> bytes:
+        return msgspec.json.encode(
+            {
+                "id": id,
+                "eventId": event,
+                "key": "win",
+                "entrantId": "ent_1",
+                "source": {"id": id, "name": id, "kind": "bookmaker"},
+                "state": "available",
+                "price": price,
+            }
+        )
+
+    card = msgspec.json.decode(
+        b'{"stream":{"cursor":"c"},"event":{"id":"evt_1","sport":"thoroughbred","name":"R1",'
+        b'"startAt":"2026-08-14T04:00:00Z","status":"open"},'
+        b'"entrants":[{"id":"ent_1","eventId":"evt_1","competitorId":"c","name":"A",'
+        b'"entryState":"listed"}],"odds":[' + odds("sb", 3.0) + b"," + odds("tab", 2.5) + b"]}",
+        type=EventSnapshot,
+    )
+    assert card.apply(frame_for_event("odds", "c1", odds("tab", 4.0))) is True
+    assert card.apply(frame_for_event("odds", "c2", odds("tab", 4.0))) is False, "republish"
+    assert card.apply(frame_for_event("odds", "c3", odds("bf", 5.0))) is True
+    assert card.apply(frame_for_event("odds", "c4", odds("x", 9.0, event="evt_2"))) is False
+    assert [(q.source.id, q.price) for q in card.odds] == [("sb", 3.0), ("tab", 4.0), ("bf", 5.0)]
+    assert card.best_price("ent_1") == 5.0
+
+    card.odds.pop(0)  # edited behind apply's back: the index must not go stale
+    assert card.apply(frame_for_event("odds", "c5", odds("bf", 6.0))) is True
+    assert [(q.source.id, q.price) for q in card.odds] == [("tab", 4.0), ("bf", 6.0)]
+
+    closed = msgspec.json.encode({"id": "evt_1", "status": "closed"})
+    assert card.apply(frame_for_event("event", "c6", closed)) is True
+    assert card.event.status == "closed" and card.event.name == "R1"
+    assert b'"odds"' in card.to_json() and b"__dict__" not in card.to_json()

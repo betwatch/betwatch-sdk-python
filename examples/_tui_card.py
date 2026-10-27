@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TypeVar
 
@@ -12,13 +11,7 @@ from betwatch.types.event import Event
 from betwatch.types.odds import Odds
 from betwatch.types.snapshot import EventSnapshot
 from betwatch.types.stream import (
-    CoverageFrame,
-    EntrantFrame,
-    EventFrame,
-    OddsFrame,
-    OddsSetFrame,
     StreamEvent,
-    StreamFrame,
 )
 
 _T = TypeVar("_T")
@@ -63,19 +56,6 @@ def quote_price(quote: Odds) -> float | None:
     return None
 
 
-def _upsert(items: list[_T], incoming: _T, key: Callable[[_T], object]) -> None:
-    token = key(incoming)
-    for index, item in enumerate(items):
-        if key(item) == token:
-            items[index] = incoming
-            return
-    items.append(incoming)
-
-
-def _odds_key(quote: Odds) -> tuple[str, str, str, str]:
-    return (quote.id, quote.key, quote.source.id, quote.entrant_id or "")
-
-
 def apply_stream_event(event: Event, patch: StreamEvent) -> Event:
     updates: dict[str, object] = {"status": patch.status}
     if patch.start_at is not None:
@@ -95,33 +75,6 @@ def apply_event_list(events: list[Event], patch: StreamEvent) -> list[Event]:
         else:
             out.append(event)
     return out if found else events
-
-
-def apply_frame(card: EventSnapshot, frame: StreamFrame) -> bool:
-    """Merge a live frame into the snapshot. Returns True if anything changed."""
-    if isinstance(frame, EventFrame):
-        card.event = apply_stream_event(card.event, frame.data)
-        return True
-    if isinstance(frame, EntrantFrame):
-        _upsert(card.entrants, frame.data, key=lambda row: row.id)
-        return True
-    if isinstance(frame, OddsFrame):
-        _upsert(card.odds, frame.data, key=_odds_key)
-        return True
-    if isinstance(frame, OddsSetFrame):
-        changed = False
-        for row in frame.data.items:
-            _upsert(card.odds, row, key=_odds_key)
-            changed = True
-        return changed
-    if isinstance(frame, CoverageFrame):
-        _upsert(
-            card.coverage,
-            frame.data,
-            key=lambda row: (row.event_id, row.key, row.places_paid, row.source_id),
-        )
-        return True
-    return False
 
 
 def sort_entrants(entrants: list[Entrant]) -> list[Entrant]:

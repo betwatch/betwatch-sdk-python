@@ -27,7 +27,7 @@ from textual.widgets import Button, DataTable, Footer, Input, OptionList, Static
 from textual.widgets.option_list import Option
 from textual.worker import get_current_worker
 
-from _tui_card import GridRow, RaceGrid, apply_event_list, apply_frame, build_grid
+from _tui_card import GridRow, RaceGrid, apply_event_list, build_grid
 from _tui_format import (
     COUNTRIES,
     SPORT_MARK,
@@ -804,7 +804,7 @@ class BetwatchApp(App[None]):
             self.query_one(EventList).events = self.events
         if self.card is None:
             return
-        if apply_frame(self.card, frame):
+        if self.card.apply(frame):
             if isinstance(frame, (OddsFrame, EventFrame)):
                 self._render_card()
             else:

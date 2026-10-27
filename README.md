@@ -63,6 +63,17 @@ with Betwatch() as client:
 `client.watch(event_id)` does all three in one call when you do not need the
 snapshot yourself.
 
+To keep the card itself current, apply each frame to it. `card.apply(frame)`
+upserts odds, runners and coverage by identity and returns True when anything
+actually changed, so `best_price()` and `to_records()` always read live state:
+
+```python
+with client.follow(card) as live:
+    for frame in live:
+        if card.apply(frame):
+            print(card.best_price(card.entrants[0]))
+```
+
 `snapshot(..., include="history")` fills `Odds.history` with each source's
 fluctuations. It is honoured as of contract 1.0.0 and doubles the call's quota
 cost, so ask for it only when you use it.

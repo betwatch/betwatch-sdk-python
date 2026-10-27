@@ -10,6 +10,47 @@ from .entrant import Entrant
 from .enums import MarketKey
 from .event import Event
 from .odds import Odds
+from .stream import (
+    CoverageFrame,
+    EntrantFrame,
+    EventFrame,
+    OddsFrame,
+    OddsSetFrame,
+    StreamFrame,
+)
+
+
+def _key(item: Any, attr: str) -> Any:
+    if attr == "coverage":
+        return (item.key, item.places_paid, item.source_id)
+    return item.id
+
+
+def _upsert(owner: Any, attr: str, row: Any, key: Any) -> bool:
+    """Replace the item with `key` in `owner.<attr>`, or append it.
+
+    The position index lives in the instance `__dict__`, outside the wire
+    fields, and is rebuilt whenever the list was changed behind its back.
+    """
+    items: list[Any] = getattr(owner, attr)
+    index: dict[Any, int] | None = owner.__dict__.get(attr)
+    pos = index.get(key) if index is not None else None
+    if (
+        index is None
+        or (pos is not None and (pos >= len(items) or _key(items[pos], attr) != key))
+        or (pos is None and len(index) != len(items))
+    ):
+        index = {_key(item, attr): i for i, item in enumerate(items)}
+        owner.__dict__[attr] = index
+        pos = index.get(key)
+    if pos is None:
+        index[key] = len(items)
+        items.append(row)
+        return True
+    if items[pos] == row:
+        return False
+    items[pos] = row
+    return True
 
 
 class StreamContinuation(Model):
@@ -81,8 +122,19 @@ class ScopeSnapshot(Model):
         return to_records(self.odds)
 
 
-class EventSnapshot(Model):
-    """REST bootstrap for one event. Pass this object to `client.follow()`."""
+class EventSnapshot(Model, dict=True, gc=True):
+    """REST bootstrap for one event. Pass this object to `client.follow()`.
+
+    Keep it current by applying live frames to it:
+
+    ```python
+    card = client.events.snapshot(event_id)
+    with client.follow(card) as live:
+        for frame in live:
+            if card.apply(frame):
+                print(card.best_price(card.entrants[0]))
+    ```
+    """
 
     stream: StreamContinuation
     event: Event
@@ -125,6 +177,46 @@ class EventSnapshot(Model):
     ) -> float | None:
         quotes = self.quotes(entrant, market=market, source=source)
         return quotes[0].price if quotes else None
+
+    def apply(self, frame: StreamFrame) -> bool:
+        """Merge one live frame into this card. Returns True if it changed anything.
+
+        Odds, entrants and coverage are upserted by identity; an `event` frame
+        updates status and times. Frames for another event, control frames and
+        frames this SDK does not model are ignored. Each upsert is O(1).
+        """
+        if isinstance(frame, OddsFrame):
+            return self._upsert_odds(frame.data)
+        if isinstance(frame, OddsSetFrame):
+            changed = False
+            for row in frame.data.items:
+                changed = self._upsert_odds(row) or changed
+            return changed
+        if isinstance(frame, EntrantFrame):
+            row = frame.data
+            return row.event_id == self.event.id and _upsert(self, "entrants", row, row.id)
+        if isinstance(frame, CoverageFrame):
+            row = frame.data
+            key = (row.key, row.places_paid, row.source_id)
+            return row.event_id == self.event.id and _upsert(self, "coverage", row, key)
+        if isinstance(frame, EventFrame):
+            patch = frame.data
+            if patch.id != self.event.id:
+                return False
+            updates: dict[str, Any] = {"status": patch.status}
+            if patch.start_at is not None:
+                updates["start_at"] = patch.start_at
+            if patch.updated_at is not None:
+                updates["updated_at"] = patch.updated_at
+            event = msgspec.structs.replace(self.event, **updates)
+            if event == self.event:
+                return False
+            self.event = event
+            return True
+        return False
+
+    def _upsert_odds(self, row: Odds) -> bool:
+        return row.event_id == self.event.id and _upsert(self, "odds", row, row.id)
 
     def to_records(self) -> list[dict[str, Any]]:
         """One row per current odds quote, denormalized for a DataFrame."""

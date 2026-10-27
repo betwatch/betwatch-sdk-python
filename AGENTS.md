@@ -50,6 +50,7 @@ and it is not charged. `watch()` does this for you.
 | Next open race | `races.next_open` |
 | One race card + prices | `client.events.snapshot(event_id)` then `card.quotes(runner)` / `card.best_price(runner)` / `card.price(runner, "sportsbet")` |
 | Live updates | `client.watch(event_id)` or `client.follow(snapshot)` |
+| Keep a card current | `card.apply(frame)` (O(1) upsert, True if anything changed) |
 | Pandas | `page.to_records()` / `snapshot.to_records()` then `DataFrame.from_records` |
 | Terminal grid | `fnox exec -- uv run examples/tui.py` (example only, not shipped) |
 
