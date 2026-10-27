@@ -474,7 +474,15 @@ def error_for_status(
 ) -> APIStatusError:
     code = _str_member(body, "code")
     detail = _str_member(body, "detail")
-    return error_class_for(status_code, code)(
+    # A Betwatch 409 always names its code. Without one the response came from
+    # something in front of the API (a Cloudflare edge error can be a 409), and
+    # calling it a dead cursor would send callers to re-snapshot for nothing.
+    cls = (
+        APIStatusError
+        if code is None and status_code == 409
+        else error_class_for(status_code, code)
+    )
+    return cls(
         f"{path} failed: {status_code}" + (f": {detail}" if detail else ""),
         status_code=status_code,
         body=body,

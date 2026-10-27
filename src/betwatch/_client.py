@@ -145,7 +145,9 @@ class Stream:
                 retry_after=parse_retry_after(response),
                 rate_limit=RateLimit.from_headers(response.headers),
             )
-            if response.status_code == RESYNC_STATUS or err.code in RESYNC_CODES:
+            if err.code is not None and (
+                response.status_code == RESYNC_STATUS or err.code in RESYNC_CODES
+            ):
                 raise ResyncRequired(self.cursor, err.code or "conflict") from err
             raise err
         self.trace_id = response.headers.get("x-trace-id") or None
@@ -301,7 +303,9 @@ class AsyncStream:
                 retry_after=parse_retry_after(response),
                 rate_limit=RateLimit.from_headers(response.headers),
             )
-            if response.status_code == RESYNC_STATUS or err.code in RESYNC_CODES:
+            if err.code is not None and (
+                response.status_code == RESYNC_STATUS or err.code in RESYNC_CODES
+            ):
                 raise ResyncRequired(self.cursor, err.code or "conflict") from err
             raise err
         self.trace_id = response.headers.get("x-trace-id") or None

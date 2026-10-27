@@ -248,8 +248,21 @@ def test_stream_enter_retries_connect_error_when_reconnect() -> None:
         client.close()
 
 
-def test_stream_open_409_is_resync_required() -> None:
-    from betwatch import Betwatch, ResyncRequired
+@pytest.mark.parametrize(
+    ("body", "resync"),
+    [
+        (
+            b'{"code":"cursor_scope_changed","detail":"cursor does not match this stream scope"}',
+            True,
+        ),
+        # A Cloudflare edge error: also a 409, but not a Betwatch problem.
+        (b'{"title":"Error 1001","status":409,"detail":"Cloudflare is unable to resolve"}', False),
+    ],
+)
+def test_stream_open_409_is_resync_required_only_with_a_betwatch_code(
+    body: bytes, resync: bool
+) -> None:
+    from betwatch import APIStatusError, Betwatch, CursorError, ResyncRequired
     from betwatch._client import Stream
 
     client = Betwatch(api_key="bw_test", base_url="http://127.0.0.1:9")
@@ -260,7 +273,7 @@ def test_stream_open_409_is_resync_required() -> None:
         headers = {"x-trace-id": "trace-409"}
 
         def read(self) -> bytes:
-            return b'{"code":"cursor_scope_changed","detail":"cursor does not match this stream scope"}'
+            return body
 
         def close(self) -> None:
             return None
@@ -277,9 +290,15 @@ def test_stream_open_409_is_resync_required() -> None:
 
     object.__setattr__(client, "_raw", FakeRaw())
     try:
-        with pytest.raises(ResyncRequired) as raised:
-            stream._open()
-        assert raised.value.reason == "cursor_scope_changed"
+        if resync:
+            with pytest.raises(ResyncRequired) as raised:
+                stream._open()
+            assert raised.value.reason == "cursor_scope_changed"
+        else:
+            with pytest.raises(APIStatusError) as edge:
+                stream._open()
+            assert not isinstance(edge.value, (CursorError, ResyncRequired))
+            assert edge.value.status_code == 409
     finally:
         client.close()
 
