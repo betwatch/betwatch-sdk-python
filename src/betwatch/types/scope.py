@@ -43,7 +43,7 @@ class RacingScope:
     meeting: tuple[str, ...]
     event: tuple[str, ...]
     venue: tuple[str, ...]
-    market: tuple[RequestMarket, ...]
+    key: tuple[RequestMarket, ...]
     entrant: tuple[str, ...]
     source: tuple[str, ...]
     start_from: str | None
@@ -57,7 +57,7 @@ class RacingScope:
         meeting: str | Sequence[str] | None = None,
         event: str | Sequence[str] | None = None,
         venue: str | Sequence[str] | None = None,
-        market: RequestMarket | Sequence[RequestMarket] | None = None,
+        key: RequestMarket | Sequence[RequestMarket] | None = None,
         entrant: str | Sequence[str] | None = None,
         source: str | Sequence[str] | None = None,
         start_from: datetime | str | None = None,
@@ -68,7 +68,7 @@ class RacingScope:
         object.__setattr__(self, "meeting", _many(meeting, name="meeting"))
         object.__setattr__(self, "event", _many(event, name="event"))
         object.__setattr__(self, "venue", _many(venue, name="venue"))
-        object.__setattr__(self, "market", _many(market, name="market"))
+        object.__setattr__(self, "key", _many(key, name="key"))
         object.__setattr__(self, "entrant", _many(entrant, name="entrant"))
         object.__setattr__(self, "source", _many(source, name="source"))
         object.__setattr__(self, "start_from", _time(start_from, name="start_from"))
@@ -81,7 +81,7 @@ class RacingScope:
             "meeting": self.meeting,
             "event": self.event,
             "venue": self.venue,
-            "market": self.market,
+            "key": self.key,
             "entrant": self.entrant,
             "source": self.source,
             "startFrom": self.start_from,
@@ -97,7 +97,7 @@ class RacingScope:
         meeting: Sequence[str],
         event: Sequence[str],
         venue: Sequence[str],
-        market: Sequence[str],
+        key: Sequence[str],
         entrant: Sequence[str],
         source: Sequence[str],
         start_from: str | None,
@@ -110,7 +110,7 @@ class RacingScope:
             meeting=meeting,
             event=event,
             venue=venue,
-            market=cast(Sequence[RequestMarket], market),
+            key=cast(Sequence[RequestMarket], key),
             entrant=entrant,
             source=source,
             start_from=start_from,

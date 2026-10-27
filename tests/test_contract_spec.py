@@ -106,6 +106,11 @@ def test_problem_members_the_sdk_reads_are_all_in_the_contract(spec: dict[str, A
 # --- the budget headers ---------------------------------------------------
 
 
+# Declared on responses but not budgets: the SDK sends neither If-None-Match
+# nor `compress`, so it never needs these.
+_NON_BUDGET_HEADERS = {"ETag", "Content-Encoding"}
+
+
 def _declared_headers(spec: dict[str, Any]) -> dict[str, set[str]]:
     by_status: dict[str, set[str]] = {}
     for path in spec["paths"].values():
@@ -113,7 +118,8 @@ def _declared_headers(spec: dict[str, Any]) -> dict[str, set[str]]:
             if method != "get":
                 continue
             for status, response in (op.get("responses") or {}).items():
-                by_status.setdefault(status, set()).update(response.get("headers") or {})
+                headers = set(response.get("headers") or {}) - _NON_BUDGET_HEADERS
+                by_status.setdefault(status, set()).update(headers)
     return by_status
 
 
@@ -138,7 +144,13 @@ def test_budget_header_names_match_the_contract(spec: dict[str, Any]) -> None:
 
 def test_every_declared_header_reaches_a_rate_limit_field(spec: dict[str, Any]) -> None:
     """No declared budget header may be parsed into nowhere."""
-    declared = set().union(*_declared_headers(spec).values()) - {BudgetHeaders.RETRY_AFTER}
+    # The IETF pair repeats the X-RateLimit-* values; reading both would only
+    # give two answers to one question.
+    declared = set().union(*_declared_headers(spec).values()) - {
+        BudgetHeaders.RETRY_AFTER,
+        BudgetHeaders.RATELIMIT,
+        BudgetHeaders.RATELIMIT_POLICY,
+    }
 
     limits = RateLimit.from_headers(
         httpx.Headers(

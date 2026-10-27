@@ -173,7 +173,7 @@ def frame_from_sse(sse: ServerSentEvent) -> StreamFrame | None:
             parsed = msgspec.convert(payload, type=StreamResync)
         except (TypeError, msgspec.ValidationError) as exc:
             raise StreamDecodeError(sse.event, sse.id, exc) from exc
-        raise ResyncRequired(sse.id, parsed.reason)
+        raise ResyncRequired(sse.id, parsed.reason, parsed.resync_token)
     if sse.event == "error":
         try:
             stream_error = msgspec.convert(payload, type=StreamError)

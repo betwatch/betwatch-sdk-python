@@ -141,14 +141,16 @@ class Events:
         *,
         source: Sequence[str] | str | None = None,
         include: Sequence[IncludeFlag] | IncludeFlag | None = None,
+        resync_token: str | None = None,
     ) -> EventSnapshot:
         """Bootstrap one event: card + odds + a stream cursor captured before the read.
 
         Then `client.follow(snapshot)` to subscribe without a snapshot replay.
+        `resync_token` waives the charge for a re-snapshot after a merge resync.
         """
         return self._client._get(
             f"/v2/events/{id}/snapshot",
-            list_query(source=source, include=include),
+            {**list_query(source=source, include=include), "resyncToken": resync_token},
             EventSnapshot,
         )
 
@@ -239,10 +241,12 @@ class AsyncEvents:
         *,
         source: Sequence[str] | str | None = None,
         include: Sequence[IncludeFlag] | IncludeFlag | None = None,
+        resync_token: str | None = None,
     ) -> EventSnapshot:
         """Bootstrap one event: card + odds + a stream cursor captured before the read.
 
         Then `client.follow(snapshot)` to subscribe without a snapshot replay.
+        `resync_token` waives the charge for a re-snapshot after a merge resync.
 
         `include="history"` fills each `Odds.history` with that source's
         fluctuations. It is honoured here as of contract 1.0.0 — it was
@@ -252,6 +256,6 @@ class AsyncEvents:
         """
         return await self._client._aget(
             f"/v2/events/{id}/snapshot",
-            list_query(source=source, include=include),
+            {**list_query(source=source, include=include), "resyncToken": resync_token},
             EventSnapshot,
         )

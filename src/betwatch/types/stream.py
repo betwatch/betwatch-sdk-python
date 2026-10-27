@@ -30,6 +30,7 @@ class StreamCursor(Model):
 
 class StreamResync(Model):
     reason: str
+    resync_token: str | None = None
 
 
 class StreamError(Model):

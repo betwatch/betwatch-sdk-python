@@ -62,7 +62,7 @@ def test_racing_scope_owns_first_page_filters_and_page_cursor_is_token_only() ->
     scope = RacingScope(
         sport=["thoroughbred", "greyhound"],
         country="au",
-        market="win",
+        key="win",
         entrant="ent_1",
     )
     client = Betwatch(api_key="bw_test", base_url="http://localhost:8888")
@@ -72,7 +72,7 @@ def test_racing_scope_owns_first_page_filters_and_page_cursor_is_token_only() ->
         assert raw.params == [
             ("sport", "thoroughbred,greyhound"),
             ("country", "au"),
-            ("market", "win"),
+            ("key", "win"),
             ("entrant", "ent_1"),
             ("limit", "10"),
         ]
@@ -86,7 +86,7 @@ def test_racing_scope_owns_first_page_filters_and_page_cursor_is_token_only() ->
     ]
     assert stream._params["sport"] == ("thoroughbred", "greyhound")
     assert stream._params["country"] == ("au",)
-    assert stream._params["market"] == ("win",)
+    assert stream._params["key"] == ("win",)
 
 
 def test_stream_exposes_only_a_server_compatible_continuation() -> None:

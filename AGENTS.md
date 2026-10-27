@@ -37,7 +37,9 @@ with Betwatch() as client:
 
 If `ResyncRequired` is raised: **do not** reconnect with the old cursor. Call
 `client.watch(event_id)` again (it re-snapshots), or begin a fresh scoped
-snapshot and follow it.
+snapshot and follow it. A `canonical_merge` resync carries
+`ResyncRequired.resync_token`; pass it as `resync_token=` to that re-snapshot
+and it is not charged. `watch()` does this for you.
 
 ## Surfaces
 

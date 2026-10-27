@@ -15,6 +15,8 @@ class Exchange(Model):
     back: list[PriceLevel] = []
     lay: list[PriceLevel] = []
     last: float | None = None
+    market_id: str | None = None
+    selection_id: int | None = None
 
 
 class OddsHistoryItem(Model):

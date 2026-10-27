@@ -104,12 +104,53 @@ def test_error_frame_other_codes_are_status_errors() -> None:
 
 
 def test_frame_from_sse_raises_resync_and_stops_retry() -> None:
-    raw = b'id: cur_rs\nevent: resync\ndata: {"reason":"canonical_merge"}\n\n'
+    raw = b'id: cur_rs\nevent: resync\ndata: {"reason":"canonical_merge","resyncToken":"rst_1"}\n\n'
     events = list(SSEDecoder().iter_bytes(iter([raw])))
     with pytest.raises(ResyncRequired) as raised:
         frame_from_sse(events[0])
     assert raised.value.cursor == "cur_rs"
     assert raised.value.reason == "canonical_merge"
+    assert raised.value.resync_token == "rst_1"
+
+
+def test_watch_spends_the_resync_token_on_its_re_snapshot() -> None:
+    """The token waives the re-snapshot's charge only if it reaches that request."""
+    import httpx
+
+    from betwatch import Betwatch, SyncFrame
+
+    snapshot_params: list[dict[str, str]] = []
+    streams = iter(
+        [
+            b'id: cur_rs\nevent: resync\ndata: {"reason":"canonical_merge","resyncToken":"rst_1"}\n\n',
+            b'id: cur_2\nevent: sync\ndata: {"cursor":"cur_2"}\n\n',
+        ]
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v2/events/evt_1/snapshot":
+            snapshot_params.append(dict(request.url.params))
+            return httpx.Response(
+                200,
+                content=b'{"stream":{"cursor":"cur_1","event":["evt_1"]},'
+                b'"event":{"id":"evt_1","sport":"thoroughbred","name":"R1",'
+                b'"startAt":"2026-08-15T04:00:00Z","status":"open"}}',
+            )
+        return httpx.Response(
+            200, content=next(streams), headers={"content-type": "text/event-stream"}
+        )
+
+    client = Betwatch(api_key="[REDACTED:api-key]", base_url="http://localhost:8888", max_retries=0)
+    object.__setattr__(
+        client,
+        "_raw",
+        httpx.Client(base_url="http://localhost:8888", transport=httpx.MockTransport(handler)),
+    )
+    with client, client.watch("evt_1") as live:
+        frame = next(iter(live))
+
+    assert isinstance(frame, SyncFrame)
+    assert snapshot_params == [{}, {"resyncToken": "rst_1"}]
 
 
 def test_malformed_known_frame_is_not_downgraded_to_unknown() -> None:

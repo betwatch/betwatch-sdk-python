@@ -269,6 +269,13 @@ class AccountDisabledError(PermissionDeniedError):
     """HTTP 403 `account_disabled`. The account has been disabled by an operator."""
 
 
+class IPNotAllowedError(PermissionDeniedError):
+    """HTTP 403 `ip_not_allowed`. The key has an IP allowlist that excludes this address.
+
+    Call from an allowed address, or edit the key's allowlist at Account -> API.
+    """
+
+
 class NotFoundError(APIStatusError):
     """HTTP 404. The public id does not exist (or is not visible to this key)."""
 
@@ -342,11 +349,18 @@ class ResyncRequired(BetwatchError):
 
     Do not reconnect with the old cursor. Take a new snapshot, then
     `client.follow(snapshot)`.
+
+    A `canonical_merge` resync may carry `resync_token`. Pass it as
+    `resync_token=` on that re-snapshot and it is not charged, provided the
+    snapshot is no wider than the stream that issued it. `watch()` does this.
     """
 
-    def __init__(self, cursor: str | None, reason: str | None = None) -> None:
+    def __init__(
+        self, cursor: str | None, reason: str | None = None, resync_token: str | None = None
+    ) -> None:
         self.cursor = cursor
         self.reason = reason
+        self.resync_token = resync_token
         hint = "Re-snapshot the event, then follow the new cursor."
         if reason:
             super().__init__(f"stream resync required ({reason}). {hint}")
@@ -378,6 +392,7 @@ _CODE_ERRORS: dict[str, type[APIStatusError]] = {
     ErrorCodes.STREAM_LIMIT: StreamLimitError,
     ErrorCodes.ENTITLEMENT_EMPTY: EntitlementEmptyError,
     ErrorCodes.ACCOUNT_DISABLED: AccountDisabledError,
+    ErrorCodes.IP_NOT_ALLOWED: IPNotAllowedError,
     ErrorCodes.CURSOR_EXPIRED: CursorError,
     ErrorCodes.CURSOR_SCOPE_CHANGED: CursorError,
     ErrorCodes.QUOTA_UNAVAILABLE: ServiceUnavailableError,
@@ -410,6 +425,7 @@ _TERMINAL_CODES = frozenset(
         ErrorCodes.PLAN_REQUIRED,
         ErrorCodes.ENTITLEMENT_EMPTY,
         ErrorCodes.ACCOUNT_DISABLED,
+        ErrorCodes.IP_NOT_ALLOWED,
         ErrorCodes.INVALID_REQUEST,
         ErrorCodes.INVALID_FILTER,
         ErrorCodes.FILTER_REQUIRED,

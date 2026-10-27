@@ -21,6 +21,7 @@ from betwatch import (
     CredentialInQueryError,
     EntitlementEmptyError,
     ErrorCodes,
+    IPNotAllowedError,
     NotFoundError,
     QuotaExceededError,
     RateLimitError,
@@ -100,7 +101,7 @@ def test_key_travels_in_the_header_only() -> None:
         client.close()
 
 
-@pytest.mark.parametrize("name", ["apikey", "api_key", "key", "token", "access_token", "API_KEY"])
+@pytest.mark.parametrize("name", ["apikey", "api_key", "token", "access_token", "API_KEY"])
 def test_credential_shaped_query_params_are_refused_locally(name: str) -> None:
     from betwatch._base_client import flatten
 
@@ -115,13 +116,13 @@ def test_rest_collection_filters_use_csv_not_stream_style_repetition() -> None:
     query = list_query(
         sport=["thoroughbred", "greyhound", "harness"],
         country=["au", "nz"],
-        market=["win", "place"],
+        key=["win", "place"],
     )
 
     assert flatten(query) == [
         ("sport", "thoroughbred,greyhound,harness"),
         ("country", "au,nz"),
-        ("market", "win,place"),
+        ("key", "win,place"),
     ]
 
 
@@ -154,6 +155,7 @@ def _problem_response(status: int, code: str) -> httpx.Response:
         (ErrorCodes.PLAN_REQUIRED, 403, False),
         (ErrorCodes.ENTITLEMENT_EMPTY, 403, False),
         (ErrorCodes.ACCOUNT_DISABLED, 403, False),
+        (ErrorCodes.IP_NOT_ALLOWED, 403, False),
         (ErrorCodes.INVALID_REQUEST, 422, False),
         (ErrorCodes.INVALID_FILTER, 422, False),
         (ErrorCodes.FILTER_REQUIRED, 422, False),
@@ -176,6 +178,7 @@ def test_retry_decision_follows_the_published_table(code: str, status: int, retr
         (ErrorCodes.STREAM_UNAVAILABLE, 503, ServiceUnavailableError),
         (ErrorCodes.ENTITLEMENT_EMPTY, 403, EntitlementEmptyError),
         (ErrorCodes.ACCOUNT_DISABLED, 403, AccountDisabledError),
+        (ErrorCodes.IP_NOT_ALLOWED, 403, IPNotAllowedError),
         (ErrorCodes.AUTHENTICATION_REQUIRED, 401, AuthenticationError),
         (ErrorCodes.NOT_FOUND, 404, NotFoundError),
         (ErrorCodes.FILTER_REQUIRED, 422, UnprocessableEntityError),

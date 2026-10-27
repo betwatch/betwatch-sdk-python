@@ -370,14 +370,17 @@ def test_the_contract_still_declares_no_redirect() -> None:
     from pathlib import Path
 
     spec = json.loads((Path(__file__).parent / "contract" / "openapi.json").read_text())
-    declared = {
-        status
-        for item in spec["paths"].values()
-        for method, op in item.items()
-        if method == "get"
-        for status in op["responses"]
-    }
-    assert not [s for s in declared if s.startswith("3")], (
+    operations = [
+        op for item in spec["paths"].values() for method, op in item.items() if method == "get"
+    ]
+    # 304 answers a conditional read. The SDK never sends If-None-Match, so it
+    # cannot receive one; pin that every 304 is tied to that header.
+    for op in operations:
+        if "304" in op["responses"]:
+            headers = {p["name"] for p in op.get("parameters", []) if p["in"] == "header"}
+            assert "If-None-Match" in headers, op["operationId"]
+    declared = {status for op in operations for status in op["responses"]}
+    assert not [s for s in declared if s.startswith("3") and s != "304"], (
         "the contract now declares a redirect — decide whether to follow it"
     )
 

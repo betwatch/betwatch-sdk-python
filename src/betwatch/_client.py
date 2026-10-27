@@ -429,13 +429,14 @@ class Watch:
         self._stream: Stream | None = None
         self._resyncs = 0
 
-    def _open(self) -> None:
+    def _open(self, resync_token: str | None = None) -> None:
         if self._stream is not None:
             self._stream.close()
         self.snapshot = self._client.events.snapshot(
             self._event_id,
             source=self._source,
             include=self._include,
+            resync_token=resync_token,
         )
         self._stream = self._client.follow(self.snapshot, reconnect=self._reconnect)
         self._stream.__enter__()
@@ -461,11 +462,11 @@ class Watch:
                     self._resyncs = 0
                     yield frame
                 return
-            except ResyncRequired:
+            except ResyncRequired as resync:
                 self._resyncs += 1
                 if not self._reconnect or self._resyncs > MAX_CONSECUTIVE_RESYNCS:
                     raise
-                self._open()
+                self._open(resync.resync_token)
 
 
 class AsyncWatch:
@@ -487,13 +488,14 @@ class AsyncWatch:
         self._stream: AsyncStream | None = None
         self._resyncs = 0
 
-    async def _open(self) -> None:
+    async def _open(self, resync_token: str | None = None) -> None:
         if self._stream is not None:
             await self._stream.close()
         self.snapshot = await self._client.events.snapshot(
             self._event_id,
             source=self._source,
             include=self._include,
+            resync_token=resync_token,
         )
         self._stream = self._client.follow(self.snapshot, reconnect=self._reconnect)
         await self._stream.__aenter__()
@@ -515,11 +517,11 @@ class AsyncWatch:
                     self._resyncs = 0
                     yield frame
                 return
-            except ResyncRequired:
+            except ResyncRequired as resync:
                 self._resyncs += 1
                 if not self._reconnect or self._resyncs > MAX_CONSECUTIVE_RESYNCS:
                     raise
-                await self._open()
+                await self._open(resync.resync_token)
 
 
 def _continuation_scope(stream: StreamContinuation) -> RacingScope:
@@ -529,7 +531,7 @@ def _continuation_scope(stream: StreamContinuation) -> RacingScope:
         meeting=stream.meeting,
         event=stream.event,
         venue=stream.venue,
-        market=stream.market,
+        key=stream.key,
         entrant=stream.entrant,
         source=stream.source,
         start_from=stream.start_from,
@@ -550,7 +552,7 @@ def _stream_continuation(params: Mapping[str, Any], cursor: str) -> StreamContin
         country=values("country"),
         meeting=values("meeting"),
         venue=values("venue"),
-        market=values("market"),
+        key=values("key"),
         entrant=values("entrant"),
         start_from=params.get("startFrom"),
         start_to=params.get("startTo"),
@@ -636,6 +638,7 @@ class Betwatch:
         *,
         limit: int | None = None,
         include: Sequence[IncludeFlag] | IncludeFlag | None = None,
+        resync_token: str | None = None,
     ) -> ScopeSnapshot:
         """Current state for a page of races, plus the handoff to follow them.
 
@@ -679,14 +682,15 @@ class Betwatch:
                 meeting=scope.meeting,
                 event=scope.event,
                 venue=scope.venue,
-                market=scope.market,
+                key=scope.key,
                 entrant=scope.entrant,
                 source=scope.source,
                 start_from=scope.start_from,
                 start_to=scope.start_to,
                 limit=limit,
                 include=include,
-            ),
+            )
+            | {"resyncToken": resync_token},
             ScopeSnapshot,
         )
 
@@ -843,6 +847,7 @@ class AsyncBetwatch:
         *,
         limit: int | None = None,
         include: Sequence[IncludeFlag] | IncludeFlag | None = None,
+        resync_token: str | None = None,
     ) -> ScopeSnapshot:
         """Current state for a page of races, plus the handoff to follow them.
 
@@ -886,14 +891,15 @@ class AsyncBetwatch:
                 meeting=scope.meeting,
                 event=scope.event,
                 venue=scope.venue,
-                market=scope.market,
+                key=scope.key,
                 entrant=scope.entrant,
                 source=scope.source,
                 start_from=scope.start_from,
                 start_to=scope.start_to,
                 limit=limit,
                 include=include,
-            ),
+            )
+            | {"resyncToken": resync_token},
             ScopeSnapshot,
         )
 

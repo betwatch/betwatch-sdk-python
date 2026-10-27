@@ -1,13 +1,15 @@
 from .common import Money, NamedPerson, Parent, Pool, PriceLevel, to_dict, to_json, to_records
 from .competitor import Competitor
 from .coverage import Coverage
-from .entrant import Entrant, EntrantPage, EntrantRacing
+from .entrant import Deduction, Entrant, EntrantPage, EntrantRacing
 from .enums import (
     LIVE_EVENT_STATUSES,
     SETTLED_EVENT_STATUSES,
     BudgetHeaders,
     CoverageState,
     CoverageStates,
+    DeductionKind,
+    DeductionKinds,
     EntryState,
     EntryStates,
     ErrorCodes,
@@ -66,6 +68,9 @@ __all__ = [
     "Entrant",
     "EntrantFrame",
     "EntrantPage",
+    "Deduction",
+    "DeductionKind",
+    "DeductionKinds",
     "EntrantRacing",
     "EntryState",
     "EntryStates",

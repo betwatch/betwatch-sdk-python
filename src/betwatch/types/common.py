@@ -72,3 +72,4 @@ class Pool(Model):
 
 class PriceLevel(Model):
     price: float
+    size: float | None = None

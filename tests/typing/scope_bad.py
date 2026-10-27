@@ -1,3 +1,3 @@
 from betwatch import RacingScope
 
-RacingScope(sport="unknown", market="unknown")
+RacingScope(sport="unknown", key="unknown")

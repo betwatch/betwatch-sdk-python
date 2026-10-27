@@ -85,6 +85,16 @@ class EntryStates:
     UNKNOWN: Final[EntryState] = "unknown"
 
 
+DeductionKind: TypeAlias = Literal["official", "unanimous", "range", "unknown"]
+
+
+class DeductionKinds:
+    OFFICIAL: Final[DeductionKind] = "official"
+    UNANIMOUS: Final[DeductionKind] = "unanimous"
+    RANGE: Final[DeductionKind] = "range"
+    UNKNOWN: Final[DeductionKind] = "unknown"
+
+
 SourceKind: TypeAlias = Literal["bookmaker", "tote", "exchange", "unknown"]
 
 
@@ -247,6 +257,10 @@ class BudgetHeaders:
     declared on 429 and 503. `MONTHLY_RESET` is an RFC 3339 instant — the rest
     are integers, and `RESET` is *seconds remaining*, not a timestamp.
 
+    `RATELIMIT` and `RATELIMIT_POLICY` are the IETF
+    draft-ietf-httpapi-ratelimit-headers form of the same two budgets. They
+    repeat the `X-RateLimit-*` values, so `RateLimit` reads the latter only.
+
     Names live here rather than inline so there is one place to reconcile with
     `openapi.json`, which `tests/test_contract_spec.py` does.
     """
@@ -259,6 +273,8 @@ class BudgetHeaders:
     MONTHLY_REMAINING: Final[str] = "X-RateLimit-Monthly-Remaining"
     MONTHLY_RESET: Final[str] = "X-RateLimit-Monthly-Reset"
     RETRY_AFTER: Final[str] = "Retry-After"
+    RATELIMIT: Final[str] = "RateLimit"
+    RATELIMIT_POLICY: Final[str] = "RateLimit-Policy"
 
 
 class ErrorCodes:
@@ -275,6 +291,7 @@ class ErrorCodes:
     PLAN_REQUIRED: Final[str] = "plan_required"
     ENTITLEMENT_EMPTY: Final[str] = "entitlement_empty"
     ACCOUNT_DISABLED: Final[str] = "account_disabled"
+    IP_NOT_ALLOWED: Final[str] = "ip_not_allowed"
     RATE_LIMITED: Final[str] = "rate_limited"
     QUOTA_EXCEEDED: Final[str] = "quota_exceeded"
     QUOTA_UNAVAILABLE: Final[str] = "quota_unavailable"

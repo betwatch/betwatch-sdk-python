@@ -171,7 +171,7 @@ def should_retry_status(response: httpx.Response) -> bool:
 # refuses these with 401 even when the header is also present, so the SDK
 # refuses to build such a URL at all rather than emitting a request that
 # cannot succeed.
-_CREDENTIAL_PARAMS = frozenset({"apikey", "api_key", "key", "token", "access_token"})
+_CREDENTIAL_PARAMS = frozenset({"apikey", "api_key", "token", "access_token"})
 
 
 def reject_credential_params(params: Mapping[str, Any]) -> None:
@@ -209,8 +209,7 @@ def list_query(
     meeting: Sequence[str] | str | None = None,
     event: Sequence[str] | str | None = None,
     venue: Sequence[str] | str | None = None,
-    market: Sequence[str] | str | None = None,
-    outcome: Sequence[str] | str | None = None,
+    key: Sequence[str] | str | None = None,
     entrant: Sequence[str] | str | None = None,
     source: Sequence[str] | str | None = None,
     competitor: Sequence[str] | str | None = None,
@@ -238,8 +237,7 @@ def list_query(
         "meeting": csv(meeting),
         "event": csv(event),
         "venue": csv(venue),
-        "market": csv(market),
-        "outcome": csv(outcome),
+        "key": csv(key),
         "entrant": csv(entrant),
         "source": csv(source),
         "competitor": csv(competitor),

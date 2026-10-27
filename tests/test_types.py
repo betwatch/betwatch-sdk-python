@@ -189,3 +189,51 @@ def test_snapshot_price_helpers() -> None:
     assert card.lowest_price(runner) == 2.8
     assert card.price(runner, "sportsbet") == 3.2
     assert len(card.quotes(runner)) == 2
+
+
+def test_contract_2_1_racing_and_exchange_fields_decode() -> None:
+    """Scratching, gear and Betfair ids arrive as typed fields, not dropped keys."""
+    from betwatch._base_client import decode_model
+    from betwatch.types.entrant import Entrant
+    from betwatch.types.odds import Odds
+
+    entrant = decode_model(
+        "/v2/entrants/ent_1",
+        b'{"id":"ent_1","eventId":"evt_1","competitorId":"cmp_1","name":"A",'
+        b'"entryState":"listed","scratched":true,"racing":{"number":3,"emergency":true,'
+        b'"blinkers":true,"gear":"Blinkers first time","riderClaimKg":1.5,'
+        b'"scratchedAt":"2026-08-14T03:00:00Z",'
+        b'"deduction":{"kind":"range","winMin":5,"winMax":8}}}',
+        Entrant,
+    )
+    racing = entrant.racing
+    assert racing.emergency is True and racing.blinkers is True
+    assert racing.rider_claim_kg == 1.5
+    assert racing.scratched_at == datetime(2026, 8, 14, 3, 0, tzinfo=UTC)
+    assert racing.deduction is not None
+    assert (racing.deduction.kind, racing.deduction.win_min, racing.deduction.win_max) == (
+        "range",
+        5,
+        8,
+    )
+    assert racing.deduction.win_cents is None
+
+    newer = decode_model(
+        "/v2/entrants/ent_1",
+        b'{"id":"ent_1","eventId":"evt_1","competitorId":"cmp_1","name":"A",'
+        b'"entryState":"listed","racing":{"deduction":{"kind":"provisional"}}}',
+        Entrant,
+    )
+    assert newer.racing.deduction is not None and newer.racing.deduction.kind == "unknown"
+
+    odds = decode_model(
+        "/v2/odds/odd_1.a",
+        b'{"id":"odd_1.a","eventId":"evt_1","key":"win",'
+        b'"source":{"id":"betfair","name":"Betfair","kind":"exchange"},"state":"available",'
+        b'"exchange":{"marketState":"open","outcomeState":"active","marketId":"1.234",'
+        b'"selectionId":5678,"back":[{"price":3.1,"size":120.5}]}}',
+        Odds,
+    )
+    assert odds.exchange is not None
+    assert (odds.exchange.market_id, odds.exchange.selection_id) == ("1.234", 5678)
+    assert odds.exchange.back[0].size == 120.5
