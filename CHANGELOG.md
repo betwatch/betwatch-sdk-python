@@ -1,3 +1,17 @@
+## [2.0.0b4](https://github.com/betwatch/betwatch-sdk-python/releases/tag/v2.0.0b4) - 2026-10-27
+
+### Bug fixes
+
+- **errors**: Treat a 409 without a Betwatch code as a plain API error ([ea9ef3a](https://github.com/betwatch/betwatch-sdk-python/commit/ea9ef3a2c7a60e5389f81e59336615977954587a))
+
+### Documentation
+
+- Rewrite the README for customers ([8b1e802](https://github.com/betwatch/betwatch-sdk-python/commit/8b1e802fc23462e9247e1ee1a481c9bc86bb9cf8))
+
+### Build and CI
+
+- **sdist**: Ship CONTRIBUTING.md and CHANGELOG.md ([69a630e](https://github.com/betwatch/betwatch-sdk-python/commit/69a630e18780fae607822b7449d059210d99aeb4))
+
 ## [2.0.0b3](https://github.com/betwatch/betwatch-sdk-python/releases/tag/v2.0.0b3) - 2026-10-27
 
 ### Features
