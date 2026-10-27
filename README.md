@@ -3,69 +3,114 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/betwatch.svg)](https://pypi.org/project/betwatch)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/betwatch.svg)](https://pypi.org/project/betwatch)
 
-Public `/v2` REST + SSE client. **`2.0.0b2` on the `beta` branch** — not the
-GraphQL 1.x `get_races` client.
+Live Australian and New Zealand racing odds in Python: every race, every
+runner, and the current price from every bookmaker, tote and exchange Betwatch
+tracks, with a stream of changes as they happen.
 
-Agents: read [`AGENTS.md`](AGENTS.md) first.
+```python
+from betwatch import Betwatch
+
+with Betwatch() as client:
+    race = client.events.list(sport="thoroughbred", country="au", status="open").next_open
+    card = client.events.snapshot(race.id)
+    for runner in card.entrants:
+        print(runner.number, runner.name, card.best_price(runner))
+```
+
+> **Beta.** `2.x` targets the Betwatch Racing API `/v2` and is in public beta.
+> Pin the exact version; minor details may change before `2.0.0`. The `1.x`
+> GraphQL client (`get_races`) is a different API and is not compatible.
 
 ## Install
 
 ```console
-pip install betwatch==2.0.0b2
-# or, from the beta branch:
-# pip install "betwatch @ git+https://github.com/betwatch/betwatch-sdk-python@beta"
+pip install --pre betwatch
 ```
 
-Secrets live in a **gitignored** `fnox.toml`, encrypted to this machine's age
-key (`~/.config/fnox/age.txt`). Ciphertext is not committed.
+`--pre` selects the 2.x beta. Pin the version you tested against, for example
+`betwatch==2.0.0b4`.
+
+Python 3.11+. The only dependencies are `httpx` and `msgspec`.
+`pip install "betwatch[pandas]"` adds pandas for `to_records()` users.
+
+## Authenticate
+
+Create a key at [Account → API](https://beta.betwatch.com/account/api). The key
+is shown once, so store it somewhere safe, then export it:
 
 ```console
-fnox exec -- uv run examples/live_check.py          # local → http://127.0.0.1:8888
-fnox exec --profile prod -- uv run examples/watch_event.py
+export BETWATCH_API_KEY=bw_...
 ```
 
-Or set `BETWATCH_API_KEY` yourself. Optional `BETWATCH_API_URL` (default
-`https://api-beta.betwatch.com`). `FNOX_PROFILE=prod` selects the hosted API.
+`Betwatch()` reads it from the environment, or pass `Betwatch(api_key=...)`.
+The client talks to `https://api-beta.betwatch.com` unless you set
+`BETWATCH_API_URL` or `base_url=`.
 
-## Usage
+## The model
 
-See [examples](examples) — the same use cases as 1.x (`get_races`,
-`get_race_prices`, `subscriptions`), plus `firehose.py` for every
-code with a resumable cursor, and `tui.py` for a Textual raceday grid.
+| Betwatch | Means |
+|---|---|
+| **Event** | One race. `client.events` |
+| **Entrant** | A runner in a race. `card.entrants` |
+| **Odds** | One source's current win or place price on one runner. `card.odds` |
+| **Source** | A bookmaker, tote or exchange. `client.sources.list()` |
+| **Meeting / Venue** | A day's racing at a track / the track itself |
 
-### Discover, then price, then follow
+Every response is a typed object with snake_case attributes, so your editor
+completes `race.start_at`, `runner.racing.barrier` and `quote.source.id`.
+Closed vocabularies are `Literal` types: `race.status == "resulted"` is a type
+error because the public word is `"final"`.
 
-The API is built around one workflow, and so is this client. Find races, ask
-for their prices, then attach a stream at exactly the position the price read
-returned.
+## Common tasks
+
+### Today's races
 
 ```python
-from betwatch import Betwatch, OddsFrame
+races = client.events.list(sport="thoroughbred", country="au", limit=20)
+for race in races:
+    print(race.start_at, race.name, race.status)
 
-with Betwatch() as client:
-    # 1. Discover. /v2/odds and friends refuse an unscoped read, so start here.
-    page = client.events.list(sport="thoroughbred", country="au", limit=5)
-    event = page[0]
-    print(event.name, event.start_at, event.racing.race_number)
-
-    # 2. Price. The snapshot carries a stream cursor captured *before* it read,
-    #    so nothing changes in the gap between pricing and following.
-    card = client.events.snapshot(event.id)
-    print(card.best_price(card.entrants[0]))
-
-    # 3. Follow. follow() sends that cursor as Last-Event-ID with snapshot=none.
-    with client.follow(card) as live:
-        for frame in live:
-            if isinstance(frame, OddsFrame):
-                print(frame.data.source.id, frame.data.price)
+open_now = client.events.list(sport=["thoroughbred", "greyhound"], status=["open", "in_progress"])
 ```
 
-`client.watch(event_id)` does all three in one call when you do not need the
-snapshot yourself.
+With no time window you get races from a few minutes ago onwards. Pass
+`start_from=` / `start_to=` for history or a later day.
 
-To keep the card itself current, apply each frame to it. `card.apply(frame)`
-upserts odds, runners and coverage by identity and returns True when anything
-actually changed, so `best_price()` and `to_records()` always read live state:
+### Prices for one race
+
+```python
+card = client.events.snapshot(race.id)
+
+runner = card.entrants[0]
+card.best_price(runner)              # highest win price across sources
+card.price(runner, "sportsbet")      # one source
+card.quotes(runner, market="place")  # every priced place quote
+```
+
+Scratched runners carry `runner.racing.scratched_at` and the late-scratching
+`runner.racing.deduction`. Exchange quotes carry `quote.exchange` with back and
+lay ladders and the Betfair `market_id` / `selection_id`.
+
+Add `include="history"` to `client.odds.list(event=race.id, include="history")`
+for each source's price fluctuations.
+
+### Live prices
+
+Take a snapshot, then follow it. The snapshot carries the exact stream position
+it was read at, so nothing that changes in between is missed:
+
+```python
+from betwatch import OddsFrame
+
+card = client.events.snapshot(race.id)
+with client.follow(card) as live:
+    for frame in live:
+        if isinstance(frame, OddsFrame):
+            print(frame.data.source.id, frame.data.entrant_id, frame.data.price)
+```
+
+To keep the card itself current, apply each frame to it.
+`card.apply(frame)` returns True only when something actually changed:
 
 ```python
 with client.follow(card) as live:
@@ -74,214 +119,129 @@ with client.follow(card) as live:
             print(card.best_price(card.entrants[0]))
 ```
 
-`snapshot(..., include="history")` fills `Odds.history` with each source's
-fluctuations. It is honoured as of contract 1.0.0 and doubles the call's quota
-cost, so ask for it only when you use it.
+`client.watch(race.id)` does the snapshot and the follow in one call, and takes
+a fresh snapshot by itself if the server ever asks for one.
 
-### Stream instead of polling
+### A whole raceday on one connection
 
-**Stream frames are not metered.** Polling `/v2/odds` on a timer is the
-expensive way to stay current and the slowest to see a move; bootstrapping once
-and following costs nothing beyond that first read. A single filtered
-connection covers a whole raceday — `client.stream(RacingScope(sport="thoroughbred",
-country="au"))` — and a connection per race is the shape to avoid, which your
-plan's concurrent-stream cap will enforce with `StreamLimitError`.
-
-### Following a whole scope
-
-One call returns the card, the prices and the cursor to follow them:
+Stream frames are not metered, so one filtered stream is both the cheapest and
+the fastest way to stay current. Polling costs quota on every call.
 
 ```python
 from betwatch import RacingScope
 
-scope = RacingScope(sport="thoroughbred", country="au")
-snap = client.snapshot(scope)
-with client.follow(snap) as live:
+scope = RacingScope(sport="thoroughbred", country="au", key="win")
+snap = client.snapshot(scope, limit=10)    # first page of races, plus their prices
+with client.follow(snap) as live:          # live within seconds
+    page = snap
+    while page.next:                       # read the rest of the day while streaming
+        page = client.snapshot_page(after=page.next)
     for frame in live:
         ...
 ```
 
-Every page returns the same `stream.cursor`, captured before the first page was
-read, so paging to the end and then following cannot miss a change to a race you
-read earlier. Follow from any page; page the rest with
-`client.snapshot_page(after=snap.next)`.
+Every page shares the first page's stream position, so races you read later
+still replay anything that changed while you were reading them.
 
-For a process restart, persist the complete server-issued continuation, not a
-bare cursor. It includes the exact filters the cursor was minted under:
+### Resume after a restart
+
+Persist the stream's continuation and follow it again later. It carries the
+position and the filters that produced it:
 
 ```python
 from pathlib import Path
-
 from betwatch import StreamContinuation
 
-position = live.continuation
-assert position is not None
-Path("stream-position.json").write_bytes(position.to_json())
+Path("position.json").write_bytes(live.continuation.to_json())
 
-# Later
-position = StreamContinuation.from_json(Path("stream-position.json").read_bytes())
+position = StreamContinuation.from_json(Path("position.json").read_bytes())
 with client.follow(position) as live:
     ...
 ```
 
-Hydration costs roughly half a second per race, so for a large scope take a
-small first page, attach, and read the rest while already live — you are
-following in about five seconds instead of fifty, and the cursor guarantees the
-races you have not read yet still replay.
+If the position is too old to resume, the stream raises `ResyncRequired`; take
+a new snapshot and follow that.
 
-### Paging a collection
-
-Every collection has `iter()`, which follows `next` until it stops coming:
+### Every page of a collection
 
 ```python
 for venue in client.venues.iter(country="au"):
     print(venue.name)
 ```
 
-A cursor belongs to the collection that issued it — a `next` from `/v2/venues`
-is not valid on `/v2/meetings`. `iter()` feeds each cursor back to the endpoint
-that produced it, so this cannot go wrong by accident. Cursors are opaque: do
-not decode, build, or edit one.
+`list()` returns one page; `iter()` follows every page for you.
 
-### Handling failures
-
-Every failure is an RFC 9457 problem document with a stable `code`. Branch on
-the code (or on the exception type, which is selected from it), never on prose:
-
-```python
-import time
-
-from betwatch import QuotaExceededError, RateLimitError
-
-try:
-    page = client.odds.list(event=event.id)
-except RateLimitError as err:
-    time.sleep(err.retry_after or 1)      # short window; worth waiting out
-except QuotaExceededError as err:
-    alert(f"monthly quota spent, resets {err.rate_limit.monthly_reset}")
-```
-
-Ids are opaque, and merges are the reason that matters: a stored id (`evt_`,
-`ent_`, `cmp_`, `mtg_`, `ven_`) resolves to the surviving record after a merge,
-while a derived id (`mkt_`, `out_`, `odd_`) gets a `NotFoundError` because the
-resource genuinely has a new identity. Re-read the event and take the new ids.
-
-`QuotaExceededError` is deliberately **not** a subclass of `RateLimitError`:
-one resets in seconds, the other in weeks. The client retries `rate_limited`
-and the 5xx codes for you, and fails fast on everything the docs mark as
-non-retryable. Every exception carries `code`, `detail`, `errors`,
-`request_id`, and `trace_id` — quote the last two to support.
-
-### Operations
-
-The client groups operations by resource, which is the Python idiom. The
-mapping to the contract's `operationId`s is one-to-one:
-
-| operationId | SDK |
-|---|---|
-| `listEvents` / `getEvent` / `getEventSnapshot` | `client.events.list` / `.retrieve` / `.snapshot` |
-| `listEntrants` / `getEntrant` | `client.entrants.list` / `.retrieve` |
-| `getCompetitor` | `client.competitors.retrieve` |
-| `listOdds` / `getOdds` | `client.odds.list` / `.retrieve` |
-| `listMeetings` / `getMeeting` | `client.meetings.list` / `.retrieve` |
-| `listVenues` / `getVenue` | `client.venues.list` / `.retrieve` |
-| `listSources` | `client.sources.list` |
-| `streamRacing` | `client.stream` / `.watch` / `.follow` |
-
-Dump to pandas without caring that the backend is msgspec:
+### pandas
 
 ```python
 import pandas as pd
 
-card = client.events.snapshot(event.id)
-df = pd.DataFrame.from_records(card.to_records())
+df = pd.DataFrame.from_records(card.to_records())  # one row per quote, with runner names
 ```
 
-Sync and async clients share one resource tree (`AsyncBetwatch`).
+### Async
 
-Reads retry twice by default, driven by the problem `code` rather than the HTTP
-status — the status cannot tell `rate_limited` from `quota_exceeded`, and both
-are `429`. Set `max_retries=0` to disable retries or another non-negative value
-to change the budget. Stream reconnect is separate: SSE reconnects only after
-transport interruption, while HTTP, cursor, server frame, and decode failures
-surface immediately.
+`AsyncBetwatch` has the same methods, awaited:
 
-`client.rate_limit` holds the budget headers from the last response — both the
-per-minute window and the monthly quota, including when the quota resets.
+```python
+from betwatch import AsyncBetwatch
 
-The contract only grows. Unknown response fields (including `$schema`) are
-ignored, unknown SSE frame names are no-ops, and a vocabulary value newer than
-this release reads as `"unknown"` rather than failing to decode.
-
-An event snapshot carries a required server-issued `stream` continuation. Pass
-the complete snapshot to `client.follow(card)`; do not copy its cursor into a
-new stream with reconstructed filters.
-
-## TUI
-
-`examples/tui.py` is a Textual demo (not part of the installed package). Left
-pane is the raceday list **ordered by time-to-jump**; right pane is the runner
-× bookmaker grid. The selected race follows live `/v2/stream`.
-
-```console
-uv sync
-fnox exec -- uv run examples/tui.py
-fnox exec -- uv run examples/tui.py --sport harness --country au
+async with AsyncBetwatch() as client:
+    card = await client.events.snapshot(race_id)
+    async with client.watch(race_id) as live:
+        async for frame in live:
+            ...
 ```
 
-`1`/`2`/`3` switch code, `n` jumps to the next race, `w`/`p` is win/place,
-`/` filters tracks, `?` is help.
+## Errors, retries and limits
 
-## Development
+Every API error raises a typed exception carrying the problem's stable `code`,
+a human `detail`, and the `request_id` / `trace_id` to quote to support:
 
-```console
-uv sync
-uv run ruff check
-uv run ty check
-uv run pytest
+```python
+import time
+from betwatch import NotFoundError, QuotaExceededError, RateLimitError
+
+try:
+    card = client.events.snapshot(race_id)
+except RateLimitError as err:            # per-minute window; worth waiting out
+    time.sleep(err.retry_after or 1)
+except QuotaExceededError as err:        # monthly quota; resets in days, not seconds
+    print("quota resets", err.rate_limit.monthly_reset)
+except NotFoundError:
+    ...
 ```
 
-The SDK's error codes, budget-header names, and operation coverage are pinned
-against a committed copy of the published contract at
-`tests/contract/openapi.json`. When the API ships a new spec:
+- The client retries rate limits and transient server errors twice by default
+  (`Betwatch(max_retries=...)`) and never retries an error that cannot succeed.
+- Streams reconnect by themselves after a dropped connection, from the last
+  frame they delivered.
+- `client.rate_limit` shows the per-minute and monthly budget from the last
+  response.
+- Too many concurrent streams raises `StreamLimitError`; a key used from an IP
+  outside its allow-list raises `IPNotAllowedError`.
 
-```console
-uv run tests/contract/sync_openapi.py     # or: BETWATCH_OPENAPI=/path/to/openapi.json
-uv run pytest tests/test_contract_spec.py
-```
+## Upgrades
 
-A failure there names exactly what moved — a new error code with no retry
-decision, a budget header nothing parses, an operation with no method.
+The API only grows. New fields are ignored, new stream frame types arrive as
+`UnknownFrame`, and a new vocabulary value (a new sport, odds state, or source
+kind) decodes as `"unknown"` instead of failing, so an older SDK keeps working
+against a newer API.
 
-### Measuring the stream
+## Performance
 
-`tools/stream_timing.py` reports how long `/v2/stream` takes to bootstrap for a
-given filter scope: time to `ready`, time to the first data frame, the silence
-between them, and time to `sync`. A broad `snapshot=full` sends nothing for
-tens of seconds while the server builds the snapshot, so the silence is the
-number worth watching.
+Responses decode straight into typed structs with
+[msgspec](https://jcristharif.com/msgspec/). On recorded beta traffic a
+100-race snapshot (17 MB, 43,000 prices) decodes in about 50 ms, and a live
+stream decodes at about 175,000 frames per second on one core.
 
-```console
-fnox exec --profile prod -- uv run tools/stream_timing.py --sport thoroughbred --country au
-fnox exec --profile prod -- uv run tools/stream_timing.py --json --require-sync 60
-```
+## More
 
-`--require-sync` exits non-zero if the bootstrap takes longer than that, so it
-works as a regression gate.
+- [Racing API documentation](https://beta.betwatch.com/docs/api/): streaming,
+  limits, errors and every endpoint.
+- [Examples](examples): races, race prices, live subscriptions, a whole-day
+  firehose, and a terminal raceday grid (`examples/tui.py`).
+- [Changelog](CHANGELOG.md)
+- Issues: [github.com/betwatch/betwatch-sdk-python/issues](https://github.com/betwatch/betwatch-sdk-python/issues)
 
-Live check against a local API:
-
-```console
-export BETWATCH_API_KEY=bw_...
-export BETWATCH_API_URL=http://localhost:8888
-uv run examples/live_check.py run-1
-```
-
-## Releasing
-
-Tag the exact version in `src/betwatch/__about__.py` (`v2.0.0b2`) and push the
-tag. `.github/workflows/release.yml` builds that commit, checks the tag matches
-the package version, and publishes with PyPI Trusted Publishing. Do not bump
-versions from CI.
-
-Changelog locally: `uv run git-cliff --unreleased`.
+Working on the SDK itself? See [CONTRIBUTING.md](CONTRIBUTING.md).
