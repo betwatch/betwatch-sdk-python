@@ -1,8 +1,11 @@
 name: Publish
 
+# Cut the release locally with `tools/release.sh <version>`, then push the tag.
+# This publishes the tag to PyPI and creates a GitHub release whose notes are
+# the git-cliff section for that tag (a pre-release for a/b/rc versions).
+
 permissions:
   contents: read
-  id-token: write
 
 on:
   push:
@@ -14,31 +17,73 @@ on:
         required: true
         type: string
 
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     environment: pypi
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ env.TAG }}
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@v4
-      - name: Check tag matches package version
+      - name: Check tag matches package version and changelog
         run: |
-          TAG="${{ inputs.tag || github.ref_name }}"
-          TAG="${TAG#v}"
           VERSION=$(python -c "import ast, pathlib; t=pathlib.Path('src/betwatch/__about__.py').read_text(); print(ast.literal_eval(next(l.split('=',1)[1] for l in t.splitlines() if l.startswith('__version__')).strip()))")
-          test "$TAG" = "$VERSION"
+          test "${TAG#v}" = "$VERSION"
+          grep -qF "## [$VERSION]" CHANGELOG.md || { echo "CHANGELOG.md has no $VERSION section; cut releases with tools/release.sh"; exit 1; }
       - name: Test
         run: |
           uv sync --frozen --all-groups
           uv run pytest
           uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           attestations: true
+
+  github-release:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Render release notes
+        run: |
+          uv sync --frozen --only-group dev
+          uv run --no-sync git-cliff --latest --strip all > notes.md
+          cat notes.md
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=()
+          if [[ "${TAG#v}" =~ (a|b|rc)[0-9]+$ ]]; then flags+=(--prerelease --latest=false); fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file notes.md "${flags[@]}"
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --title "$TAG" --notes-file notes.md --verify-tag "${flags[@]}"
+          fi

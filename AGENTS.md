@@ -67,6 +67,9 @@ fails `pyright` (`reportUnnecessaryComparison`).
 - Do not use GraphQL, WebSockets, or `include=card`.
 - Do not treat `ping` frames as data — the SDK swallows them and still advances the cursor.
 - Do not publish from `main` as `2.0.0` until this contract is promoted.
+- Release with `tools/release.sh <version>` on `beta`, then push the branch and tag.
+  It writes CHANGELOG.md from conventional commits; the tag publishes to PyPI
+  and creates the GitHub release with the same notes. Never hand-edit the version.
 
 ## Starting a stream
 
