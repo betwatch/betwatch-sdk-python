@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import re
+
 import betwatch
 from betwatch import Betwatch, FilterRequiredError, NotFoundError, __version__
 
 
 def test_version_is_prerelease() -> None:
-    assert __version__ == "2.0.0b3"
+    assert re.fullmatch(r"2\.0\.0(a|b|rc)\d+", __version__), __version__
 
 
 def test_no_graphql_get_races_surface() -> None:

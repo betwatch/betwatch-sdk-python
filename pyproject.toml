@@ -90,7 +90,6 @@ reportUnnecessaryComparison = "error"
 # prepends CHANGELOG.md; the Publish workflow renders the same section as the
 # GitHub release notes.
 [tool.git-cliff.changelog]
-header = "# Changelog\n"
 body = """
 {% if version %}\
 ## [{{ version | trim_start_matches(pat="v") }}](https://github.com/betwatch/betwatch-sdk-python/releases/tag/{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
