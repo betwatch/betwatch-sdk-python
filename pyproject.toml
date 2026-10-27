@@ -53,7 +53,7 @@ path = "src/betwatch/__about__.py"
 packages = ["src/betwatch"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/betwatch", "tests", "examples", "README.md", "AGENTS.md"]
+include = ["src/betwatch", "tests", "examples", "README.md", "AGENTS.md", "CONTRIBUTING.md", "CHANGELOG.md"]
 
 [tool.ruff]
 target-version = "py311"
