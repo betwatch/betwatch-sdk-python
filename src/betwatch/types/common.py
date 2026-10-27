@@ -8,7 +8,7 @@ import msgspec
 T = TypeVar("T")
 
 
-class Model(msgspec.Struct, omit_defaults=True, kw_only=True, rename="camel"):
+class Model(msgspec.Struct, omit_defaults=True, kw_only=True, rename="camel", gc=False):
     """Wire object: snake_case attributes, camelCase JSON."""
 
     def to_dict(self) -> dict[str, Any]:

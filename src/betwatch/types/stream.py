@@ -1,18 +1,17 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import datetime
-from typing import Any, Literal, TypeVar, cast
+from typing import Any, Literal, cast
 
 import msgspec
 
-from .._compat import unknown_value_coercer
+from .._compat import decode_json
 from .common import Model
 from .coverage import Coverage
 from .entrant import Entrant
 from .enums import EventStatus, MarketKey
 from .odds import Odds
-
-_M = TypeVar("_M")
 
 
 class StreamEvent(Model):
@@ -53,19 +52,19 @@ class SyncFrame(Model):
 
 class EventFrame(Model):
     data: StreamEvent
-    cursor: str
+    cursor: str | None = None
     type: Literal["event"] = "event"
 
 
 class EntrantFrame(Model):
     data: Entrant
-    cursor: str
+    cursor: str | None = None
     type: Literal["entrant"] = "entrant"
 
 
 class OddsFrame(Model):
     data: Odds
-    cursor: str
+    cursor: str | None = None
     type: Literal["odds"] = "odds"
 
 
@@ -80,20 +79,20 @@ class OddsSet(Model):
 
 class OddsSetFrame(Model):
     data: OddsSet
-    cursor: str
+    cursor: str | None = None
     type: Literal["odds_set"] = "odds_set"
 
 
 class CoverageFrame(Model):
     data: Coverage
-    cursor: str
+    cursor: str | None = None
     type: Literal["coverage"] = "coverage"
 
 
 class UnknownFrame(Model):
     """Forward-compatible frame the SDK does not yet type."""
 
-    cursor: str
+    cursor: str | None = None
     type: Literal["unknown"] = "unknown"
     data: Any = None
     name: str = "unknown"
@@ -111,36 +110,31 @@ StreamFrame = (
 )
 
 
-def _convert(raw: Any, model: type[_M]) -> _M:
-    """Same forward-compat coercion the REST decoder applies.
-
-    A frame carrying a vocabulary value newer than this SDK must not kill
-    a live stream.
+def frame_for_event(event: str, cursor: str | None, payload: bytes) -> StreamFrame:
+    """Decode one data frame. Unknown vocabulary values become `"unknown"`, the
+    same forward-compat rule as REST: a newer value must not kill a live stream.
     """
-    coerce = unknown_value_coercer(model)
-    return msgspec.convert(coerce(raw) if coerce else raw, type=model)
-
-
-def frame_for_event(event: str, cursor: str, payload: Any) -> StreamFrame:
-    raw = payload or {}
-    if event == "ready":
-        return ReadyFrame(data=_convert(raw, StreamCursor), cursor=cursor)
-    if event == "sync":
-        return SyncFrame(data=_convert(raw, StreamCursor), cursor=cursor)
-    if event == "event":
-        return EventFrame(data=_convert(raw, StreamEvent), cursor=cursor)
-    if event == "entrant":
-        return EntrantFrame(data=_convert(raw, Entrant), cursor=cursor)
+    raw = payload or b"{}"
     if event == "odds":
-        return OddsFrame(data=_convert(raw, Odds), cursor=cursor)
-    if event == "odds_set":
-        return OddsSetFrame(data=_convert(raw, OddsSet), cursor=cursor)
+        return OddsFrame(data=decode_json(raw, Odds), cursor=cursor)
     if event == "coverage":
-        return CoverageFrame(data=_convert(raw, Coverage), cursor=cursor)
-    return UnknownFrame(data=payload, cursor=cursor, name=event)
+        return CoverageFrame(data=decode_json(raw, Coverage), cursor=cursor)
+    if event == "entrant":
+        return EntrantFrame(data=decode_json(raw, Entrant), cursor=cursor)
+    if event == "event":
+        return EventFrame(data=decode_json(raw, StreamEvent), cursor=cursor)
+    if event == "odds_set":
+        return OddsSetFrame(data=decode_json(raw, OddsSet), cursor=cursor)
+    if event == "ready":
+        return ReadyFrame(data=decode_json(raw, StreamCursor), cursor=cursor or "")
+    if event == "sync":
+        return SyncFrame(data=decode_json(raw, StreamCursor), cursor=cursor or "")
+    return UnknownFrame(
+        data=msgspec.json.decode(payload) if payload else None, cursor=cursor, name=event
+    )
 
 
-def iter_odds(frame: StreamFrame):
+def iter_odds(frame: StreamFrame) -> Iterator[Odds]:
     """Yield live-shaped Odds rows from a singleton tick or a snapshot set."""
     if isinstance(frame, OddsFrame):
         yield frame.data

@@ -10,6 +10,7 @@ import json
 from typing import Any
 
 import httpx
+import msgspec
 import pytest
 
 from betwatch import (
@@ -231,7 +232,7 @@ def test_known_vocabulary_values_are_untouched() -> None:
 def test_unknown_frame_names_are_no_ops() -> None:
     from betwatch.types.stream import UnknownFrame, frame_for_event
 
-    frame = frame_for_event("weather", "cur_1", {"rain": True})
+    frame = frame_for_event("weather", "cur_1", msgspec.json.encode({"rain": True}))
     assert isinstance(frame, UnknownFrame)
     assert frame.name == "weather"
 
@@ -242,14 +243,16 @@ def test_stream_frame_with_a_new_vocabulary_value_still_decodes() -> None:
     frame = frame_for_event(
         "odds",
         "cur_2",
-        {
-            "id": "odd_7Yz.4mQ",
-            "eventId": "evt_1",
-            "key": "win",
-            "source": {"id": "sportsbet", "name": "Sportsbet", "kind": "spread_betting"},
-            "state": "cashed_out",
-            "price": 3.4,
-        },
+        msgspec.json.encode(
+            {
+                "id": "odd_7Yz.4mQ",
+                "eventId": "evt_1",
+                "key": "win",
+                "source": {"id": "sportsbet", "name": "Sportsbet", "kind": "spread_betting"},
+                "state": "cashed_out",
+                "price": 3.4,
+            }
+        ),
     )
     assert isinstance(frame, OddsFrame)
     assert frame.data.state == "unknown"

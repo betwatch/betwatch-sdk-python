@@ -14,10 +14,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from functools import cache
-from typing import Any
+from typing import Any, TypeVar
 
+import msgspec
 import msgspec.inspect as mi
 
+T = TypeVar("T")
 Coercer = Callable[[Any], Any]
 
 _UNKNOWN = "unknown"
@@ -104,3 +106,26 @@ def unknown_value_coercer(model: type) -> Coercer | None:
         return _build(mi.type_info(model), frozenset())
     except (TypeError, NotImplementedError):  # pragma: no cover - exotic annotation
         return None
+
+
+@cache
+def _decoder(model: type[T]) -> msgspec.json.Decoder[T]:
+    return msgspec.json.Decoder(model)
+
+
+def decode_json(content: bytes | str, model: type[T]) -> T:
+    """Decode JSON straight into `model`, tolerating newer vocabulary values.
+
+    The typed decoder builds structs directly from the bytes, several times
+    faster than decoding to dicts and converting. Only a payload it rejects
+    takes the slow path that rewrites unknown values; when every value is
+    already known that rewrite is the identity, so both paths agree. A payload
+    that is still invalid after coercion raises the same ValidationError.
+    """
+    try:
+        return _decoder(model).decode(content)
+    except msgspec.ValidationError:
+        coerce = unknown_value_coercer(model)
+        if coerce is None:
+            raise
+        return msgspec.convert(coerce(msgspec.json.decode(content)), type=model)

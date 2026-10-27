@@ -11,7 +11,7 @@ import httpx
 import msgspec
 
 from .__about__ import __version__
-from ._compat import unknown_value_coercer
+from ._compat import decode_json
 from ._exceptions import (
     APIDecodeError,
     APIKeyNotSetError,
@@ -75,11 +75,7 @@ def safe_json(response: httpx.Response) -> Any:
 
 def decode_model(path: str, content: bytes, model: type[_T]) -> _T:
     try:
-        raw = msgspec.json.decode(content)
-        coerce = unknown_value_coercer(model)
-        if coerce is not None:
-            raw = coerce(raw)
-        return msgspec.convert(raw, type=model)
+        return decode_json(content, model)
     except (msgspec.DecodeError, msgspec.ValidationError) as exc:
         raise APIDecodeError(path, exc) from exc
 

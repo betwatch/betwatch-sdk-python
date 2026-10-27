@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import time
 
+import msgspec
 import pytest
 
 from betwatch import StreamProgress
@@ -110,14 +111,16 @@ def _odds(price: float, state: str = "available") -> StreamFrame:
     return frame_for_event(
         "odds",
         "cur_1",
-        {
-            "id": "odd_1.a",
-            "eventId": "evt_1",
-            "key": "win",
-            "source": {"id": "sportsbet", "name": "Sportsbet", "kind": "bookmaker"},
-            "state": state,
-            "price": price,
-        },
+        msgspec.json.encode(
+            {
+                "id": "odd_1.a",
+                "eventId": "evt_1",
+                "key": "win",
+                "source": {"id": "sportsbet", "name": "Sportsbet", "kind": "bookmaker"},
+                "state": state,
+                "price": price,
+            }
+        ),
     )
 
 
@@ -141,14 +144,16 @@ def test_sources_are_tracked_separately() -> None:
         return frame_for_event(
             "odds",
             "cur_1",
-            {
-                "id": f"odd_1.{source}",
-                "eventId": "evt_1",
-                "key": "win",
-                "source": {"id": source, "name": source, "kind": "bookmaker"},
-                "state": "available",
-                "price": 3.2,
-            },
+            msgspec.json.encode(
+                {
+                    "id": f"odd_1.{source}",
+                    "eventId": "evt_1",
+                    "key": "win",
+                    "source": {"id": source, "name": source, "kind": "bookmaker"},
+                    "state": "available",
+                    "price": 3.2,
+                }
+            ),
         )
 
     assert tracker.changed(row("sportsbet")) is True
@@ -172,7 +177,7 @@ def test_unknown_frame_kinds_are_always_a_change() -> None:
     from betwatch.types.stream import frame_for_event
 
     tracker = ChangeTracker()
-    weather = frame_for_event("weather", "cur_1", {"rain": True})
+    weather = frame_for_event("weather", "cur_1", msgspec.json.encode({"rain": True}))
     assert tracker.changed(weather) is True
     assert tracker.changed(weather) is True
 
@@ -186,21 +191,23 @@ def test_odds_rows_can_be_filtered_individually() -> None:
         return frame_for_event(
             "odds_set",
             "cur_1",
-            {
-                "eventId": "evt_1",
-                "key": "win",
-                "items": [
-                    {
-                        "id": f"odd_1.{i}",
-                        "eventId": "evt_1",
-                        "key": "win",
-                        "source": {"id": "sportsbet", "name": "Sportsbet", "kind": "bookmaker"},
-                        "state": "available",
-                        "price": p,
-                    }
-                    for i, p in enumerate(prices)
-                ],
-            },
+            msgspec.json.encode(
+                {
+                    "eventId": "evt_1",
+                    "key": "win",
+                    "items": [
+                        {
+                            "id": f"odd_1.{i}",
+                            "eventId": "evt_1",
+                            "key": "win",
+                            "source": {"id": "sportsbet", "name": "Sportsbet", "kind": "bookmaker"},
+                            "state": "available",
+                            "price": p,
+                        }
+                        for i, p in enumerate(prices)
+                    ],
+                }
+            ),
         )
 
     tracker = ChangeTracker()

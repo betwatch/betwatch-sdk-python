@@ -558,3 +558,41 @@ def test_a_dead_cursor_is_never_retried_with_itself() -> None:
         client.close()
 
     assert raw.opens == 1, "reconnect=True must not retry a cursor the server rejected"
+
+
+def test_full_snapshot_frames_before_sync_have_no_cursor() -> None:
+    """A `snapshot=full` bootstrap sends its state id-less; `sync` brings the first id."""
+    raw = (
+        b'event: event\ndata: {"id":"evt_1","status":"open"}\n\n'
+        b"event: entrant\n"
+        b'data: {"id":"ent_1","eventId":"evt_1","competitorId":"cmp_1","name":"A",'
+        b'"entryState":"listed"}\n\n'
+        b'id: cur_s\nevent: sync\ndata: {"cursor":"cur_s"}\n\n'
+        b'id: cur_2\nevent: event\ndata: {"id":"evt_1","status":"closed"}\n\n'
+    )
+    frames = [frame_from_sse(sse) for sse in iter_sse(iter([raw]))]
+    assert [(f.type, f.cursor) for f in frames if f] == [
+        ("event", None),
+        ("entrant", None),
+        ("sync", "cur_s"),
+        ("event", "cur_2"),
+    ]
+
+
+def test_control_frames_still_require_an_id() -> None:
+    raw = b'event: sync\ndata: {"cursor":"cur_s"}\n\n'
+    with pytest.raises(StreamDecodeError):
+        frame_from_sse(next(iter_sse(iter([raw]))))
+
+
+@pytest.mark.parametrize("eol", [b"\n", b"\r\n", b"\r"])
+def test_decoder_is_independent_of_chunk_boundaries(eol: bytes) -> None:
+    raw = (
+        b': hi\n\nid: cur_1\nevent: ping\ndata: {"cursor":"cur_1"}\n\n'
+        b"id: cur_2\nevent: dividend\ndata: [1,\ndata: 2]\n\n"
+    ).replace(b"\n", eol)
+    whole = [(e.event, e.id, e.data) for e in iter_sse(iter([raw]))]
+    assert whole == [("ping", "cur_1", '{"cursor":"cur_1"}'), ("dividend", "cur_2", "[1,\n2]")]
+    for size in (1, 2, 3, 5):
+        chunks = [raw[i : i + size] for i in range(0, len(raw), size)]
+        assert [(e.event, e.id, e.data) for e in iter_sse(iter(chunks))] == whole
