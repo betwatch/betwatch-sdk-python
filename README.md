@@ -228,12 +228,64 @@ The API only grows. New fields are ignored, new stream frame types arrive as
 kind) decodes as `"unknown"` instead of failing, so an older SDK keeps working
 against a newer API.
 
-## Performance
+## Benchmarks
 
-Responses decode straight into typed structs with
-[msgspec](https://jcristharif.com/msgspec/). On recorded beta traffic a
-100-race snapshot (17 MB, 43,000 prices) decodes in about 50 ms, and a live
-stream decodes at about 175,000 frames per second on one core.
+`2.0.0b4` against the `1.x` GraphQL client (`betwatch==1.7.4`), measured with
+the published SDK code on 28 October 2026. Both clients ran on the same
+machine at the same time with production keys.
+
+### Live odds
+
+Both SDKs streamed every race for 15 minutes (21:11–21:26 AEDT, evening
+thoroughbred, harness and greyhound meetings): `client.follow()` on one
+connection for 2.x, and `subscribe_bookmaker_updates("")` for 1.x. Each price
+was timestamped when the SDK handed it to user code. A move is one
+bookmaker's win price on one runner changing from one value to another. A move
+was paired when it happened exactly once on each stream within two minutes.
+
+How far ahead 2.x delivered the same price move, by time to the advertised
+jump:
+
+| Time to jump | Moves | Average ahead | Median ahead |
+|---|---:|---:|---:|
+| 30+ min | 57 | 19.2 s | 11.1 s |
+| 10–30 min | 242 | 13.3 s | 7.2 s |
+| 5–10 min | 957 | 12.1 s | 9.1 s |
+| 2–5 min | 1,910 | 9.3 s | 7.2 s |
+| 0–2 min | 1,044 | 10.5 s | 7.8 s |
+| Past advertised start | 510 | 12.6 s | 7.9 s |
+| **All** | **4,720** | **10.8 s** | **7.9 s** |
+
+"Ahead" is signed: the averages include the moves where 1.x was first.
+
+| Over the same 15 minutes | 1.x | 2.x |
+|---|---:|---:|
+| Win-price changes on the same 55 races and 46 bookmakers | 9,299 | 13,005 |
+| Price updates delivered, all races | 33,722 (win only) | 72,454 (win, place and early markets) |
+| Sources | 53 | 76 |
+| Connections | 1 websocket | 1 SSE stream |
+
+### Library and key paths
+
+| Path | 1.x | 2.x |
+|---|---:|---:|
+| `import betwatch` | 235 ms | 87 ms |
+| Installed dependencies | 22 packages, 16 MB | 9 packages, 2.6 MB |
+| Today's races, no prices (p50 of 5) | 4.17 s for 416 races | 1.03 s for 215 races |
+| One race card with every price (p50 / p95 of 30) | 0.72 s / 1.88 s, 367 prices | 0.44 s / 0.75 s, 1,064 prices |
+| Decode one race card, JSON bytes to typed objects | 3.96 ms (85 KB) | 0.72 ms (394 KB) |
+| Decode the 15 minute live stream above | 31.6 µs per price | 5.1 µs per price |
+| Live stream decode rate, one core | 32,000 prices/s | 196,000 prices/s |
+
+- **Race card:** `client.get_race(id, RaceProjection(markets=True,
+  place_markets=True, betfair=True))` against `client.events.snapshot(id)`, on
+  the next 10 races to jump, three times each.
+- **Decode:** the best of several replays of the payloads each SDK received
+  above. 1.x is `json.loads` plus `typedload`. 2.x is the SSE parser plus
+  [msgspec](https://jcristharif.com/msgspec/) structs.
+- **Network:** request times include the network from a client in Oregon, US.
+  Both APIs are behind the same CDN edge, so both pay the same round trip.
+  From Australia they are lower.
 
 ## More
 
