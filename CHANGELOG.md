@@ -1,3 +1,14 @@
+## [2.0.0b5](https://github.com/betwatch/betwatch-sdk-python/releases/tag/v2.0.0b5) - 2026-10-30
+
+### Features
+
+- Follow public API contract 2.2.0 ([d01aa65](https://github.com/betwatch/betwatch-sdk-python/commit/d01aa65f85bf16719f2d7d891fa6708058777a5e))
+
+### Documentation
+
+- **readme**: Benchmark 2.x against the 1.x GraphQL client ([6394d5e](https://github.com/betwatch/betwatch-sdk-python/commit/6394d5e0921bd0fd94400db145f8118230178a3c))
+- Capture the first full card per race with coverage books ([e473a0f](https://github.com/betwatch/betwatch-sdk-python/commit/e473a0fc91e3d86fdec6ab7ec4c2715843590b31))
+
 ## [2.0.0b4](https://github.com/betwatch/betwatch-sdk-python/releases/tag/v2.0.0b4) - 2026-10-27
 
 ### Bug fixes
