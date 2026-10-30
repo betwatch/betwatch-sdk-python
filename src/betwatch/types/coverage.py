@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from .common import Model
-from .enums import CoverageBookStatus, CoverageState, MarketKey
+from .enums import CoverageBookStatus, CoverageState, MarketKey, MarketState
 
 
 class CoverageBookPrice(Model):
@@ -48,6 +48,8 @@ class Coverage(Model):
     key: MarketKey
     source_id: str
     state: CoverageState
+    market_state: MarketState | None = None
+    observed_state: CoverageState | None = None
     places_paid: int | None = None
     observed_at: datetime | None = None
     book: CoverageBook | None = None

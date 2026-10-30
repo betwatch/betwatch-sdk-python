@@ -30,6 +30,7 @@ class Deduction(Model):
 class EntrantRacing(Model):
     number: int = 0
     barrier: int | None = None
+    barrier_row: int | None = None
     weight_kg: float | None = None
     rider: NamedPerson | None = None
     rider_claim_kg: float | None = None

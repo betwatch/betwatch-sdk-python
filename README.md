@@ -94,6 +94,57 @@ lay ladders and the Betfair `market_id` / `selection_id`.
 Add `include="history"` to `client.odds.list(event=race.id, include="history")`
 for each source's price fluctuations.
 
+### Compact comparisons and recent form (API 2.4)
+
+```python
+card = client.events.snapshot(
+    race.id, view="summary", source_kind="bookmaker", key=["win", "place"], max_age=120
+)
+for runner in card.summary:
+    for price in runner.prices:
+        print(runner.name, price.key, price.best, price.median, price.source_count)
+        print([source.name for source in price.best_sources])  # includes ties
+
+form = client.competitors.form(competitor_id, limit=10)
+for run in form:
+    print(run.start_at, run.venue, run.distance_meters, run.finish, run.field_size)
+# Or walk the retained history, newest first:
+for run in client.competitors.iter_form(competitor_id):
+    print(run.event_id, run.finish)
+```
+
+These methods also exist on `AsyncBetwatch`. Form contains only known, entitled
+past starts, not a complete career record. Missing official starting prices,
+margins and other facts are `None`; do not substitute zero or last bookmaker odds.
+
+Summary groups keep source kinds and place terms separate. Only available,
+confirmed quotes checked within `max_age` seconds qualify (default 120); an empty
+group means no eligible offer. Summary cards contain no raw odds and cannot be
+passed to `follow()`. Full snapshots with `max_age`, `source_kind` or `depth="top"`
+also omit a continuation. Use the ordinary full snapshot for streaming.
+
+On full cards, `quotes()` / `best_price()` exclude unavailable and explicitly
+unconfirmed rows (older APIs without `confirmation` remain compatible). Use
+`quote.checked_at` for the latest successful source-product check, not
+`observed_at`, which can remain old when a price is unchanged. SSE does not emit
+every poll; its timestamps are not polling heartbeats. Use REST `max_age` for a
+point-in-time freshness check. Exchange rows expose `best_back`, `best_lay` and
+`last`; use `depth="top"` when full ladders are unnecessary.
+
+`client.odds.retrieve(odds_id, include="history")` returns history too. Fixed-odds
+`first_recorded` / `last_recorded` are retained samples, **not official opening or
+starting prices**; legacy history may be incomplete. Settled history is not an
+available offer. `events.retrieve(..., include="racing", pool=["win", "place"])`
+limits dividend pools. `meetings.retrieve(..., include="events")` attaches races;
+`sources.list(event=race.id)` provides race-specific observed activity.
+
+**Migration:** keep identical filters when reusing list cursors. Unsupported
+endpoint filters and `include` values now fail with 422 instead of being ignored.
+Check `snapshot.stream` before following a compact read. Prefer
+`result.changed_at` for result changes; it is absent on legacy results without a
+trustworthy clock. `scheduled_start_at` names the schedule; `actual_start_at`
+requires source evidence and is not inferred when the scheduled time passes.
+
 ### Is a source's card fully priced?
 
 With `include="coverage"` (or on any scope snapshot, and on the stream's

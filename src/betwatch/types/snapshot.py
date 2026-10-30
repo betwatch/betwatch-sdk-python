@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Self
 
 import msgspec
@@ -7,9 +8,10 @@ import msgspec
 from .common import Model, to_records
 from .coverage import Coverage
 from .entrant import Entrant
-from .enums import MarketKey
+from .enums import MarketKey, SourceKind
 from .event import Event
 from .odds import Odds
+from .source import Source
 from .stream import (
     CoverageFrame,
     EntrantFrame,
@@ -129,10 +131,30 @@ class ScopeSnapshot(Model):
         return to_records(self.odds)
 
 
-class EventSnapshot(Model, dict=True, gc=True):
-    """REST bootstrap for one event. Pass this object to `client.follow()`.
+class PriceSummary(Model):
+    key: MarketKey
+    source_kind: SourceKind
+    best: float
+    median: float
+    source_count: int
+    latest_checked_at: datetime
+    oldest_checked_at: datetime
+    places_paid: int | None = None
+    best_sources: list[Source] = []
 
-    Keep it current by applying live frames to it:
+
+class RunnerPrices(Model):
+    entrant_id: str
+    name: str
+    number: int
+    prices: list[PriceSummary] = []
+
+
+class EventSnapshot(Model, dict=True, gc=True):
+    """One event's full card or compact summary.
+
+    Only cards with `stream` can be passed to `client.follow()`. Keep an ordinary
+    full snapshot current by applying live frames to it:
 
     ```python
     card = client.events.snapshot(event_id)
@@ -143,11 +165,13 @@ class EventSnapshot(Model, dict=True, gc=True):
     ```
     """
 
-    stream: StreamContinuation
     event: Event
+    stream: StreamContinuation | None = None
     entrants: list[Entrant] = []
     odds: list[Odds] = []
     coverage: list[Coverage] = []
+    summary: list[RunnerPrices] = []
+    max_age: int | None = None
 
     def quotes(
         self,
@@ -156,10 +180,16 @@ class EventSnapshot(Model, dict=True, gc=True):
         market: MarketKey = "win",
         source: str | None = None,
     ) -> list[Odds]:
-        """Current priced quotes. Defaults to the win market."""
+        """Available, confirmed quotes. Legacy responses without confirmation remain usable.
+
+        For an age-bounded comparison use events.snapshot(view="summary").
+        Stream clocks are not heartbeats, so do not infer check age from ticks.
+        """
         entrant_id = entrant.id if isinstance(entrant, Entrant) else entrant
         out: list[Odds] = []
         for quote in self.odds:
+            if quote.state != "available" or quote.confirmation not in (None, "confirmed"):
+                continue
             if quote.price is None:
                 continue
             if quote.key != market:

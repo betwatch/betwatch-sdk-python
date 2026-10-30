@@ -25,6 +25,9 @@ class OddsResource:
         venue: Sequence[str] | str | None = None,
         key: Sequence[str] | str | None = None,
         source: Sequence[str] | str | None = None,
+        source_kind: Sequence[str] | str | None = None,
+        max_age: int | None = None,
+        depth: str | None = None,
         after: str | None = None,
         before: str | None = None,
         limit: int | None = None,
@@ -49,6 +52,9 @@ class OddsResource:
                 venue=venue,
                 key=key,
                 source=source,
+                source_kind=source_kind,
+                max_age=max_age,
+                depth=depth,
                 after=after,
                 before=before,
                 limit=limit,
@@ -66,6 +72,9 @@ class OddsResource:
         venue: Sequence[str] | str | None = None,
         key: Sequence[str] | str | None = None,
         source: Sequence[str] | str | None = None,
+        source_kind: Sequence[str] | str | None = None,
+        max_age: int | None = None,
+        depth: str | None = None,
         limit: int | None = None,
         include: Sequence[str] | str | None = None,
     ) -> Iterator[Odds]:
@@ -83,6 +92,9 @@ class OddsResource:
                 venue=venue,
                 key=key,
                 source=source,
+                source_kind=source_kind,
+                max_age=max_age,
+                depth=depth,
                 limit=limit,
                 include=include,
                 after=after,
@@ -90,8 +102,10 @@ class OddsResource:
 
         return walk(fetch)
 
-    def retrieve(self, id: str) -> Odds:
-        return self._client._get("/v2/odds/" + id, None, Odds)
+    def retrieve(
+        self, id: str, *, include: Sequence[str] | str | None = None, depth: str | None = None
+    ) -> Odds:
+        return self._client._get("/v2/odds/" + id, list_query(include=include, depth=depth), Odds)
 
 
 class AsyncOddsResource:
@@ -107,6 +121,9 @@ class AsyncOddsResource:
         venue: Sequence[str] | str | None = None,
         key: Sequence[str] | str | None = None,
         source: Sequence[str] | str | None = None,
+        source_kind: Sequence[str] | str | None = None,
+        max_age: int | None = None,
+        depth: str | None = None,
         after: str | None = None,
         before: str | None = None,
         limit: int | None = None,
@@ -127,6 +144,9 @@ class AsyncOddsResource:
                 venue=venue,
                 key=key,
                 source=source,
+                source_kind=source_kind,
+                max_age=max_age,
+                depth=depth,
                 after=after,
                 before=before,
                 limit=limit,
@@ -144,6 +164,9 @@ class AsyncOddsResource:
         venue: Sequence[str] | str | None = None,
         key: Sequence[str] | str | None = None,
         source: Sequence[str] | str | None = None,
+        source_kind: Sequence[str] | str | None = None,
+        max_age: int | None = None,
+        depth: str | None = None,
         limit: int | None = None,
         include: Sequence[str] | str | None = None,
     ) -> AsyncIterator[Odds]:
@@ -161,6 +184,9 @@ class AsyncOddsResource:
                 venue=venue,
                 key=key,
                 source=source,
+                source_kind=source_kind,
+                max_age=max_age,
+                depth=depth,
                 limit=limit,
                 include=include,
                 after=after,
@@ -169,5 +195,9 @@ class AsyncOddsResource:
         async for row in awalk(fetch):
             yield row
 
-    async def retrieve(self, id: str) -> Odds:
-        return await self._client._aget("/v2/odds/" + id, None, Odds)
+    async def retrieve(
+        self, id: str, *, include: Sequence[str] | str | None = None, depth: str | None = None
+    ) -> Odds:
+        return await self._client._aget(
+            "/v2/odds/" + id, list_query(include=include, depth=depth), Odds
+        )

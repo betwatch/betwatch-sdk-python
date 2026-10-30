@@ -185,6 +185,20 @@
       "PublicCompetitor": {
         "additionalProperties": false,
         "properties": {
+          "colour": {
+            "type": "string"
+          },
+          "dam": {
+            "$ref": "#/components/schemas/PublicParent"
+          },
+          "foalDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "foalDatePrecision": {
+            "description": "year means only the birth year is known; do not infer an exact birthday or age from month/day.",
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },
@@ -196,6 +210,12 @@
           },
           "name": {
             "type": "string"
+          },
+          "sex": {
+            "type": "string"
+          },
+          "sire": {
+            "$ref": "#/components/schemas/PublicParent"
           },
           "sport": {
             "enum": [
@@ -219,6 +239,96 @@
         ],
         "type": "object"
       },
+      "PublicCompetitorRun": {
+        "additionalProperties": false,
+        "properties": {
+          "actualStartAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "barrier": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "class": {
+            "type": "string"
+          },
+          "distanceMeters": {
+            "description": "Null when no canonical distance was supplied.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "entrantId": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "fieldSize": {
+            "description": "Canonical non-scratched runner count, when known; not the number of reported placings.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "finish": {
+            "description": "Null means no placing was reported for this runner, not necessarily unplaced.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "number": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "raceNumber": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "startAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "startingPrice": {
+            "description": "Official starting price only. Null when not supplied; never substituted with a last bookmaker quote.",
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "venue": {
+            "$ref": "#/components/schemas/PublicVenue"
+          },
+          "winningMargin": {
+            "description": "Source-declared margin only; null when unavailable.",
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "eventId",
+          "entrantId",
+          "startAt",
+          "raceNumber",
+          "distanceMeters",
+          "number",
+          "finish",
+          "fieldSize",
+          "startingPrice",
+          "winningMargin"
+        ],
+        "type": "object"
+      },
       "PublicCoverage": {
         "additionalProperties": false,
         "properties": {
@@ -235,8 +345,27 @@
             ],
             "type": "string"
           },
+          "marketState": {
+            "description": "Current market lifecycle. Settled and void markets do not serve current odds, even if their last observation was priced.",
+            "enum": [
+              "unsettled",
+              "settled",
+              "void",
+              "unknown"
+            ],
+            "type": "string"
+          },
           "observedAt": {
             "format": "date-time",
+            "type": "string"
+          },
+          "observedState": {
+            "description": "State at the last successful source observation. Unlike state, this is historical evidence and does not imply current prices exist.",
+            "enum": [
+              "unknown",
+              "priced",
+              "unpriced"
+            ],
             "type": "string"
           },
           "placesPaid": {
@@ -515,8 +644,17 @@
         "additionalProperties": false,
         "properties": {
           "barrier": {
+            "description": "Source barrier label. Harness barriers can repeat across rows; never infer a row from number or duplicate barriers.",
             "format": "int64",
             "type": "integer"
+          },
+          "barrierRow": {
+            "description": "Source-backed harness draw row, 1 for front and 2 for second. Null when not supplied; current canonical feeds do not retain this fact.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "blinkers": {
             "type": "boolean"
@@ -570,13 +708,19 @@
           }
         },
         "required": [
-          "number"
+          "number",
+          "barrierRow"
         ],
         "type": "object"
       },
       "PublicEvent": {
         "additionalProperties": false,
         "properties": {
+          "actualStartAt": {
+            "description": "Provider-reported actual jump time, when independently known. Never inferred from the schedule or betting suspension.",
+            "format": "date-time",
+            "type": "string"
+          },
           "coverage": {
             "items": {
               "$ref": "#/components/schemas/PublicCoverage"
@@ -598,6 +742,11 @@
           "result": {
             "$ref": "#/components/schemas/PublicEventResult"
           },
+          "scheduledStartAt": {
+            "description": "Latest canonical scheduled start. May move when providers reschedule the race.",
+            "format": "date-time",
+            "type": "string"
+          },
           "sport": {
             "enum": [
               "thoroughbred",
@@ -607,6 +756,7 @@
             "type": "string"
           },
           "startAt": {
+            "description": "Current scheduled start, not proof that the race has jumped. Alias of scheduledStartAt.",
             "format": "date-time",
             "type": "string"
           },
@@ -638,6 +788,7 @@
           "sport",
           "name",
           "startAt",
+          "scheduledStartAt",
           "status",
           "racing",
           "updatedAt"
@@ -651,6 +802,7 @@
             "type": "string"
           },
           "distanceMeters": {
+            "description": "Race distance in metres. Absent means the sources have not supplied a canonical distance; never zero metres.",
             "format": "int64",
             "type": "integer"
           },
@@ -702,11 +854,35 @@
       "PublicEventResult": {
         "additionalProperties": false,
         "properties": {
+          "changedAt": {
+            "description": "When canonical placing groups last changed. Missing for legacy results without a trustworthy change clock.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "completeness": {
+            "description": "complete: all known starters have placings; partial: some do not. Missing placings must not be inferred as unplaced or did-not-finish.",
+            "enum": [
+              "complete",
+              "partial",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "fieldSize": {
+            "description": "Known listed, non-scratched, non-vacant entrants. Not a guarantee every entrant finished.",
+            "format": "int64",
+            "type": "integer"
+          },
           "positions": {
             "items": {
               "$ref": "#/components/schemas/PublicResultPosition"
             },
             "type": "array"
+          },
+          "positionsReported": {
+            "description": "Number of runners with a reported placing, including dead heats.",
+            "format": "int64",
+            "type": "integer"
           },
           "state": {
             "enum": [
@@ -716,6 +892,7 @@
             "type": "string"
           },
           "updatedAt": {
+            "description": "Result change time when changedAt is known; otherwise the legacy event write time. Use changedAt for result-specific change detection.",
             "format": "date-time",
             "type": "string"
           }
@@ -723,6 +900,9 @@
         "required": [
           "state",
           "positions",
+          "fieldSize",
+          "positionsReported",
+          "completeness",
           "updatedAt"
         ],
         "type": "object"
@@ -745,6 +925,11 @@
           "event": {
             "$ref": "#/components/schemas/PublicEvent"
           },
+          "maxAge": {
+            "description": "Age limit in seconds applied to the quote comparison.",
+            "format": "int64",
+            "type": "integer"
+          },
           "odds": {
             "items": {
               "$ref": "#/components/schemas/PublicOdds"
@@ -752,15 +937,20 @@
             "type": "array"
           },
           "stream": {
-            "$ref": "#/components/schemas/PublicStreamContinuation"
+            "$ref": "#/components/schemas/PublicStreamContinuation",
+            "description": "Replay handoff for full, unaged, full-depth reads without sourceKind filtering. Absent for point-in-time comparisons that cannot be reproduced by a stream."
+          },
+          "summary": {
+            "items": {
+              "$ref": "#/components/schemas/PublicRunnerPrices"
+            },
+            "type": "array"
           }
         },
         "required": [
-          "stream",
           "event",
           "entrants",
-          "odds",
-          "coverage"
+          "odds"
         ],
         "type": "object"
       },
@@ -822,6 +1012,27 @@
           "marketState",
           "outcomeState",
           "inPlay"
+        ],
+        "type": "object"
+      },
+      "PublicListPublicCompetitorRun": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PublicCompetitorRun"
+            },
+            "type": "array"
+          },
+          "next": {
+            "type": "string"
+          },
+          "previous": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items"
         ],
         "type": "object"
       },
@@ -888,12 +1099,12 @@
         ],
         "type": "object"
       },
-      "PublicListPublicSource": {
+      "PublicListPublicSourceInfo": {
         "additionalProperties": false,
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/PublicSource"
+              "$ref": "#/components/schemas/PublicSourceInfo"
             },
             "type": "array"
           },
@@ -933,7 +1144,22 @@
       "PublicMeeting": {
         "additionalProperties": false,
         "properties": {
+          "events": {
+            "description": "Race summaries, attached by get_meeting with include=events. Use get_event for full results.",
+            "items": {
+              "$ref": "#/components/schemas/PublicEvent"
+            },
+            "type": "array"
+          },
+          "firstStartAt": {
+            "format": "date-time",
+            "type": "string"
+          },
           "id": {
+            "type": "string"
+          },
+          "lastStartAt": {
+            "format": "date-time",
             "type": "string"
           },
           "localDate": {
@@ -942,6 +1168,11 @@
           "name": {
             "type": "string"
           },
+          "raceCount": {
+            "description": "Races visible in the requested window and entitlement, not necessarily the entire meeting.",
+            "format": "int64",
+            "type": "integer"
+          },
           "sport": {
             "enum": [
               "thoroughbred",
@@ -949,6 +1180,20 @@
               "harness"
             ],
             "type": "string"
+          },
+          "statuses": {
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "trackConditions": {
+            "description": "Distinct conditions reported by the visible races; no inferred meeting-wide condition.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "venueId": {
             "type": "string"
@@ -959,7 +1204,8 @@
           "venueId",
           "sport",
           "localDate",
-          "name"
+          "name",
+          "raceCount"
         ],
         "type": "object"
       },
@@ -995,14 +1241,48 @@
       "PublicOdds": {
         "additionalProperties": false,
         "properties": {
+          "bestBack": {
+            "description": "Highest exchange back price with positive liquidity.",
+            "format": "double",
+            "type": "number"
+          },
+          "bestLay": {
+            "description": "Lowest exchange lay price with positive liquidity.",
+            "format": "double",
+            "type": "number"
+          },
+          "checkedAt": {
+            "description": "Last successful source-product observation, not the last price change. Check confirmation as well as this time. A failed fetch does not advance it.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "confirmation": {
+            "description": "confirmed means the latest source check supports this retained quote. unconfirmed quotes must not be used as current offers; their retained price is still shown.",
+            "enum": [
+              "confirmed",
+              "unconfirmed"
+            ],
+            "type": "string"
+          },
           "entrantId": {
             "type": "string"
+          },
+          "entrantName": {
+            "type": "string"
+          },
+          "entrantNumber": {
+            "format": "int64",
+            "type": "integer"
           },
           "eventId": {
             "type": "string"
           },
           "exchange": {
             "$ref": "#/components/schemas/PublicExchange"
+          },
+          "firstRecorded": {
+            "$ref": "#/components/schemas/PublicOddsHistoryItem",
+            "description": "Earliest retained fixed-bookmaker sample, preserved independently of rolling history on new writes. Legacy samples may be incomplete. Not an official opening price."
           },
           "history": {
             "items": {
@@ -1020,7 +1300,17 @@
             ],
             "type": "string"
           },
+          "last": {
+            "description": "Exchange last traded price; not an executable offer.",
+            "format": "double",
+            "type": "number"
+          },
+          "lastRecorded": {
+            "$ref": "#/components/schemas/PublicOddsHistoryItem",
+            "description": "Latest retained sample, returned with include=history. Not an official starting price or proof that betting was available at the jump."
+          },
           "observedAt": {
+            "description": "When Betwatch first persisted the current price state. An unchanged price can be much older than its latest successful checkedAt.",
             "format": "date-time",
             "type": "string"
           },
@@ -1046,6 +1336,7 @@
             "type": "string"
           },
           "updatedAt": {
+            "description": "Last mutation of the underlying price resource, which can include other markets or metadata. Not a polling heartbeat or proof of availability.",
             "format": "date-time",
             "type": "string"
           }
@@ -1192,6 +1483,67 @@
         ],
         "type": "object"
       },
+      "PublicPriceSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "best": {
+            "format": "double",
+            "type": "number"
+          },
+          "bestSources": {
+            "items": {
+              "$ref": "#/components/schemas/PublicSource"
+            },
+            "type": "array"
+          },
+          "key": {
+            "enum": [
+              "win",
+              "place"
+            ],
+            "type": "string"
+          },
+          "latestCheckedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "median": {
+            "format": "double",
+            "type": "number"
+          },
+          "oldestCheckedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "placesPaid": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "sourceCount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "sourceKind": {
+            "enum": [
+              "bookmaker",
+              "tote",
+              "exchange"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "sourceKind",
+          "best",
+          "bestSources",
+          "median",
+          "sourceCount",
+          "latestCheckedAt",
+          "oldestCheckedAt"
+        ],
+        "type": "object"
+      },
       "PublicProblem": {
         "additionalProperties": false,
         "properties": {
@@ -1269,12 +1621,47 @@
         ],
         "type": "object"
       },
+      "PublicResultEntrant": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "number": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "startingPrice": {
+            "description": "Official starting price; null when not supplied. Never a last observed bookmaker quote.",
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "startingPrice"
+        ],
+        "type": "object"
+      },
       "PublicResultPosition": {
         "additionalProperties": false,
         "properties": {
           "entrantIds": {
             "items": {
               "type": "string"
+            },
+            "type": "array"
+          },
+          "entrants": {
+            "items": {
+              "$ref": "#/components/schemas/PublicResultEntrant"
             },
             "type": "array"
           },
@@ -1286,6 +1673,34 @@
         "required": [
           "place",
           "entrantIds"
+        ],
+        "type": "object"
+      },
+      "PublicRunnerPrices": {
+        "additionalProperties": false,
+        "properties": {
+          "entrantId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "number": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "prices": {
+            "items": {
+              "$ref": "#/components/schemas/PublicPriceSummary"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "entrantId",
+          "name",
+          "number",
+          "prices"
         ],
         "type": "object"
       },
@@ -1357,6 +1772,53 @@
           }
         },
         "required": [
+          "id",
+          "name",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "PublicSourceInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "activity": {
+            "description": "With event: observed if Betwatch has a source observation for that race, not_observed otherwise. Without event: unknown. Not an operator health or global coverage guarantee.",
+            "enum": [
+              "unknown",
+              "observed",
+              "not_observed"
+            ],
+            "type": "string"
+          },
+          "coverage": {
+            "items": {
+              "$ref": "#/components/schemas/PublicCoverage"
+            },
+            "type": "array"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "bookmaker",
+              "tote",
+              "exchange"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "pool": {
+            "$ref": "#/components/schemas/PublicPool"
+          }
+        },
+        "required": [
+          "activity",
           "id",
           "name",
           "kind"
@@ -1594,7 +2056,7 @@
   "info": {
     "description": "Australian racing odds, prices, and results.\n\nAll endpoints are relative to this document's server URL and require an API key\nin the `X-API-Key` header. Errors are RFC 9457 problem documents carrying a\nstable `code` you can branch on. Collections are cursor-paginated:\nfollow `next` rather than constructing page parameters.\n\nFor `GET /events/snapshot`, the first request supplies the scope and\neach later page request supplies only its `after` or `before`\ncursor. That sealed cursor preserves the resolved time window and stream\nboundary; do not repeat filters or a limit on later pages.\n\nThe intended workflow is snapshot, then follow: take current prices for the\nraces you care about with `GET /events/snapshot` (or one race with\n`GET /events/{id}/snapshot`), then connect `GET /stream`\nwith `snapshot=none` and the continuation's exact filters and `cursor`.\nApply ordered frames until the following `sync` frame before treating\nthe REST baseline as reconciled. Each odds\nrow names `key` (`win` or `place`) so you can\nrender a race card without joining a market collection. Stream frames are\nunmetered, so following is cheaper and faster than polling.\n\nEmpty collections are always `[]`, never `null`.\n\nNew fields and new endpoints can appear without a new version. Ignore fields\nyou do not recognise.",
     "title": "Betwatch Racing API",
-    "version": "2.3.0"
+    "version": "2.4.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -5141,17 +5603,6 @@
             }
           },
           {
-            "explode": false,
-            "in": "query",
-            "name": "include",
-            "schema": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
             "description": "ETag values from earlier responses. A match returns 304 with no body; it is charged like the 200 it replaces.",
             "in": "header",
             "name": "If-None-Match",
@@ -6061,6 +6512,964 @@
         ]
       }
     },
+    "/competitors/{id}/form": {
+      "get": {
+        "description": "Past starts, newest first, with venue, distance, class, barrier and known finish/field size. Defaults to 10. Only races with a reported jump or placings count as starts; scratchings and upcoming entries are excluded. Null finish, startingPrice or winningMargin means unknown, never zero. Repeat the same ID and time filters with after to page.",
+        "operationId": "getCompetitorForm",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "after",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Number of starts, 1–200; defaults to 10. Newest first.",
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "description": "Number of starts, 1–200; defaults to 10. Newest first.",
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "startFrom",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "startTo",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag values from earlier responses. A match returns 304 with no body; it is charged like the 200 it replaces.",
+            "in": "header",
+            "name": "If-None-Match",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicListPublicCompetitorRun"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "description": "Weak validator over the response body. Send it back in If-None-Match to get 304 Not Modified when nothing changed.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers state for each policy in RateLimit-Policy, e.g. `\"discovery\";r=599;t=1, \"monthly\";r=1999990;t=86400`. `r` is what remains and `t` the seconds until it resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers policies applied to this request, e.g. `\"discovery\";q=600;w=60, \"monthly\";q=2000000`. `q` is the quota and `w` the window in seconds; the monthly quota follows the calendar and has no `w`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified: the representation still matches an ETag in If-None-Match.",
+            "headers": {
+              "ETag": {
+                "description": "Weak validator over the response body. Send it back in If-None-Match to get 304 Not Modified when nothing changed.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers state for each policy in RateLimit-Policy, e.g. `\"discovery\";r=599;t=1, \"monthly\";r=1999990;t=86400`. `r` is what remains and `t` the seconds until it resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers policies applied to this request, e.g. `\"discovery\";q=600;w=60, \"monthly\";q=2000000`. `q` is the quota and `w` the window in seconds; the monthly quota follows the calendar and has no `w`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "headers": {
+              "RateLimit": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers state for each policy in RateLimit-Policy, e.g. `\"discovery\";r=599;t=1, \"monthly\";r=1999990;t=86400`. `r` is what remains and `t` the seconds until it resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers policies applied to this request, e.g. `\"discovery\";q=600;w=60, \"monthly\";q=2000000`. `q` is the quota and `w` the window in seconds; the monthly quota follows the calendar and has no `w`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Unauthorized",
+            "headers": {
+              "RateLimit": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers state for each policy in RateLimit-Policy, e.g. `\"discovery\";r=599;t=1, \"monthly\";r=1999990;t=86400`. `r` is what remains and `t` the seconds until it resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers policies applied to this request, e.g. `\"discovery\";q=600;w=60, \"monthly\";q=2000000`. `q` is the quota and `w` the window in seconds; the monthly quota follows the calendar and has no `w`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Forbidden",
+            "headers": {
+              "RateLimit": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers state for each policy in RateLimit-Policy, e.g. `\"discovery\";r=599;t=1, \"monthly\";r=1999990;t=86400`. `r` is what remains and `t` the seconds until it resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers policies applied to this request, e.g. `\"discovery\";q=600;w=60, \"monthly\";q=2000000`. `q` is the quota and `w` the window in seconds; the monthly quota follows the calendar and has no `w`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Not Found",
+            "headers": {
+              "RateLimit": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers state for each policy in RateLimit-Policy, e.g. `\"discovery\";r=599;t=1, \"monthly\";r=1999990;t=86400`. `r` is what remains and `t` the seconds until it resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers policies applied to this request, e.g. `\"discovery\";q=600;w=60, \"monthly\";q=2000000`. `q` is the quota and `w` the window in seconds; the monthly quota follows the calendar and has no `w`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Method Not Allowed",
+            "headers": {
+              "RateLimit": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers state for each policy in RateLimit-Policy, e.g. `\"discovery\";r=599;t=1, \"monthly\";r=1999990;t=86400`. `r` is what remains and `t` the seconds until it resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers policies applied to this request, e.g. `\"discovery\";q=600;w=60, \"monthly\";q=2000000`. `q` is the quota and `w` the window in seconds; the monthly quota follows the calendar and has no `w`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "406": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Not Acceptable",
+            "headers": {
+              "RateLimit": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers state for each policy in RateLimit-Policy, e.g. `\"discovery\";r=599;t=1, \"monthly\";r=1999990;t=86400`. `r` is what remains and `t` the seconds until it resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers policies applied to this request, e.g. `\"discovery\";q=600;w=60, \"monthly\";q=2000000`. `q` is the quota and `w` the window in seconds; the monthly quota follows the calendar and has no `w`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type",
+            "headers": {
+              "RateLimit": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers state for each policy in RateLimit-Policy, e.g. `\"discovery\";r=599;t=1, \"monthly\";r=1999990;t=86400`. `r` is what remains and `t` the seconds until it resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers policies applied to this request, e.g. `\"discovery\";q=600;w=60, \"monthly\";q=2000000`. `q` is the quota and `w` the window in seconds; the monthly quota follows the calendar and has no `w`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity",
+            "headers": {
+              "RateLimit": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers state for each policy in RateLimit-Policy, e.g. `\"discovery\";r=599;t=1, \"monthly\";r=1999990;t=86400`. `r` is what remains and `t` the seconds until it resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers policies applied to this request, e.g. `\"discovery\";q=600;w=60, \"monthly\";q=2000000`. `q` is the quota and `w` the window in seconds; the monthly quota follows the calendar and has no `w`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Too Many Requests",
+            "headers": {
+              "RateLimit": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers state for each policy in RateLimit-Policy, e.g. `\"discovery\";r=599;t=1, \"monthly\";r=1999990;t=86400`. `r` is what remains and `t` the seconds until it resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers policies applied to this request, e.g. `\"discovery\";q=600;w=60, \"monthly\";q=2000000`. `q` is the quota and `w` the window in seconds; the monthly quota follows the calendar and has no `w`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Seconds to wait before retrying. Present on rate_limited; on quota_exceeded it points at the monthly reset and retrying will not help.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Internal Server Error",
+            "headers": {
+              "RateLimit": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers state for each policy in RateLimit-Policy, e.g. `\"discovery\";r=599;t=1, \"monthly\";r=1999990;t=86400`. `r` is what remains and `t` the seconds until it resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers policies applied to this request, e.g. `\"discovery\";q=600;w=60, \"monthly\";q=2000000`. `q` is the quota and `w` the window in seconds; the monthly quota follows the calendar and has no `w`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProblem"
+                }
+              }
+            },
+            "description": "Service Unavailable",
+            "headers": {
+              "RateLimit": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers state for each policy in RateLimit-Policy, e.g. `\"discovery\";r=599;t=1, \"monthly\";r=1999990;t=86400`. `r` is what remains and `t` the seconds until it resets.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "IETF draft-ietf-httpapi-ratelimit-headers policies applied to this request, e.g. `\"discovery\";q=600;w=60, \"monthly\";q=2000000`. `q` is the quota and `w` the window in seconds; the monthly quota follows the calendar and has no `w`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Seconds to wait before retrying. Present on rate_limited; on quota_exceeded it points at the monthly reset and retrying will not help.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "description": "Requests per minute allowed for this class of request.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Limit": {
+                "description": "Request units included in the plan this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Remaining": {
+                "description": "Request units remaining this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Monthly-Reset": {
+                "description": "When the monthly quota resets (RFC 3339).",
+                "schema": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Monthly-Used": {
+                "description": "Request units spent this month.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "Requests still available in the current window.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-RateLimit-Reset": {
+                "description": "Seconds until the short-window budget is full again.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyHeader": []
+          }
+        ],
+        "summary": "Get recent starts",
+        "tags": [
+          "Racing"
+        ]
+      }
+    },
     "/entrants": {
       "get": {
         "description": "Runners in saddle-cloth order. Needs an `event` or `competitor` filter.",
@@ -6152,21 +7561,6 @@
           {
             "explode": false,
             "in": "query",
-            "name": "key",
-            "schema": {
-              "items": {
-                "enum": [
-                  "win",
-                  "place"
-                ],
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
             "name": "entrant",
             "schema": {
               "items": {
@@ -6176,29 +7570,22 @@
             }
           },
           {
-            "explode": false,
-            "in": "query",
-            "name": "source",
-            "schema": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
+            "description": "RFC3339 with timezone. Discovery defaults to now minus five minutes unless startTo is older than that; historical reads should set both bounds. Entitlement history limits still apply.",
             "explode": false,
             "in": "query",
             "name": "startFrom",
             "schema": {
+              "description": "RFC3339 with timezone. Discovery defaults to now minus five minutes unless startTo is older than that; historical reads should set both bounds. Entitlement history limits still apply.",
               "type": "string"
             }
           },
           {
+            "description": "Inclusive RFC3339 upper bound with timezone. Without startFrom, a future bound uses the discovery floor; an older bound searches entitled history.",
             "explode": false,
             "in": "query",
             "name": "startTo",
             "schema": {
+              "description": "Inclusive RFC3339 upper bound with timezone. Without startFrom, a future bound uses the discovery floor; an older bound searches entitled history.",
               "type": "string"
             }
           },
@@ -6230,14 +7617,13 @@
             }
           },
           {
+            "description": "Optional sections: racing.",
             "explode": false,
             "in": "query",
             "name": "include",
             "schema": {
               "items": {
                 "enum": [
-                  "coverage",
-                  "history",
                   "racing"
                 ],
                 "type": "string"
@@ -7180,11 +8566,15 @@
             }
           },
           {
+            "description": "Optional sections: racing.",
             "explode": false,
             "in": "query",
             "name": "include",
             "schema": {
               "items": {
+                "enum": [
+                  "racing"
+                ],
                 "type": "string"
               },
               "type": "array"
@@ -8189,14 +9579,21 @@
             }
           },
           {
+            "description": "Dividend pools to return with include=racing. Omit to preserve all pools.",
             "explode": false,
             "in": "query",
-            "name": "key",
+            "name": "pool",
             "schema": {
+              "description": "Dividend pools to return with include=racing. Omit to preserve all pools.",
               "items": {
                 "enum": [
                   "win",
-                  "place"
+                  "place",
+                  "quinella",
+                  "exacta",
+                  "duet",
+                  "trifecta",
+                  "first4"
                 ],
                 "type": "string"
               },
@@ -8204,40 +9601,22 @@
             }
           },
           {
-            "explode": false,
-            "in": "query",
-            "name": "entrant",
-            "schema": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
-            "name": "source",
-            "schema": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
+            "description": "RFC3339 with timezone. Discovery defaults to now minus five minutes unless startTo is older than that; historical reads should set both bounds. Entitlement history limits still apply.",
             "explode": false,
             "in": "query",
             "name": "startFrom",
             "schema": {
+              "description": "RFC3339 with timezone. Discovery defaults to now minus five minutes unless startTo is older than that; historical reads should set both bounds. Entitlement history limits still apply.",
               "type": "string"
             }
           },
           {
+            "description": "Inclusive RFC3339 upper bound with timezone. Without startFrom, a future bound uses the discovery floor; an older bound searches entitled history.",
             "explode": false,
             "in": "query",
             "name": "startTo",
             "schema": {
+              "description": "Inclusive RFC3339 upper bound with timezone. Without startFrom, a future bound uses the discovery floor; an older bound searches entitled history.",
               "type": "string"
             }
           },
@@ -8269,6 +9648,7 @@
             }
           },
           {
+            "description": "Optional sections: coverage, racing.",
             "explode": false,
             "in": "query",
             "name": "include",
@@ -8276,20 +9656,8 @@
               "items": {
                 "enum": [
                   "coverage",
-                  "history",
                   "racing"
                 ],
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
-            "name": "competitor",
-            "schema": {
-              "items": {
                 "type": "string"
               },
               "type": "array"
@@ -10366,11 +11734,36 @@
             }
           },
           {
+            "description": "Optional sections: coverage, racing.",
             "explode": false,
             "in": "query",
             "name": "include",
             "schema": {
               "items": {
+                "enum": [
+                  "coverage",
+                  "racing"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "pool",
+            "schema": {
+              "items": {
+                "enum": [
+                  "win",
+                  "place",
+                  "quinella",
+                  "exacta",
+                  "duet",
+                  "trifecta",
+                  "first4"
+                ],
                 "type": "string"
               },
               "type": "array"
@@ -11313,9 +12706,104 @@
           {
             "explode": false,
             "in": "query",
+            "name": "key",
+            "schema": {
+              "items": {
+                "enum": [
+                  "win",
+                  "place"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "sourceKind",
+            "schema": {
+              "items": {
+                "enum": [
+                  "bookmaker",
+                  "tote",
+                  "exchange"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          {
+            "description": "Maximum successful check age in seconds. Summary defaults to 120 seconds. Unconfirmed quotes are never included in summaries.",
+            "explode": false,
+            "in": "query",
+            "name": "maxAge",
+            "schema": {
+              "description": "Maximum successful check age in seconds. Summary defaults to 120 seconds. Unconfirmed quotes are never included in summaries.",
+              "format": "int64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "full returns price rows. summary returns one comparison per runner, separated by win/place, places paid and source kind; coverage is opt-in. REST defaults to full; MCP defaults to summary.",
+            "explode": false,
+            "in": "query",
+            "name": "view",
+            "schema": {
+              "description": "full returns price rows. summary returns one comparison per runner, separated by win/place, places paid and source kind; coverage is opt-in. REST defaults to full; MCP defaults to summary.",
+              "enum": [
+                "full",
+                "summary"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "pool",
+            "schema": {
+              "items": {
+                "enum": [
+                  "win",
+                  "place",
+                  "quinella",
+                  "exacta",
+                  "duet",
+                  "trifecta",
+                  "first4"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "depth",
+            "schema": {
+              "enum": [
+                "full",
+                "top"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional sections: coverage, history, racing.",
+            "explode": false,
+            "in": "query",
             "name": "include",
             "schema": {
               "items": {
+                "enum": [
+                  "coverage",
+                  "history",
+                  "racing"
+                ],
                 "type": "string"
               },
               "type": "array"
@@ -12397,55 +13885,22 @@
             }
           },
           {
-            "explode": false,
-            "in": "query",
-            "name": "key",
-            "schema": {
-              "items": {
-                "enum": [
-                  "win",
-                  "place"
-                ],
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
-            "name": "entrant",
-            "schema": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
-            "name": "source",
-            "schema": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
+            "description": "RFC3339 with timezone. Discovery defaults to now minus five minutes unless startTo is older than that; historical reads should set both bounds. Entitlement history limits still apply.",
             "explode": false,
             "in": "query",
             "name": "startFrom",
             "schema": {
+              "description": "RFC3339 with timezone. Discovery defaults to now minus five minutes unless startTo is older than that; historical reads should set both bounds. Entitlement history limits still apply.",
               "type": "string"
             }
           },
           {
+            "description": "Inclusive RFC3339 upper bound with timezone. Without startFrom, a future bound uses the discovery floor; an older bound searches entitled history.",
             "explode": false,
             "in": "query",
             "name": "startTo",
             "schema": {
+              "description": "Inclusive RFC3339 upper bound with timezone. Without startFrom, a future bound uses the discovery floor; an older bound searches entitled history.",
               "type": "string"
             }
           },
@@ -12474,33 +13929,6 @@
               "description": "Page size, 1–200. Defaults to 100.",
               "format": "int64",
               "type": "integer"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
-            "name": "include",
-            "schema": {
-              "items": {
-                "enum": [
-                  "coverage",
-                  "history",
-                  "racing"
-                ],
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
-            "name": "competitor",
-            "schema": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
             }
           },
           {
@@ -13427,11 +14855,15 @@
             }
           },
           {
+            "description": "Optional sections: events.",
             "explode": false,
             "in": "query",
             "name": "include",
             "schema": {
               "items": {
+                "enum": [
+                  "events"
+                ],
                 "type": "string"
               },
               "type": "array"
@@ -14475,16 +15907,62 @@
           {
             "explode": false,
             "in": "query",
-            "name": "startFrom",
+            "name": "sourceKind",
             "schema": {
+              "items": {
+                "enum": [
+                  "bookmaker",
+                  "tote",
+                  "exchange"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          {
+            "description": "Only confirmed available quotes checked within this many seconds. Zero disables the age filter. Uses checkedAt, not last price change.",
+            "explode": false,
+            "in": "query",
+            "name": "maxAge",
+            "schema": {
+              "description": "Only confirmed available quotes checked within this many seconds. Zero disables the age filter. Uses checkedAt, not last price change.",
+              "format": "int64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Exchange ladder depth. full preserves all levels; top keeps only best back and lay.",
+            "explode": false,
+            "in": "query",
+            "name": "depth",
+            "schema": {
+              "description": "Exchange ladder depth. full preserves all levels; top keeps only best back and lay.",
+              "enum": [
+                "full",
+                "top"
+              ],
               "type": "string"
             }
           },
           {
+            "description": "RFC3339 with timezone. Discovery defaults to now minus five minutes unless startTo is older than that; historical reads should set both bounds. Entitlement history limits still apply.",
+            "explode": false,
+            "in": "query",
+            "name": "startFrom",
+            "schema": {
+              "description": "RFC3339 with timezone. Discovery defaults to now minus five minutes unless startTo is older than that; historical reads should set both bounds. Entitlement history limits still apply.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive RFC3339 upper bound with timezone. Without startFrom, a future bound uses the discovery floor; an older bound searches entitled history.",
             "explode": false,
             "in": "query",
             "name": "startTo",
             "schema": {
+              "description": "Inclusive RFC3339 upper bound with timezone. Without startFrom, a future bound uses the discovery floor; an older bound searches entitled history.",
               "type": "string"
             }
           },
@@ -14516,27 +15994,16 @@
             }
           },
           {
+            "description": "Optional sections: history, coverage.",
             "explode": false,
             "in": "query",
             "name": "include",
             "schema": {
               "items": {
                 "enum": [
-                  "coverage",
                   "history",
-                  "racing"
+                  "coverage"
                 ],
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
-            "name": "competitor",
-            "schema": {
-              "items": {
                 "type": "string"
               },
               "type": "array"
@@ -15466,14 +16933,30 @@
             }
           },
           {
+            "description": "Optional sections: history.",
             "explode": false,
             "in": "query",
             "name": "include",
             "schema": {
               "items": {
+                "enum": [
+                  "history"
+                ],
                 "type": "string"
               },
               "type": "array"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "depth",
+            "schema": {
+              "enum": [
+                "full",
+                "top"
+              ],
+              "type": "string"
             }
           },
           {
@@ -16388,7 +17871,7 @@
     },
     "/sources": {
       "get": {
-        "description": "Every bookmaker, tote, and exchange this API can price, with the ids the `source` filter accepts.",
+        "description": "Exact bookmaker, tote and exchange products. kind distinguishes fixed-odds tabnz/tabtouch from tote products. Supply event for race-specific coverage/activity. No global provider health or sport/country coverage is implied by catalogue membership.",
         "operationId": "listSources",
         "parameters": [
           {
@@ -16400,6 +17883,16 @@
                 "type": "string"
               },
               "type": "array"
+            }
+          },
+          {
+            "description": "Optional race ID: attach exact source observations for this entitled race. Absence of an observation does not mean a provider is inactive or does not cover its sport/country.",
+            "explode": false,
+            "in": "query",
+            "name": "event",
+            "schema": {
+              "description": "Optional race ID: attach exact source observations for this entitled race. Absence of an observation does not mean a provider is inactive or does not cover its sport/country.",
+              "type": "string"
             }
           },
           {
@@ -16443,7 +17936,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PublicListPublicSource"
+                  "$ref": "#/components/schemas/PublicListPublicSourceInfo"
                 }
               }
             },
@@ -18071,55 +19564,22 @@
             }
           },
           {
-            "explode": false,
-            "in": "query",
-            "name": "key",
-            "schema": {
-              "items": {
-                "enum": [
-                  "win",
-                  "place"
-                ],
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
-            "name": "entrant",
-            "schema": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
-            "name": "source",
-            "schema": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
+            "description": "RFC3339 with timezone. Discovery defaults to now minus five minutes unless startTo is older than that; historical reads should set both bounds. Entitlement history limits still apply.",
             "explode": false,
             "in": "query",
             "name": "startFrom",
             "schema": {
+              "description": "RFC3339 with timezone. Discovery defaults to now minus five minutes unless startTo is older than that; historical reads should set both bounds. Entitlement history limits still apply.",
               "type": "string"
             }
           },
           {
+            "description": "Inclusive RFC3339 upper bound with timezone. Without startFrom, a future bound uses the discovery floor; an older bound searches entitled history.",
             "explode": false,
             "in": "query",
             "name": "startTo",
             "schema": {
+              "description": "Inclusive RFC3339 upper bound with timezone. Without startFrom, a future bound uses the discovery floor; an older bound searches entitled history.",
               "type": "string"
             }
           },
@@ -18148,33 +19608,6 @@
               "description": "Page size, 1–200. Defaults to 100.",
               "format": "int64",
               "type": "integer"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
-            "name": "include",
-            "schema": {
-              "items": {
-                "enum": [
-                  "coverage",
-                  "history",
-                  "racing"
-                ],
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
-            "name": "competitor",
-            "schema": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
             }
           },
           {
@@ -19098,17 +20531,6 @@
             "required": true,
             "schema": {
               "type": "string"
-            }
-          },
-          {
-            "explode": false,
-            "in": "query",
-            "name": "include",
-            "schema": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
             }
           },
           {

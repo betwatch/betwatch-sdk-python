@@ -36,6 +36,7 @@ def test_snapshot_and_page_decode_nested_collections() -> None:
         b'"odds":[],"coverage":[]}'
     )
     card = msgspec.json.decode(raw, type=EventSnapshot)
+    assert card.stream is not None
     assert card.stream.cursor == "cur_1"
     assert card.event.id == "evt_1"
     assert card.entrants[0].competitor_id == "cmp_1"
@@ -350,3 +351,78 @@ def test_contract_2_2_book_and_stream_url_decode() -> None:
     assert card.apply(frame_for_event("coverage", "c4", coverage("partial", 1))) is False
     assert card.apply(frame_for_event("coverage", "c5", coverage("full", 2, full=True))) is True
     assert card.coverage[0].book is not None and card.coverage[0].book.status == "full"
+
+
+def test_current_price_helpers_exclude_unconfirmed_and_unavailable_quotes() -> None:
+    event = Event(
+        id="evt_1", sport="harness", name="R10", start_at=datetime.now(UTC), status="open"
+    )
+    rows: list[dict[str, object]] = [
+        {"id": "fresh", "price": 4, "state": "available", "confirmation": "confirmed"},
+        {"id": "unconfirmed", "price": 21, "state": "available", "confirmation": "unconfirmed"},
+        {"id": "suspended", "price": 16, "state": "suspended", "confirmation": "confirmed"},
+        {"id": "legacy", "price": 3, "state": "available"},
+    ]
+    for row in rows:
+        row.update(
+            eventId="evt_1",
+            entrantId="ent_1",
+            key="win",
+            source={"id": str(row["id"]), "name": str(row["id"]), "kind": "bookmaker"},
+        )
+    card = msgspec.json.decode(
+        msgspec.json.encode({"event": event, "odds": rows}), type=EventSnapshot
+    )
+    assert card.best_price("ent_1") == 4
+    assert card.lowest_price("ent_1") == 3
+    assert card.price("ent_1", "unconfirmed") is None
+    assert [quote.id for quote in card.quotes("ent_1")] == ["fresh", "legacy"]
+
+
+def test_compact_snapshot_and_form_preserve_unknown_facts() -> None:
+    import pytest
+
+    from betwatch import Betwatch, CompetitorForm
+
+    body = {
+        "event": {
+            "id": "evt_1",
+            "sport": "harness",
+            "name": "R10",
+            "startAt": "2026-10-30T11:37:00Z",
+            "status": "open",
+        },
+        "maxAge": 120,
+        "summary": [
+            {
+                "entrantId": "ent_1",
+                "name": "Chillax",
+                "number": 3,
+                "prices": [
+                    {
+                        "key": "win",
+                        "sourceKind": "bookmaker",
+                        "best": 4,
+                        "median": 3.5,
+                        "sourceCount": 2,
+                        "latestCheckedAt": "2026-10-30T11:35:58Z",
+                        "oldestCheckedAt": "2026-10-30T11:35:00Z",
+                    }
+                ],
+            }
+        ],
+    }
+    card = msgspec.json.decode(msgspec.json.encode(body), type=EventSnapshot)
+    assert card.stream is None and card.odds == [] and card.max_age == 120
+    assert card.summary[0].prices[0].median == 3.5
+    with Betwatch(api_key="test") as client:
+        with pytest.raises(ValueError, match="no stream handoff"):
+            client.follow(card)
+    form = msgspec.json.decode(
+        b'{"items":[{"eventId":"evt_1","entrantId":"ent_1","startAt":"2026-10-29T11:00:00Z",'
+        b'"raceNumber":9,"number":3,"finish":null,"fieldSize":8,"distanceMeters":null,'
+        b'"startingPrice":null,"winningMargin":null}]}',
+        type=CompetitorForm,
+    )
+    assert form[0].finish is None and form[0].distance_meters is None
+    assert form[0].field_size == 8 and form[0].starting_price is None

@@ -71,8 +71,8 @@ class Meetings:
 
         return walk(fetch)
 
-    def retrieve(self, id: str) -> Meeting:
-        return self._client._get("/v2/meetings/" + id, None, Meeting)
+    def retrieve(self, id: str, *, include: Sequence[str] | str | None = None) -> Meeting:
+        return self._client._get("/v2/meetings/" + id, list_query(include=include), Meeting)
 
 
 class AsyncMeetings:
@@ -136,5 +136,5 @@ class AsyncMeetings:
         async for row in awalk(fetch):
             yield row
 
-    async def retrieve(self, id: str) -> Meeting:
-        return await self._client._aget("/v2/meetings/" + id, None, Meeting)
+    async def retrieve(self, id: str, *, include: Sequence[str] | str | None = None) -> Meeting:
+        return await self._client._aget("/v2/meetings/" + id, list_query(include=include), Meeting)

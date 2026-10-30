@@ -22,10 +22,11 @@ class Sources:
         before: str | None = None,
         limit: int | None = None,
         source: Sequence[str] | str | None = None,
+        event: str | None = None,
     ) -> SourcePage:
         return self._client._get(
             "/v2/sources",
-            list_query(after=after, before=before, limit=limit, source=source),
+            list_query(after=after, before=before, limit=limit, source=source, event=event),
             SourcePage,
         )
 
@@ -34,6 +35,7 @@ class Sources:
         *,
         limit: int | None = None,
         source: Sequence[str] | str | None = None,
+        event: str | None = None,
     ) -> Iterator[Source]:
         """Walk every page of matching source rows.
 
@@ -45,6 +47,7 @@ class Sources:
             return self.list(
                 limit=limit,
                 source=source,
+                event=event,
                 after=after,
             )
 
@@ -62,10 +65,11 @@ class AsyncSources:
         before: str | None = None,
         limit: int | None = None,
         source: Sequence[str] | str | None = None,
+        event: str | None = None,
     ) -> SourcePage:
         return await self._client._aget(
             "/v2/sources",
-            list_query(after=after, before=before, limit=limit, source=source),
+            list_query(after=after, before=before, limit=limit, source=source, event=event),
             SourcePage,
         )
 
@@ -74,6 +78,7 @@ class AsyncSources:
         *,
         limit: int | None = None,
         source: Sequence[str] | str | None = None,
+        event: str | None = None,
     ) -> AsyncIterator[Source]:
         """Walk every page of matching source rows.
 
@@ -85,6 +90,7 @@ class AsyncSources:
             return await self.list(
                 limit=limit,
                 source=source,
+                event=event,
                 after=after,
             )
 

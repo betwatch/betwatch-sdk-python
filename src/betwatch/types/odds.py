@@ -40,7 +40,16 @@ class Odds(Model):
     price: float | None = None
     exchange: Exchange | None = None
     entrant_id: str | None = None
+    entrant_name: str | None = None
+    entrant_number: int | None = None
+    confirmation: str | None = None
+    checked_at: datetime | None = None
+    best_back: float | None = None
+    best_lay: float | None = None
+    last: float | None = None
     history: list[OddsHistoryItem] | None = None
+    first_recorded: OddsHistoryItem | None = None
+    last_recorded: OddsHistoryItem | None = None
     observed_at: datetime | None = None
     updated_at: datetime | None = None
 

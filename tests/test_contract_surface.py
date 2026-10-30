@@ -45,6 +45,7 @@ OPERATIONS = {
     "listEntrants": ("entrants", "list"),
     "getEntrant": ("entrants", "retrieve"),
     "getCompetitor": ("competitors", "retrieve"),
+    "getCompetitorForm": ("competitors", "form"),
     "listOdds": ("odds", "list"),
     "getOdds": ("odds", "retrieve"),
     "listMeetings": ("meetings", "list"),
@@ -71,7 +72,7 @@ def test_stream_racing_is_implemented() -> None:
 
 
 def test_operation_count_matches_the_contract() -> None:
-    assert len(OPERATIONS) + 1 == 15, "15 operations: 14 REST plus streamRacing"
+    assert len(OPERATIONS) + 1 == 16, "16 operations: 15 REST plus streamRacing"
 
 
 def test_every_collection_can_be_paged() -> None:

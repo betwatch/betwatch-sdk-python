@@ -742,6 +742,10 @@ class Betwatch:
         ``stream.continuation`` and pass it here to resume after a restart.
         """
         continuation = source if isinstance(source, StreamContinuation) else source.stream
+        if continuation is None:
+            raise ValueError(
+                "This snapshot has no stream handoff; request a full, unfiltered snapshot."
+            )
         return Stream(
             self,
             {
@@ -940,6 +944,10 @@ class AsyncBetwatch:
     ) -> AsyncStream:
         """Subscribe after a snapshot or server-issued continuation."""
         continuation = source if isinstance(source, StreamContinuation) else source.stream
+        if continuation is None:
+            raise ValueError(
+                "This snapshot has no stream handoff; request a full, unfiltered snapshot."
+            )
         return AsyncStream(
             self,
             {

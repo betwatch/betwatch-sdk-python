@@ -1,5 +1,5 @@
 from .common import Money, NamedPerson, Parent, Pool, PriceLevel, to_dict, to_json, to_records
-from .competitor import Competitor
+from .competitor import Competitor, CompetitorForm, CompetitorRun
 from .coverage import Coverage, CoverageBook, CoverageBookPrice
 from .entrant import Deduction, Entrant, EntrantPage, EntrantRacing
 from .enums import (
@@ -34,12 +34,20 @@ from .enums import (
     Sport,
     Sports,
 )
-from .event import Dividend, Event, EventPage, EventRacing, EventResult
+from .event import (
+    Dividend,
+    Event,
+    EventPage,
+    EventRacing,
+    EventResult,
+    ResultEntrant,
+    ResultPosition,
+)
 from .meeting import Meeting, MeetingPage
 from .odds import Exchange, Odds, OddsHistoryItem, OddsPage
 from .page import Page
 from .scope import RacingScope
-from .snapshot import EventSnapshot, ScopeSnapshot, StreamContinuation
+from .snapshot import EventSnapshot, PriceSummary, RunnerPrices, ScopeSnapshot, StreamContinuation
 from .source import Source, SourcePage
 from .stream import (
     CoverageFrame,
@@ -62,6 +70,12 @@ __all__ = [
     "BudgetHeaders",
     "ErrorCodes",
     "Competitor",
+    "CompetitorForm",
+    "CompetitorRun",
+    "PriceSummary",
+    "RunnerPrices",
+    "ResultEntrant",
+    "ResultPosition",
     "Coverage",
     "CoverageBook",
     "CoverageBookPrice",

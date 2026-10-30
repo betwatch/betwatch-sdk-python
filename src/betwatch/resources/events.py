@@ -27,6 +27,7 @@ def _event_list_query(
     before: str | None,
     limit: int | None,
     include: Sequence[str] | str | None,
+    pool: Sequence[str] | str | None = None,
 ) -> dict[str, object]:
     return list_query(
         sport=sport,
@@ -41,6 +42,7 @@ def _event_list_query(
         before=before,
         limit=limit,
         include=include,
+        pool=pool,
     )
 
 
@@ -63,6 +65,7 @@ class Events:
         before: str | None = None,
         limit: int | None = None,
         include: Sequence[IncludeFlag] | IncludeFlag | None = None,
+        pool: Sequence[str] | str | None = None,
     ) -> EventPage:
         """List events. `include` accepts `coverage` and/or `racing`.
 
@@ -90,6 +93,7 @@ class Events:
                 before=before,
                 limit=limit,
                 include=include,
+                pool=pool,
             ),
             EventPage,
         )
@@ -107,6 +111,7 @@ class Events:
         start_to: str | None = None,
         limit: int | None = None,
         include: Sequence[IncludeFlag] | IncludeFlag | None = None,
+        pool: Sequence[str] | str | None = None,
     ) -> Iterator[Event]:
         """Walk every page of matching events.
 
@@ -126,31 +131,57 @@ class Events:
                 start_to=start_to,
                 limit=limit,
                 include=include,
+                pool=pool,
                 after=after,
             )
 
         return walk(fetch)
 
-    def retrieve(self, id: str, *, include: Sequence[str] | str | None = None) -> Event:
+    def retrieve(
+        self,
+        id: str,
+        *,
+        include: Sequence[str] | str | None = None,
+        pool: Sequence[str] | str | None = None,
+    ) -> Event:
         """Fetch one event by public id (`evt_...`)."""
-        return self._client._get("/v2/events/" + id, list_query(include=include), Event)
+        return self._client._get("/v2/events/" + id, list_query(include=include, pool=pool), Event)
 
     def snapshot(
         self,
         id: str,
         *,
         source: Sequence[str] | str | None = None,
+        key: Sequence[str] | str | None = None,
+        source_kind: Sequence[str] | str | None = None,
+        max_age: int | None = None,
+        view: str | None = None,
+        depth: str | None = None,
+        pool: Sequence[str] | str | None = None,
         include: Sequence[IncludeFlag] | IncludeFlag | None = None,
         resync_token: str | None = None,
     ) -> EventSnapshot:
-        """Bootstrap one event: card + odds + a stream cursor captured before the read.
+        """Read one event's full card or a compact price summary.
 
-        Then `client.follow(snapshot)` to subscribe without a snapshot replay.
+        Ordinary full cards carry a stream cursor for `client.follow(snapshot)`.
+        Summary, source-kind, age-filtered and top-depth reads have no handoff.
         `resync_token` waives the charge for a re-snapshot after a merge resync.
         """
         return self._client._get(
             f"/v2/events/{id}/snapshot",
-            {**list_query(source=source, include=include), "resyncToken": resync_token},
+            {
+                **list_query(
+                    source=source,
+                    key=key,
+                    source_kind=source_kind,
+                    max_age=max_age,
+                    view=view,
+                    depth=depth,
+                    pool=pool,
+                    include=include,
+                ),
+                "resyncToken": resync_token,
+            },
             EventSnapshot,
         )
 
@@ -174,6 +205,7 @@ class AsyncEvents:
         before: str | None = None,
         limit: int | None = None,
         include: Sequence[IncludeFlag] | IncludeFlag | None = None,
+        pool: Sequence[str] | str | None = None,
     ) -> EventPage:
         return await self._client._aget(
             "/v2/events",
@@ -190,6 +222,7 @@ class AsyncEvents:
                 before=before,
                 limit=limit,
                 include=include,
+                pool=pool,
             ),
             EventPage,
         )
@@ -207,6 +240,7 @@ class AsyncEvents:
         start_to: str | None = None,
         limit: int | None = None,
         include: Sequence[IncludeFlag] | IncludeFlag | None = None,
+        pool: Sequence[str] | str | None = None,
     ) -> AsyncIterator[Event]:
         """Walk every page of matching events.
 
@@ -226,26 +260,42 @@ class AsyncEvents:
                 start_to=start_to,
                 limit=limit,
                 include=include,
+                pool=pool,
                 after=after,
             )
 
         async for row in awalk(fetch):
             yield row
 
-    async def retrieve(self, id: str, *, include: Sequence[str] | str | None = None) -> Event:
-        return await self._client._aget("/v2/events/" + id, list_query(include=include), Event)
+    async def retrieve(
+        self,
+        id: str,
+        *,
+        include: Sequence[str] | str | None = None,
+        pool: Sequence[str] | str | None = None,
+    ) -> Event:
+        return await self._client._aget(
+            "/v2/events/" + id, list_query(include=include, pool=pool), Event
+        )
 
     async def snapshot(
         self,
         id: str,
         *,
         source: Sequence[str] | str | None = None,
+        key: Sequence[str] | str | None = None,
+        source_kind: Sequence[str] | str | None = None,
+        max_age: int | None = None,
+        view: str | None = None,
+        depth: str | None = None,
+        pool: Sequence[str] | str | None = None,
         include: Sequence[IncludeFlag] | IncludeFlag | None = None,
         resync_token: str | None = None,
     ) -> EventSnapshot:
-        """Bootstrap one event: card + odds + a stream cursor captured before the read.
+        """Read one event's full card or a compact price summary.
 
-        Then `client.follow(snapshot)` to subscribe without a snapshot replay.
+        Ordinary full cards carry a stream cursor for `client.follow(snapshot)`.
+        Summary, source-kind, age-filtered and top-depth reads have no handoff.
         `resync_token` waives the charge for a re-snapshot after a merge resync.
 
         `include="history"` fills each `Odds.history` with that source's
@@ -256,6 +306,18 @@ class AsyncEvents:
         """
         return await self._client._aget(
             f"/v2/events/{id}/snapshot",
-            {**list_query(source=source, include=include), "resyncToken": resync_token},
+            {
+                **list_query(
+                    source=source,
+                    key=key,
+                    source_kind=source_kind,
+                    max_age=max_age,
+                    view=view,
+                    depth=depth,
+                    pool=pool,
+                    include=include,
+                ),
+                "resyncToken": resync_token,
+            },
             EventSnapshot,
         )

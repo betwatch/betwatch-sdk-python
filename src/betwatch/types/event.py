@@ -26,14 +26,26 @@ class Dividend(Model):
     observed_at: datetime | None = None
 
 
+class ResultEntrant(Model):
+    id: str
+    number: int
+    name: str | None = None
+    starting_price: float | None = None
+
+
 class ResultPosition(Model):
     place: int
     entrant_ids: list[str] = []
+    entrants: list[ResultEntrant] = []
 
 
 class EventResult(Model):
     state: ResultState
     positions: list[ResultPosition] = []
+    field_size: int | None = None
+    positions_reported: int | None = None
+    completeness: str = "unknown"
+    changed_at: datetime | None = None
     updated_at: datetime | None = None
 
 
@@ -57,6 +69,8 @@ class Event(Model):
     name: str
     start_at: datetime
     status: EventStatus
+    scheduled_start_at: datetime | None = None
+    actual_start_at: datetime | None = None
     venue_id: str | None = None
     meeting_id: str | None = None
     racing: EventRacing = msgspec.field(default_factory=EventRacing)
