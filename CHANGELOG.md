@@ -1,3 +1,9 @@
+## [2.0.0b6](https://github.com/betwatch/betwatch-sdk-python/releases/tag/v2.0.0b6) - 2026-10-30
+
+### Features
+
+- [**breaking**] Follow public API contract 2.3.0 ([cd2e072](https://github.com/betwatch/betwatch-sdk-python/commit/cd2e072b6a27f3d629e67507dfe95f4efe416e57))
+
 ## [2.0.0b5](https://github.com/betwatch/betwatch-sdk-python/releases/tag/v2.0.0b5) - 2026-10-30
 
 ### Features
