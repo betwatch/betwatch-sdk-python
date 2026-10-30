@@ -203,7 +203,7 @@ def main(argv: list[str] | None = None) -> None:
                                 c.event_id,
                                 c.key,
                                 c.state,
-                                "complete" if c.complete else "partial",
+                                c.book.status if c.book else "uncounted",
                                 flush=True,
                             )
                         else:

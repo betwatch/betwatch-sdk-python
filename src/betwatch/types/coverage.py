@@ -42,16 +42,12 @@ class Coverage(Model):
     card full". On the stream a price frame always arrives before the coverage
     frame whose `book` it completed, so the first coverage frame with
     `book.status == "full"` means you already hold every price in it.
-
-    `complete` is **deprecated**: it only means the source's last scan was a
-    full scan, not that every runner is priced. Use `book.status`.
     """
 
     event_id: str
     key: MarketKey
     source_id: str
     state: CoverageState
-    complete: bool  # deprecated: last scan was a full scan; use book.status
     places_paid: int | None = None
     observed_at: datetime | None = None
     book: CoverageBook | None = None

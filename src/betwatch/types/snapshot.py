@@ -68,7 +68,7 @@ class StreamContinuation(Model):
     `cursor` and `snapshot=none` already set — for a client that is not this
     SDK, or one appending stream-only options such as `type` or `compress`.
     `client.follow()` sends the same request. It is None only on a
-    continuation persisted by an older SDK.
+    continuation built by hand.
     """
 
     cursor: str

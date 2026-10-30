@@ -108,7 +108,7 @@ def test_stream_exposes_only_a_server_compatible_continuation() -> None:
     )
 
 
-def test_a_continuation_persisted_before_url_existed_still_follows() -> None:
+def test_a_continuation_without_url_still_follows() -> None:
     old = StreamContinuation.from_json(b'{"cursor":"cur_1","event":["evt_1"],"source":[]}')
     assert old.url is None
     with Betwatch(api_key="bw_test", base_url="http://localhost:8888") as client:

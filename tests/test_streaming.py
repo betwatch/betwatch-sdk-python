@@ -181,7 +181,7 @@ def test_empty_event_id_fails_closed_instead_of_reusing_stale_cursor() -> None:
 
 
 def test_decoder_handles_crlf_and_multiline_data() -> None:
-    raw = b'id: cur_coverage\r\nevent: coverage\r\ndata: {"eventId":"evt_1","key":"win",\r\ndata: "sourceId":"sportsbet","state":"priced","complete":true}\r\n\r\n'
+    raw = b'id: cur_coverage\r\nevent: coverage\r\ndata: {"eventId":"evt_1","key":"win",\r\ndata: "sourceId":"sportsbet","state":"priced"}\r\n\r\n'
     events = list(SSEDecoder().iter_bytes(iter([raw])))
     assert len(events) == 1
     frame = frame_from_sse(events[0])

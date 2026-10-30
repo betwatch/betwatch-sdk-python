@@ -94,11 +94,6 @@ lay ladders and the Betfair `market_id` / `selection_id`.
 Add `include="history"` to `client.odds.list(event=race.id, include="history")`
 for each source's price fluctuations.
 
-`quote.opening_price` / `quote.opening_at` are **deprecated**: they are the
-opening the source itself declares, which most sources (Sportsbet included)
-usually leave empty. For the first card Betwatch saw fully priced, read
-`coverage.book.first_full`.
-
 ### Is a source's card fully priced?
 
 With `include="coverage"` (or on any scope snapshot, and on the stream's
@@ -121,8 +116,6 @@ for row in card.coverage:
 - `book.full_at` is when the book first became full, and `book.first_full` is
   every active runner's price at that moment. Both are set once; a later
   scratching or suspension does not move them.
-- `row.complete` is **deprecated**. It only means the source's last scan was a
-  full scan, not that every runner is priced. Use `book.status`.
 
 ### Live prices
 

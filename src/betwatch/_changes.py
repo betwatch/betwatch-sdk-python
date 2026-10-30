@@ -46,7 +46,7 @@ def _identity(item: Any) -> tuple[_Key, Any] | None:
     if isinstance(item, Coverage):
         return (
             ("coverage", item.event_id, item.key, item.places_paid, item.source_id),
-            (item.state, item.complete, item.book),
+            (item.state, item.book),
         )
     return None
 

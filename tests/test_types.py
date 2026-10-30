@@ -299,7 +299,6 @@ def test_contract_2_2_book_and_stream_url_decode() -> None:
                 "key": "win",
                 "sourceId": "sportsbet",
                 "state": "priced",
-                "complete": False,
                 "observedAt": "2026-10-30T01:00:00Z",
                 "book": book,
             }
@@ -335,7 +334,7 @@ def test_contract_2_2_book_and_stream_url_decode() -> None:
     assert isinstance(newer, CoverageFrame) and newer.data.book is not None
     assert newer.data.book.status == "unknown"
 
-    # A book that moves is a change even when state and `complete` do not.
+    # A book that moves is a change even when state does not.
     tracker = ChangeTracker()
     assert tracker.changed(frame_for_event("coverage", "c1", coverage("partial", 1))) is True
     assert tracker.changed(frame_for_event("coverage", "c2", coverage("partial", 1))) is False
