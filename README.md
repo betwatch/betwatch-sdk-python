@@ -28,7 +28,7 @@ pip install --pre betwatch
 ```
 
 `--pre` selects the 2.x beta. Pin the version you tested against, for example
-`betwatch==2.0.0b4`.
+`betwatch==2.0.0b5`.
 
 Python 3.11+. The only dependencies are `httpx` and `msgspec`.
 `pip install "betwatch[pandas]"` adds pandas for `to_records()` users.
@@ -94,6 +94,36 @@ lay ladders and the Betfair `market_id` / `selection_id`.
 Add `include="history"` to `client.odds.list(event=race.id, include="history")`
 for each source's price fluctuations.
 
+`quote.opening_price` / `quote.opening_at` are **deprecated**: they are the
+opening the source itself declares, which most sources (Sportsbet included)
+usually leave empty. For the first card Betwatch saw fully priced, read
+`coverage.book.first_full`.
+
+### Is a source's card fully priced?
+
+With `include="coverage"` (or on any scope snapshot, and on the stream's
+`coverage` frames) each source's coverage row carries a `book`:
+
+```python
+for row in card.coverage:
+    book = row.book
+    if book is None:
+        continue
+    print(row.source_id, row.key, book.status, f"{book.priced}/{book.active}")
+    if book.first_full:                  # the first full card, kept forever
+        print(book.full_at, {p.entrant_id: p.price for p in book.first_full})
+```
+
+- `book.status` is `"unpriced"`, `"partial"` or `"full"`
+  (`CoverageBookStatuses.FULL`).
+- `book.active` counts runners that are not scratched, not a vacant box and
+  not a reserve without a box; `book.priced` counts those with a current price.
+- `book.full_at` is when the book first became full, and `book.first_full` is
+  every active runner's price at that moment. Both are set once; a later
+  scratching or suspension does not move them.
+- `row.complete` is **deprecated**. It only means the source's last scan was a
+  full scan, not that every runner is priced. Use `book.status`.
+
 ### Live prices
 
 Take a snapshot, then follow it. The snapshot carries the exact stream position
@@ -143,6 +173,18 @@ with client.follow(snap) as live:          # live within seconds
 Every page shares the first page's stream position, so races you read later
 still replay anything that changed while you were reading them.
 
+`snap.stream.url` is the same follow request as a ready-made `/v2/stream`
+path and query (cursor and `snapshot=none` set), for clients other than this
+SDK. `client.follow(snap)` sends it for you.
+
+Within one race a price frame always arrives before the coverage frame whose
+`book` it completed. The first coverage frame with `book.status == "full"`
+therefore means you already hold every price in that book.
+[`examples/first_full_book.py`](examples/first_full_book.py) uses this to
+record the first full Sportsbet win card for every greyhound race in a day,
+and reads `book.first_full` from a snapshot for races that filled before it
+attached.
+
 ### Resume after a restart
 
 Persist the stream's continuation and follow it again later. It carries the
@@ -160,7 +202,10 @@ with client.follow(position) as live:
 ```
 
 If the position is too old to resume, the stream raises `ResyncRequired`; take
-a new snapshot and follow that.
+a new snapshot and follow that (pass `resync_token=err.resync_token` when it
+has one, and that snapshot is not charged). `client.watch()` does this for
+you. Trainer, rider and owner merges do not cause a resync; they arrive as
+ordinary `entrant` frames.
 
 ### Every page of a collection
 
@@ -292,7 +337,8 @@ jump:
 - [Racing API documentation](https://beta.betwatch.com/docs/api/): streaming,
   limits, errors and every endpoint.
 - [Examples](examples): races, race prices, live subscriptions, a whole-day
-  firehose, and a terminal raceday grid (`examples/tui.py`).
+  firehose, the first full card per race (`examples/first_full_book.py`), and
+  a terminal raceday grid (`examples/tui.py`).
 - [Changelog](CHANGELOG.md)
 - Issues: [github.com/betwatch/betwatch-sdk-python/issues](https://github.com/betwatch/betwatch-sdk-python/issues)
 
