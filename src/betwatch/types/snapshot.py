@@ -63,6 +63,12 @@ class StreamContinuation(Model):
 
     An event snapshot scopes by `event`; a scope snapshot may scope by `sport`,
     `country`, `meeting` or `venue` instead, so no single filter is guaranteed.
+
+    `url` is the `/v2/stream` path and query that follows this snapshot, with
+    `cursor` and `snapshot=none` already set — for a client that is not this
+    SDK, or one appending stream-only options such as `type` or `compress`.
+    `client.follow()` sends the same request. It is None only on a
+    continuation persisted by an older SDK.
     """
 
     cursor: str
@@ -76,6 +82,7 @@ class StreamContinuation(Model):
     entrant: list[str] = []
     start_from: str | None = None
     start_to: str | None = None
+    url: str | None = None
 
     def __post_init__(self) -> None:
         if not self.cursor.strip():

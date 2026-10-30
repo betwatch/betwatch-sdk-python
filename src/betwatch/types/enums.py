@@ -180,6 +180,16 @@ class CoverageStates:
     UNPRICED: Final[CoverageState] = "unpriced"
 
 
+CoverageBookStatus: TypeAlias = Literal["unpriced", "partial", "full", "unknown"]
+
+
+class CoverageBookStatuses:
+    UNPRICED: Final[CoverageBookStatus] = "unpriced"
+    PARTIAL: Final[CoverageBookStatus] = "partial"
+    FULL: Final[CoverageBookStatus] = "full"
+    UNKNOWN: Final[CoverageBookStatus] = "unknown"
+
+
 ExchangeMarketState: TypeAlias = Literal["open", "suspended", "closed", "inactive", "unknown"]
 
 

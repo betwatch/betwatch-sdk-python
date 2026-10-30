@@ -246,9 +246,17 @@ def test_sdk_covers_every_operation_in_the_contract(spec: dict[str, Any]) -> Non
         if method == "get" and op.get("operationId")
     }
     covered = set(OPERATIONS) | {"streamRacing"}
+    assert NOT_YET_COVERED <= declared, "a deferred operation left the contract; drop it here"
+    declared -= NOT_YET_COVERED
     assert declared == covered, (
         f"missing: {sorted(declared - covered)}, stale: {sorted(covered - declared)}"
     )
+
+
+# Declared by the contract (2.2.0) but deliberately not in the SDK yet. Named
+# here so it is a decision, not a silent gap: any *other* new operation still
+# fails the test above.
+NOT_YET_COVERED = frozenset({"listAlerts", "listAlertFires"})
 
 
 def test_no_collection_can_be_read_unscoped(spec: dict[str, Any]) -> None:
@@ -469,6 +477,7 @@ def test_sdk_reads_every_filter_the_continuation_carries(spec: dict[str, Any]) -
     declared = set(spec["components"]["schemas"]["PublicStreamContinuation"]["properties"])
     declared.discard("$schema")
     declared.discard("cursor")  # passed separately, not as a filter
+    declared.discard("url")  # the same cursor and filters, pre-encoded as a request
 
     scope = _continuation_scope(StreamContinuation(cursor="cur_1"))
     replayed = set(scope._stream_filters())
@@ -520,3 +529,25 @@ def test_the_sdk_no_longer_rewrites_responses_or_queries(spec: dict[str, Any]) -
     source = inspect.getsource(_base_client) + inspect.getsource(events)
     assert "_null_lists_to_empty" not in source, "the response walk is back"
     assert "default_event_window" not in source, "the SDK is rewriting queries again"
+
+
+def test_sdk_reads_the_2_2_book_fields(spec: dict[str, Any]) -> None:
+    """Every field 2.2.0 added to coverage has a typed attribute to land in."""
+    import msgspec
+
+    from betwatch.types.coverage import Coverage, CoverageBook, CoverageBookPrice
+
+    schemas = spec["components"]["schemas"]
+
+    def fields(model: type[msgspec.Struct]) -> set[str]:
+        return {f.encode_name for f in msgspec.structs.fields(model)}
+
+    assert set(schemas["PublicCoverageBook"]["properties"]) <= fields(CoverageBook)
+    assert set(schemas["PublicCoverageBookPrice"]["properties"]) <= fields(CoverageBookPrice)
+    assert "book" in fields(Coverage)
+    statuses = schemas["PublicCoverageBook"]["properties"]["status"]["enum"]
+    from typing import get_args
+
+    from betwatch.types.enums import CoverageBookStatus
+
+    assert set(statuses) | {"unknown"} == set(get_args(CoverageBookStatus))

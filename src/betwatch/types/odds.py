@@ -26,6 +26,14 @@ class OddsHistoryItem(Model):
 
 
 class Odds(Model):
+    """One source's win or place price on one entrant.
+
+    `opening_price` / `opening_at` are **deprecated**: the source's own declared
+    opening (returned with `include="history"`), often absent — Sportsbet
+    usually declares none. For the first full card Betwatch saw, read
+    `Coverage.book.first_full`.
+    """
+
     id: str
     event_id: str
     key: MarketKey
@@ -36,8 +44,8 @@ class Odds(Model):
     exchange: Exchange | None = None
     entrant_id: str | None = None
     history: list[OddsHistoryItem] | None = None
-    opening_price: float | None = None
-    opening_at: datetime | None = None
+    opening_price: float | None = None  # deprecated: use Coverage.book.first_full
+    opening_at: datetime | None = None  # deprecated: use Coverage.book.full_at
     observed_at: datetime | None = None
     updated_at: datetime | None = None
 

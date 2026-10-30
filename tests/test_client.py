@@ -102,6 +102,17 @@ def test_stream_exposes_only_a_server_compatible_continuation() -> None:
     assert continuation.event == ["evt_1"]
     assert continuation.source == ["sportsbet"]
     assert StreamContinuation.from_json(continuation.to_json()) == continuation
+    # The same follow request the server names in a snapshot's `stream.url`.
+    assert continuation.url == (
+        "/v2/stream?cursor=cur_latest&event=evt_1&snapshot=none&source=sportsbet"
+    )
+
+
+def test_a_continuation_persisted_before_url_existed_still_follows() -> None:
+    old = StreamContinuation.from_json(b'{"cursor":"cur_1","event":["evt_1"],"source":[]}')
+    assert old.url is None
+    with Betwatch(api_key="bw_test", base_url="http://localhost:8888") as client:
+        assert client.follow(old).cursor == "cur_1"
 
 
 def test_rest_retries_are_bounded_and_configurable(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -4,7 +4,8 @@ The stream republishes current state — on bootstrap, on reconnect, and when a
 source re-asserts a price it already sent. Almost every consumer wants "tell me
 what moved", and writing that by hand means knowing which field of each frame
 counts as its state: a price for odds, a status for an event, scratched plus
-entry state for a runner. That knowledge belongs here, not in every caller.
+entry state for a runner, state and book for coverage. That knowledge belongs
+here, not in every caller.
 
     tracker = ChangeTracker()
     for frame in stream:
@@ -45,7 +46,7 @@ def _identity(item: Any) -> tuple[_Key, Any] | None:
     if isinstance(item, Coverage):
         return (
             ("coverage", item.event_id, item.key, item.places_paid, item.source_id),
-            (item.state, item.complete),
+            (item.state, item.complete, item.book),
         )
     return None
 

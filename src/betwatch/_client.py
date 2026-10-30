@@ -5,6 +5,7 @@ import random
 import time
 from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
 from typing import Any, TypeVar
+from urllib.parse import urlencode
 
 import httpx
 
@@ -548,7 +549,7 @@ def _stream_continuation(params: Mapping[str, Any], cursor: str) -> StreamContin
         value = params.get(name) or ()
         return list(value) if not isinstance(value, str) else [value]
 
-    return StreamContinuation(
+    continuation = StreamContinuation(
         cursor=cursor,
         event=values("event"),
         source=values("source"),
@@ -561,6 +562,19 @@ def _stream_continuation(params: Mapping[str, Any], cursor: str) -> StreamContin
         start_from=params.get("startFrom"),
         start_to=params.get("startTo"),
     )
+    # The same request the server's `stream.url` names: scope, snapshot=none
+    # and cursor, keys sorted.
+    query = {
+        name: values(name)
+        for name in ("sport", "country", "meeting", "venue", "key", "entrant", "event", "source")
+    }
+    for name in ("startFrom", "startTo"):
+        if params.get(name):
+            query[name] = [params[name]]
+    query["snapshot"] = ["none"]
+    query["cursor"] = [cursor]
+    continuation.url = "/v2/stream?" + urlencode(sorted(query.items()), doseq=True)
+    return continuation
 
 
 class Betwatch:

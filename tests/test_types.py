@@ -277,3 +277,77 @@ def test_event_snapshot_apply_upserts_live_frames() -> None:
     assert card.apply(frame_for_event("event", "c6", closed)) is True
     assert card.event.status == "closed" and card.event.name == "R1"
     assert b'"odds"' in card.to_json() and b"__dict__" not in card.to_json()
+
+
+def test_contract_2_2_book_and_stream_url_decode() -> None:
+    """Coverage books and the follow URL arrive typed, on REST and SSE."""
+    from betwatch import ChangeTracker, CoverageBookStatuses, ScopeSnapshot
+    from betwatch._base_client import decode_model
+    from betwatch.types.stream import CoverageFrame, frame_for_event
+
+    def coverage(status: str, priced: int, *, full: bool = False) -> bytes:
+        book: dict[str, object] = {"status": status, "active": 2, "priced": priced}
+        if full:
+            book["fullAt"] = "2026-10-30T01:00:00Z"
+            book["firstFull"] = [
+                {"entrantId": "ent_1", "price": 2.4, "observedAt": "2026-10-30T00:59:58Z"},
+                {"entrantId": "ent_2", "price": 5.5, "observedAt": "2026-10-30T01:00:00Z"},
+            ]
+        return msgspec.json.encode(
+            {
+                "eventId": "evt_1",
+                "key": "win",
+                "sourceId": "sportsbet",
+                "state": "priced",
+                "complete": False,
+                "observedAt": "2026-10-30T01:00:00Z",
+                "book": book,
+            }
+        )
+
+    snap = decode_model(
+        "/v2/events/snapshot",
+        b'{"stream":{"cursor":"cur_1","event":[],"source":["sportsbet"],"sport":["greyhound"],'
+        b'"url":"/v2/stream?cursor=cur_1&snapshot=none&source=sportsbet&sport=greyhound"},'
+        b'"events":[],"entrants":[],"odds":[{"id":"odd_1.a","eventId":"evt_1","key":"win",'
+        b'"entrantId":"ent_1","source":{"id":"sportsbet","name":"Sportsbet","kind":"bookmaker"},'
+        b'"state":"available","price":2.6}],'
+        b'"coverage":[' + coverage("full", 2, full=True) + b"]}",
+        ScopeSnapshot,
+    )
+    assert (
+        snap.stream.url == "/v2/stream?cursor=cur_1&snapshot=none&source=sportsbet&sport=greyhound"
+    )
+    book = snap.coverage[0].book
+    assert book is not None and book.status == CoverageBookStatuses.FULL
+    assert (book.active, book.priced) == (2, 2)
+    assert book.full_at == datetime(2026, 10, 30, 1, 0, tzinfo=UTC)
+    assert book.first_full is not None
+    assert [(p.entrant_id, p.price) for p in book.first_full] == [("ent_1", 2.4), ("ent_2", 5.5)]
+    assert to_records(snap.coverage)[0]["book"]["firstFull"][1]["entrantId"] == "ent_2"
+
+    # Book is optional, and a status newer than the SDK reads as "unknown".
+    bare = frame_for_event(
+        "coverage", "c0", coverage("partial", 1).replace(b',"book":{', b',"x":{')
+    )
+    assert isinstance(bare, CoverageFrame) and bare.data.book is None
+    newer = frame_for_event("coverage", "c0", coverage("overpriced", 1))
+    assert isinstance(newer, CoverageFrame) and newer.data.book is not None
+    assert newer.data.book.status == "unknown"
+
+    # A book that moves is a change even when state and `complete` do not.
+    tracker = ChangeTracker()
+    assert tracker.changed(frame_for_event("coverage", "c1", coverage("partial", 1))) is True
+    assert tracker.changed(frame_for_event("coverage", "c2", coverage("partial", 1))) is False
+    assert tracker.changed(frame_for_event("coverage", "c3", coverage("full", 2, full=True)))
+
+    card = msgspec.json.decode(
+        b'{"stream":{"cursor":"c"},"event":{"id":"evt_1","sport":"greyhound","name":"R1",'
+        b'"startAt":"2026-10-30T04:00:00Z","status":"open"},"coverage":['
+        + coverage("partial", 1)
+        + b"]}",
+        type=EventSnapshot,
+    )
+    assert card.apply(frame_for_event("coverage", "c4", coverage("partial", 1))) is False
+    assert card.apply(frame_for_event("coverage", "c5", coverage("full", 2, full=True))) is True
+    assert card.coverage[0].book is not None and card.coverage[0].book.status == "full"
