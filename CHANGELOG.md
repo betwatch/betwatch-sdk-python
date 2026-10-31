@@ -1,3 +1,10 @@
+## [2.0.0b7](https://github.com/betwatch/betwatch-sdk-python/releases/tag/v2.0.0b7) - 2026-10-31
+
+### Features
+
+- Support racing form and confirmed compact price comparisons ([c911493](https://github.com/betwatch/betwatch-sdk-python/commit/c911493bb770ad4f9a01ec8aabd1d0f3b1ec32e0))
+- Follow public API contract 2.5.0 ([76e7403](https://github.com/betwatch/betwatch-sdk-python/commit/76e74039552786eee4367ff797c5acd34e65aa3e))
+
 ## [2.0.0b6](https://github.com/betwatch/betwatch-sdk-python/releases/tag/v2.0.0b6) - 2026-10-30
 
 ### Features
