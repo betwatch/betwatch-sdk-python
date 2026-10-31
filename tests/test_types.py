@@ -426,3 +426,18 @@ def test_compact_snapshot_and_form_preserve_unknown_facts() -> None:
     )
     assert form[0].finish is None and form[0].distance_meters is None
     assert form[0].field_size == 8 and form[0].starting_price is None
+
+
+def test_source_region_tells_same_brand_books_apart() -> None:
+    from betwatch.types.source import SourcePage
+
+    raw = (
+        b'{"items":['
+        b'{"id":"ladbrokes","name":"Ladbrokes","kind":"bookmaker","region":"au"},'
+        b'{"id":"ladbrokes-gb","name":"Ladbrokes","kind":"bookmaker","region":"gb"},'
+        # A region added after this release still decodes.
+        b'{"id":"fanduel","name":"FanDuel","kind":"bookmaker","region":"us"},'
+        b'{"id":"betfair","name":"Betfair","kind":"exchange"}]}'
+    )
+    page = msgspec.json.decode(raw, type=SourcePage)
+    assert [s.region for s in page.items] == ["au", "gb", "us", None]
