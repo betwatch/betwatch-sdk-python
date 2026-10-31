@@ -53,7 +53,7 @@ The client talks to `https://api-beta.betwatch.com` unless you set
 | **Event** | One race. `client.events` |
 | **Entrant** | A runner in a race. `card.entrants` |
 | **Odds** | One source's current win or place price on one runner. `card.odds` |
-| **Source** | A bookmaker, tote or exchange. `client.sources.list()` |
+| **Source** | A bookmaker, tote or exchange. `client.sources.list()`; bookmakers carry `region` (`au`, `nz`, `gb`) |
 | **Meeting / Venue** | A day's racing at a track / the track itself |
 
 Every response is a typed object with snake_case attributes, so your editor
